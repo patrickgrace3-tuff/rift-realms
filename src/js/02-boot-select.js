@@ -92,7 +92,7 @@ async function openPreview(c){
     const rows = [];
     ["Q", "W", "E", "R"].forEach((k, i) => {
       const s = d.spells[i], p = kit[k];
-      rows.push(`<div class="ab"><img alt="" src="${spellIcon(s.image.full)}"><div><b><span class="tag">${k}</span>${esc(s.name)}</b><span class="role">${k === "R" ? "Ultimate · " : ""}${ARCH[p.type].label} · ${p.cd}s cooldown${k === "R" ? " · unlocks at level 3" : ""}</span><p>${esc(describeAbility(p))}</p></div></div>`);
+      rows.push(`<div class="ab"><img alt="" src="${spellIcon(s.image.full)}"><div><b><span class="tag">${k}</span>${esc(s.name)}</b><span class="role">${k === "R" ? "Ultimate · " : ""}${ARCH[p.type].label} · ${p.cd}s cooldown${k === "R" ? ` · unlocks at level ${ULT_LEVEL}` : ""}</span><p>${esc(describeAbility(p))}</p></div></div>`);
     });
     rows.push(`<p class="sub" style="font-size:13px">Class: ${kit.cls} · Health ${Math.round(d.stats.hp)} · Attack ${Math.round(d.stats.attackdamage)} · ${d.stats.attackrange > 300 ? "ranged" : "melee"} attacks</p>`);
     $("#pvKit").innerHTML = rows.join("");

@@ -179,6 +179,7 @@ const QUEST_ORDER = ["sheep", "tusker", "courier", "scout", "wolves", "herbs", "
 /* ---------- Experience ---------- */
 // Each level needs more XP than the last. Creatures and quests well below your level give less.
 const MAX_LEVEL = 20;
+const ULT_LEVEL = 6; // the ultimate (R) unlocks at this level
 const xpForLevel = lvl => Math.round(40 * Math.pow(lvl, 1.6) + 70);
 // creatures: +10% per level above you (up to +40%), −20% per level below (nothing at 5 below)
 function mobXp(base, mobLvl, heroLvl){ const d = mobLvl - heroLvl; return Math.round(base * (d >= 0 ? 1 + .1 * Math.min(d, 4) : Math.max(0, 1 + .2 * d))); }

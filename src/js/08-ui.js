@@ -258,11 +258,37 @@ $("#bigClose").onclick = () => toggleBigMap(false);
 function buildSlots(){
   const el = $("#slots"); el.innerHTML = ""; const d = G.details[G.myTeam];
   G.slotEls = ["Q", "W", "E", "R"].map((k, i) => {
-    const s = document.createElement("div"); s.className = "slot";
+    const s = document.createElement("div"); s.className = "slot"; s.tabIndex = 0;
+    s.setAttribute("aria-label", `${k}: ${d.spells[i].name}`); s.setAttribute("aria-describedby", "abTip");
     s.innerHTML = `<img alt="" src="${spellIcon(d.spells[i].image.full)}"><div class="cd"></div><span class="key">${k}</span>`;
+    const show = () => { G.tipKey = k; renderAbilityTip(); }, hide = () => { if(G) G.tipKey = null; $("#abTip").hidden = true; };
+    s.addEventListener("pointerenter", show); s.addEventListener("focus", show);
+    s.addEventListener("pointerleave", hide); s.addEventListener("blur", hide);
     el.appendChild(s); return s;
   });
-  G.myKit = buildKit(d);
+  G.myKit = buildKit(d); G.tipKey = null; $("#abTip").hidden = true;
+}
+// Tooltip for an ability button: what it does, with numbers at your current level, gear and talents
+function renderAbilityTip(){
+  const k = G && G.tipKey, me = G && G.snap && G.snap.h.find(h => h.side === G.myTeam); if(!k || !me) return;
+  const i = SLOTS.indexOf(k), sp = G.details[G.myTeam].spells[i], base = G.myKit[k], p = applyTalents(base, me.talents && me.talents[k]);
+  const lvlScale = 1 + .1 * (me.lvl - 1), cdNow = Math.round(p.cd * (1 - (me.haste || 0) / 100) * 10) / 10, bits = [];
+  if(p.dmg) bits.push(`${Math.round(p.dmg * SIM.dmgScale({ lvl: me.lvl, ap: me.ap }))} damage`);
+  if(p.amount) bits.push(`${p.type === "heal" ? "Heals" : "Shields for"} ${Math.round(p.amount * lvlScale)}`);
+  if(p.type === "steroid") bits.push(`+${Math.round(p.as * 100)}% attack speed`);
+  if(p.dur && ["stealth", "steroid", "field", "summon", "orbit", "shield"].includes(p.type)) bits.push(`lasts ${Math.round(p.dur * 10) / 10}s`);
+  if(p.range && !["shield", "heal", "steroid", "stealth", "spin", "orbit"].includes(p.type)) bits.push(`range ${Math.round(p.range)}`);
+  const locked = k === "R" && me.lvl < ULT_LEVEL, cd = me.cds[k];
+  const key = [k, me.lvl, me.ap, me.haste, JSON.stringify(me.talents && me.talents[k]), locked, cd > 0 ? Math.ceil(cd) : 0].join("|");
+  if(key === G.tipRendered && !$("#abTip").hidden) return;
+  G.tipRendered = key;
+  $("#abTip").innerHTML = `<div class="tk"><span class="tag">${k}</span>${esc(sp.name)}</div>
+    <div class="tr">${k === "R" ? "Ultimate · " : ""}${ARCH[base.type].label} · ${cdNow}s cooldown</div>
+    <p>${esc(describeAbility(p))}</p>
+    ${bits.length ? `<div class="tn">${bits.join(" · ")}</div>` : ""}
+    ${(me.talents && me.talents[k] && me.talents[k].mastery) ? `<div class="tm">Mastery: ${MASTERY[base.type]}</div>` : ""}
+    ${locked ? `<div class="tl">Unlocks at level ${ULT_LEVEL}</div>` : cd > 0 ? `<div class="tl">Ready in ${Math.ceil(cd)}s</div>` : ""}`;
+  $("#abTip").hidden = false;
 }
 let bannerTimer = null;
 function banner(big, small, ms){
@@ -276,12 +302,13 @@ function updateHud(){
   $("#hptext").textContent = `${Math.max(0, me.hp)} / ${me.maxHp}`;
   $("#lvl").textContent = me.lvl; $("#xpfill").style.width = Math.min(100, me.xp / me.xpNext * 100) + "%";
   ["Q", "W", "E", "R"].forEach((k, i) => {
-    const el = G.slotEls[i], cd = me.cds[k], locked = k === "R" && me.lvl < 3;
+    const el = G.slotEls[i], cd = me.cds[k], locked = k === "R" && me.lvl < ULT_LEVEL;
     el.classList.toggle("locked", locked || !!me.dead);
     const cdEl = el.querySelector(".cd");
-    cdEl.textContent = locked ? "Lv3" : cd > 0 ? (cd >= 1 ? Math.ceil(cd) : cd.toFixed(1)) : "";
+    cdEl.textContent = locked ? `Lv${ULT_LEVEL}` : cd > 0 ? (cd >= 1 ? Math.ceil(cd) : cd.toFixed(1)) : "";
     cdEl.style.background = cd > 0 && !locked ? `conic-gradient(rgba(5,8,14,.72) ${Math.min(1, cd / (applyTalents(G.myKit[k], me.talents && me.talents[k]).cd * (1 - (me.haste || 0) / 100))) * 360}deg, transparent 0)` : "none";
   });
+  if(G.tipKey) renderAbilityTip();
   const badge = $("#skillBadge"); badge.hidden = !(me.points > 0); badge.textContent = me.points;
   const tkey = JSON.stringify(me.talents) + me.points + me.lvl;
   if(!$("#skills").hidden && tkey !== G.skillKey) renderSkills(me);
@@ -316,7 +343,7 @@ function handleFx(f){
     case "chat": case "sys": case "pinvite": case "rollstart": case "rollwin": socialFx(f, mine); break;
     case "num": G.nums.push({ x: f.x, y: f.y, v: f.v, t: .8, h: f.hero ? 2.9 : 1.4, hero: f.hero, mine: f.src === G.myTeam, color: f.hero ? "#ff6b62" : f.src === G.myTeam ? "#f0d58e" : "#ffffff" }); break;
     case "xp": if(mine) G.nums.push({ x: f.x, y: f.y, v: `+${f.v} XP`, t: 1.2, h: 3.4, color: "#c39bff", big: true }); break;
-    case "lvl": G.fx.push(Object.assign({ t: 0, dur: 1 }, f)); if(mine) banner(`Level ${f.lvl}`, f.lvl === 3 ? "Ultimate (R) unlocked · skill point earned, press K" : "Skill point earned · press K to spend it", 2800); break;
+    case "lvl": G.fx.push(Object.assign({ t: 0, dur: 1 }, f)); if(mine) banner(`Level ${f.lvl}`, f.lvl === ULT_LEVEL ? "Ultimate (R) unlocked · skill point earned, press K" : "Skill point earned · press K to spend it", 2800); break;
     case "talent": if(mine && G.skillKey) G.skillKey = ""; break;
     case "dialog": if(mine) openDialog(f); break;
     case "qaccept": if(mine) banner("Quest accepted", QUESTS[f.quest].title, 2200); break;

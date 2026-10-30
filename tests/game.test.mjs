@@ -334,3 +334,12 @@ test("XP: quests far below your level pay less", () => {
   assert.equal(G.questXp(Q, 20), Math.round(Q.xp * .2), "never below 20%");
   for(const id of G.QUEST_ORDER) assert.ok(G.QUESTS[id].lvl >= 1, `${id} has a level`);
 });
+
+test("the ultimate (R) unlocks at level 6", () => {
+  assert.equal(G.ULT_LEVEL, 6);
+  const { W, h } = newWorld();
+  h.lvl = 5; SIM.recalc(h); SIM.input(W, "blue", { cast: "R", at: [h.x + 200, h.y] });
+  assert.equal(h.cds.R, 0, "R does nothing at level 5");
+  h.lvl = 6; SIM.recalc(h); SIM.input(W, "blue", { cast: "R", at: [h.x + 200, h.y] });
+  assert.ok(h.cds.R > 0, "R casts at level 6");
+});

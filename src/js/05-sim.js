@@ -333,7 +333,7 @@ const SIM = {
   },
   cast(W, c, key, at){
     if(c.dead || c.cds[key] > 0 || c.dash || !SIM.canAct(c)) return;
-    if(key === "R" && c.lvl < 3) return;
+    if(key === "R" && c.lvl < ULT_LEVEL) return;
     c.channel = null; c.useTo = null;
     const p = applyTalents(c.kit[key], c.talents[key]);
     const ax = at[0] - c.x, ay = at[1] - c.y, d = Math.hypot(ax, ay) || 1, nx = ax / d, ny = ay / d;

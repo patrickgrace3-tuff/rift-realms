@@ -25,7 +25,7 @@ npm start
 | Key | Action |
 |---|---|
 | Right-click | Move, attack, talk, pick up, use |
-| Q W E R | Cast at the cursor (R unlocks at level 3) |
+| Q W E R | Cast at the cursor (R unlocks at level 6). Hover an ability to see what it does |
 | F | Talk to the nearest NPC |
 | C | Character window |
 | K | Skill tree |
