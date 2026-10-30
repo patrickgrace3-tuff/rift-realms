@@ -1,0 +1,13 @@
+{
+  "name": "rift-realms",
+  "version": "0.1.0",
+  "private": true,
+  "description": "League of Legends champions in a small co-op questing world. A free fan project.",
+  "scripts": {
+    "start": "npx --yes serve@14.2.4 .",
+    "test": "node --test tests/game.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

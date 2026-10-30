@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rift Realms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+
+<canvas id="cv" hidden></canvas>
+<canvas id="ov" hidden></canvas>
+
+<section id="loading" class="screen center">
+  <div>
+    <div class="spinner" id="spin"></div>
+    <p class="eyebrow" id="loadmsg">Loading champions from Riot's Data Dragon</p>
+    <p class="sub" id="loaderr" hidden></p>
+    <p><button class="btn" id="retry" hidden>Try again</button></p>
+  </div>
+</section>
+
+<section id="select" class="screen" hidden>
+  <div class="wrap">
+    <div>
+      <div class="eyebrow" id="patch">Patch</div>
+      <h1>Rift Realms</h1>
+      <p class="sub">Choose your champion and step into Sunhollow Vale. Talk to the villagers, take on quests and level up. Your champion's real abilities come with you. Invite a friend with a code to quest together.</p>
+    </div>
+    <div class="controls">
+      <input class="search" id="search" type="search" placeholder="Search champions" autocomplete="off">
+      <div class="chips" id="chips"></div>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="grid" id="grid"></div>
+    <p class="legal">Rift Realms was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project.</p>
+  </div>
+</section>
+
+<div id="preview" class="modal" hidden>
+  <div class="card">
+    <div class="previewtop">
+      <canvas id="pvSprite" width="128" height="192"></canvas>
+      <div style="min-width:0">
+        <div class="eyebrow" id="pvTags"></div>
+        <h2 id="pvName"></h2>
+        <p class="title" id="pvTitle"></p>
+      </div>
+    </div>
+    <div class="kit" id="pvKit"></div>
+    <div class="row">
+      <button class="btn" id="pvBack">Back</button>
+      <button class="btn" id="pvJoin">Join a friend</button>
+      <button class="btn primary" id="pvEnter">Enter world</button>
+    </div>
+  </div>
+</div>
+
+<div id="joinBox" class="modal" hidden>
+  <div class="card" style="width:min(440px,100%)">
+    <div class="eyebrow">Co-op</div>
+    <h2>Join a friend</h2>
+    <label class="lobbymsg" for="joinCode" style="display:block">Enter the code from your friend's game.</label>
+    <input class="codein" id="joinCode" maxlength="5" autocomplete="off" spellcheck="false">
+    <p class="lobbymsg" id="joinMsg"></p>
+    <div class="row">
+      <button class="btn" id="joinCancel">Cancel</button>
+      <button class="btn primary" id="joinGo">Join</button>
+    </div>
+  </div>
+</div>
+
+<div id="inviteBox" class="modal" hidden>
+  <div class="card" style="width:min(440px,100%)">
+    <div class="eyebrow">Co-op</div>
+    <h2>Invite a friend</h2>
+    <p class="lobbymsg">Send this code. Your friend picks a champion, clicks Join a friend, and enters it.</p>
+    <div class="code" id="inviteCode">·····</div>
+    <p class="lobbymsg" id="inviteMsg"></p>
+    <div class="row">
+      <button class="btn" id="inviteCopy">Copy code</button>
+      <button class="btn primary" id="inviteClose">Back to game</button>
+    </div>
+  </div>
+</div>
+
+<div class="hud" id="hud" hidden>
+  <div class="topleft">
+    <div class="unit">
+      <img id="hudHead" alt="">
+      <div>
+        <div class="nm" id="hudName"></div>
+        <div class="bars">
+          <div class="bar"><i id="hpfill"></i><span id="hptext"></span></div>
+          <div class="bar xp"><i id="xpfill"></i></div>
+        </div>
+        <div class="wpn" id="hudWeapon" hidden></div>
+      </div>
+      <div class="lv">LV <span id="lvl">1</span></div>
+    </div>
+  </div>
+  <div class="topright">
+    <div class="mm">
+      <canvas id="minimap" width="180" height="180" aria-label="Minimap"></canvas>
+      <div class="mmzone">Sunhollow Vale</div>
+      <div class="mmbtns">
+        <button class="hudbtn" id="mmIn" aria-label="Zoom minimap in">+</button>
+        <button class="hudbtn" id="mmOut" aria-label="Zoom minimap out">−</button>
+        <button class="hudbtn" id="mmBig">Map (M)</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+      <button class="hudbtn" id="charBtn">Character (C)</button>
+      <button class="hudbtn" id="skillsBtn">Skills (K)<span class="badge" id="skillBadge" hidden>0</span></button>
+      <button class="hudbtn" id="inviteBtn">Invite a friend</button>
+      <button class="hudbtn" id="menuBtn">Menu</button>
+    </div>
+    <div class="netinfo" id="netinfo"></div>
+    <div class="tracker" id="tracker" hidden>
+      <h4>Quests</h4>
+      <div id="trList"></div>
+    </div>
+  </div>
+  <div class="banner" id="banner"><div class="big" id="bannerBig"></div><div class="small" id="bannerSmall"></div></div>
+  <div class="respawn" id="respawn" hidden></div>
+  <div class="lootfeed" id="lootFeed" aria-live="polite"></div>
+  <div class="bottom">
+    <div class="chan" id="chan" hidden><span id="chanText"></span><div class="cb"><i id="chanFill"></i></div></div>
+    <div class="slots" id="slots"></div>
+    <div class="helpline">Right-click to move, attack, talk or pick up · Q W E R abilities · F talk · C character · K skills · M map · S stop · scroll to zoom</div>
+  </div>
+</div>
+
+<div class="dialog" id="dialog" hidden>
+  <canvas id="dlgFace" width="64" height="64"></canvas>
+  <div class="body">
+    <div class="qt" id="dlgQuest"></div>
+    <h3 id="dlgName"></h3>
+    <p id="dlgText"></p>
+    <div class="obj" id="dlgObj" hidden></div>
+    <div class="reward" id="dlgReward" hidden></div>
+    <div class="row">
+      <button class="btn" id="dlgClose">Goodbye</button>
+      <button class="btn primary" id="dlgAction" hidden></button>
+    </div>
+  </div>
+</div>
+
+<div id="bigmap" class="modal" hidden>
+  <div class="card mapcard">
+    <div class="row" style="justify-content:space-between">
+      <h2>Sunhollow Vale</h2>
+      <button class="btn" id="bigClose">Close</button>
+    </div>
+    <canvas id="bigmapCv" width="640" height="640"></canvas>
+    <div class="maplegend"><span><b>!</b> New quest</span><span><b>?</b> Turn in</span><span><b style="color:#b8b8b8">?</b> In progress</span><span><b>◎</b> Objective</span><span><b style="color:#7fd3ff">●</b> Ally</span><span><b style="color:#ff6a50">●</b> Elite</span><span><b style="color:#ff9a40">▲</b> Beacon</span><span><b>◉</b> Lookout</span></div>
+  </div>
+</div>
+
+<div id="charWin" class="modal" hidden>
+  <div class="card charcard">
+    <div class="row" style="justify-content:space-between;align-items:flex-start">
+      <div><div class="eyebrow" id="chSub"></div><h2 id="chName"></h2></div>
+      <div class="row"><span class="coins" id="chCoins"></span><button class="btn" id="chClose">Close</button></div>
+    </div>
+    <div class="charbody">
+      <div>
+        <div class="doll">
+          <div class="col" id="eqLeft"></div>
+          <canvas id="dollCv" width="128" height="192"></canvas>
+          <div class="col" id="eqRight"></div>
+        </div>
+        <dl class="cstats" id="chStats"></dl>
+      </div>
+      <div class="bagside">
+        <div class="eyebrow">Bags <span id="bagCount"></span></div>
+        <div class="bags" id="bags"></div>
+        <div class="idetail" id="idetail"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="skills" class="modal" hidden>
+  <div class="card skillcard">
+    <div class="skillhead">
+      <div>
+        <div class="eyebrow">Skill tree</div>
+        <div class="pts" id="skPoints"></div>
+      </div>
+      <div class="row">
+        <button class="btn" id="skReset">Reset points</button>
+        <button class="btn primary" id="skClose">Done</button>
+      </div>
+    </div>
+    <div class="trees" id="skTrees"></div>
+  </div>
+</div>
+
+<div id="menu" class="modal" hidden>
+  <div class="card" style="width:min(400px,100%)">
+    <h2>Menu</h2>
+    <div class="row">
+      <button class="btn" id="leaveBtn">Leave world</button>
+      <button class="btn primary" id="resumeBtn">Back to game</button>
+    </div>
+  </div>
+</div>
+
+<div id="notice" class="modal" hidden>
+  <div class="card" style="width:min(420px,100%);text-align:center">
+    <h2 id="noticeTitle"></h2>
+    <p class="lobbymsg" id="noticeMsg"></p>
+    <div class="row" style="justify-content:center"><button class="btn primary" id="noticeOk">Back to menu</button></div>
+  </div>
+</div>
+
+<script src="src/js/00-core.js"></script>
+<script src="src/js/01-world-data.js"></script>
+<script src="src/js/02-boot-select.js"></script>
+<script src="src/js/03-art.js"></script>
+<script src="src/js/04-scene.js"></script>
+<script src="src/js/05-sim.js"></script>
+<script src="src/js/06-net.js"></script>
+<script src="src/js/07-world.js"></script>
+<script src="src/js/08-ui.js"></script>
+<script src="src/js/09-render.js"></script>
+</body>
+</html>
