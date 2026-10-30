@@ -548,7 +548,8 @@ test("raid: a party of three (tank, healer, damage) can kill Skarnvir and gets L
   for(let k = 0; k < 120; k++){ for(const r of W.rolls) for(const h of heroes) SIM.input(W, h.side, { roll: r.id, pick: "need" }); SIM.step(W, 1 / 60); }
   const legendaries = heroes.flatMap(h => [...h.inv, ...W.loot.filter(l => l.side === h.side).flatMap(l => l.items || [])]).filter(it => it.r === 4);
   assert.equal(legendaries.length, 2, "two Legendary items were rolled for and handed out");
-  assert.ok(heroes.every(h => W.loot.some(l => l.side === h.side && l.items && l.items.some(it => it.r === 3))), "everyone gets their own Epic");
+  // (a player standing on their bag picks it up automatically, so check bags and bags' contents in inventories)
+  assert.ok(heroes.every(h => h.inv.some(it => it.r === 3 && it.il === G.LOOT.dragon.ilvl) || W.loot.some(l => l.side === h.side && l.items && l.items.some(it => it.r === 3))), "everyone gets their own Epic");
 });
 
 test("raid: Skarnvir can't be soloed", () => {

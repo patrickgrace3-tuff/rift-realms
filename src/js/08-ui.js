@@ -406,7 +406,7 @@ function updateHud(){
   const tkey = JSON.stringify(me.talents) + me.points + me.lvl;
   if(!$("#skills").hidden && tkey !== G.skillKey) renderSkills(me);
   drawMinimap(me);
-  const zn = zoneAt(me.y).name; if($("#mmZone").textContent !== zn){ $("#mmZone").textContent = zn; banner(zn, me.y >= ZS ? "Highwatch Outpost lies north along the road" : "", 3000); }
+  const zn = zoneAt(me.y).name; if($("#mmZone").textContent !== zn){ $("#mmZone").textContent = zn; playMusic(zoneAt(me.y).key); banner(zn, me.y >= ZS ? "Highwatch Outpost lies north along the road" : "", 3000); }
   if(!$("#bigmap").hidden) drawBigMap(me);
   $("#respawn").hidden = !me.dead; if(me.dead) $("#respawn").textContent = `You were defeated. Returning to ${me.y >= ZS ? "Highwatch Outpost" : "the village"} in ${me.dead}…`;
   // quest tracker lists every active quest; click one to point the arrow at it

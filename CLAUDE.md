@@ -26,6 +26,7 @@ Scripts are classic `<script>` files (not modules) loaded in order by `index.htm
 | `src/js/07-world.js` | Entering the world, hero visuals, input, quest dialog |
 | `src/js/08-ui.js` | Tracker, loot feed, character window, skill tree, maps, HUD, effects |
 | `src/js/08b-social.js` | Party frames, Players window, invite prompt, roll cards, chat box |
+| `src/js/08c-audio.js` | Music per zone (`MUSIC`), sound effects (`SFX`, `sfx(name)`), volume and mute settings |
 | `src/js/09-render.js` | Per-frame render and the main loop; calls `boot()` last |
 
 ## How the game works
@@ -43,6 +44,7 @@ Scripts are classic `<script>` files (not modules) loaded in order by `index.htm
 - **Abilities.** Each champion's Q/W/E/R is matched to one of 15 archetypes from its Data Dragon text (`buildKit`). Talents modify the base numbers through `applyTalents`, used by both the simulation and the HUD. Heal and shield abilities go to the living player nearest the cursor (within `ALLY_PICK` of it and `ALLY_RANGE` of the caster), otherwise to the caster (`SIM.supportTarget`).
 - **Vendors and items.** An NPC with `shop: [itemKeys]` opens a shop instead of a quest dialog; `SHOP_ITEMS` holds prices and text. Commands: `buy` (checked against distance and coins) and `potion` (F; `POTION` sets the heal and cooldown). Only gear can be equipped: use `isGear(item)` rather than checking for a particular non-gear type. F drinks a potion; T talks to the nearest NPC.
 - **Raid bosses** (`boss: true` in `MOBS`, e.g. Skarnvir in the Wyrm's Crown) skip the normal mob AI and run `SIM.bossTick`: threat (melee champions ×3, healing ×0.5), telegraphed attacks (a `warn` effect before they land), adds, a raid-wide storm, enrage, and a reset if everyone leaves. Heroes without a party of `RAID.party` nearby deal 10% damage. Bosses ignore crowd control. Kill credit and `raidLoot` go to every party member who fought. Rarity 4 is Legendary. The test `raid: a party of three…` plays a scripted tank/healer/damage party through the fight; use it to retune numbers in `RAID` and `MOBS.dragon`.
+- **Audio.** Files live in `src/audio/` (`music/`, and `sfx/` for effects) so every build copies them. Use MP3. Music is per zone in `MUSIC` (keys match `ZONES`); it starts on "Enter world" (browsers need a click first), crossfades when the zone's track changes, and stops when you leave. Add an effect by putting its file in `src/audio/sfx/`, adding `SFX.name = "src/audio/sfx/file.mp3"`, and calling `sfx("name")` where it should play (`handleFx` is usually the place). Only add audio you have the rights to, and credit it in the README.
 - **Obstacles** are circles in `OBSTACLES`. Moving units slide around them; avoid placing two circles so they touch and form a corner (merge them into one, like Osric's stall). A test fails if any two obstacles leave a gap narrower than a player.
 
 ## Rules for this project

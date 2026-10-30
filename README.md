@@ -51,6 +51,10 @@ The tests play through every quest headless. See `CLAUDE.md` for how the code is
 
 Every push to `main` runs the tests and publishes the game to GitHub Pages (`.github/workflows/pages.yml`). To turn it on: in the repository's Settings > Pages, set Source to **GitHub Actions**.
 
+## Credits
+
+- Music: "Calm Ambient Dreamscape" by Morgan Ambient, from [Pixabay](https://pixabay.com/) (Pixabay Content License).
+
 ## Legal
 
 Rift Realms was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project. It is free and non-commercial. No Riot assets are stored in this repository; they are loaded from Riot's Data Dragon at runtime.

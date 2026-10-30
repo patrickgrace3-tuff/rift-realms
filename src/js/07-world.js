@@ -23,10 +23,12 @@ function startWorld(opts){
   for(const s of ["#menu", "#notice"]) $(s).hidden = true;
   show("game"); last = performance.now();
   banner("Sunhollow Vale", opts.role === "host" ? "Starting zone" : "Joined your friend's world", 3500);
+  playMusic("vale"); // started by the click that entered the world, so the browser allows it
 }
 function leaveWorld(keepNet){
   if(!keepNet) netClose();
   if(!G) return;
+  if(!keepNet) stopMusic();
   scene.remove(G.root); zone.visible = false; scene.fog = null; G = null;
   $("#dialog").hidden = true; $("#hud").hidden = true; $("#cv").hidden = true; $("#ov").hidden = true;
   $("#skills").hidden = true; $("#bigmap").hidden = true; $("#charWin").hidden = true; $("#lootFeed").innerHTML = "";

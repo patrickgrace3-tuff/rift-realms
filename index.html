@@ -254,6 +254,12 @@
 <div id="menu" class="modal" hidden>
   <div class="card" style="width:min(400px,100%)">
     <h2>Menu</h2>
+    <div class="soundrow">
+      <label for="musicVol">Music</label>
+      <input type="range" id="musicVol" min="0" max="100" step="1">
+      <output id="musicVolOut" for="musicVol"></output>
+      <button class="btn" id="muteBtn" aria-pressed="false">Mute</button>
+    </div>
     <div class="row">
       <button class="btn" id="leaveBtn">Leave world</button>
       <button class="btn primary" id="resumeBtn">Back to game</button>
@@ -282,6 +288,7 @@
 <script src="src/js/07-world.js"></script>
 <script src="src/js/08-ui.js"></script>
 <script src="src/js/08b-social.js"></script>
+<script src="src/js/08c-audio.js"></script>
 <script src="src/js/09-render.js"></script>
 </body>
 </html>

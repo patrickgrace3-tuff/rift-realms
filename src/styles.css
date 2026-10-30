@@ -181,6 +181,11 @@ h1{font:400 clamp(34px,6vw,58px)/1 var(--display);margin:8px 0 0;letter-spacing:
 @media (max-width:520px){ .shoprow{grid-template-columns:40px 1fr} .shoprow .sb{grid-column:1 / -1;flex-direction:row;justify-content:space-between;align-items:center} }
 .slot .qty{position:absolute;right:3px;bottom:0;font:700 13px var(--num);text-shadow:0 1px 3px #000}
 .potslot{margin-left:10px;cursor:pointer}
+.soundrow{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center}
+.soundrow label{font:600 14px var(--num);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.soundrow input[type=range]{width:100%;accent-color:var(--gold)}
+.soundrow output{font:600 14px var(--num);min-width:3.2em;text-align:right}
+.soundrow .btn{padding:6px 12px;font-size:13px}
 .maphint{margin:-6px 0 0;font:500 13px var(--num);letter-spacing:.05em;color:var(--muted);text-align:center}
 #bigmapCv.world{background:#101823}
 .maplegend{display:flex;flex-wrap:wrap;gap:14px;font:600 13px var(--num);letter-spacing:.04em;color:var(--muted)}
