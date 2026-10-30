@@ -16,6 +16,8 @@ const SFX = {
   "hit-flesh": "src/audio/sfx/hit-flesh.mp3",
   "hit-player": "src/audio/sfx/hit-player.mp3",
   "miss": "src/audio/sfx/miss.mp3",
+  "player-death": "src/audio/sfx/player-death.mp3",
+  "respawn": "src/audio/sfx/respawn.mp3",
 };
 // the shortest gap (seconds) between two plays of the same effect, so rapid hits don't buzz
 const SFX_GAP = { "hit-flesh": .07, "hit-player": .18, "miss": .1 };

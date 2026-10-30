@@ -461,7 +461,8 @@ function handleFx(f){
     case "drop": if(mine) toast(`${QUESTS[f.quest].obj.itemName} dropped. Walk over it or right-click to pick it up`); break;
     case "looted": if(mine) toast(`Picked up ${QUESTS[f.quest].obj.itemName}`); break;
     case "roar": { const mv = G.mobVis.get(f.id); if(mv) mv.roarT = .9; break; }
-    case "died": if(mine) closeDialog(); break;
+    case "died": if(mine){ closeDialog(); playSound(() => sfx("player-death")); } break;
+    case "spawn": if(mine) playSound(() => sfx("respawn")); break;
     case "angry": { const mv = G.mobVis.get(f.id); if(mv) mv.angryT = 1.2; break; }
     case "butt": { const mv = G.mobVis.get(f.id); if(mv) mv.buttT = .25; break; }
     case "pop": G.fx.push(Object.assign({ t: 0, dur: .45 }, f)); break;
