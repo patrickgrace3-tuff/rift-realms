@@ -155,10 +155,10 @@ const SIM = {
     // level gap: heroes miss and hit softer against higher creatures, and those creatures hit harder
     if(src && SIM.isHero(src) && !SIM.isHero(u)){ if(SIM.rollMiss(W, src, u)) return -1; amount *= levelGap(SIM.gapOf(src, u)).dealt; if(u.boss) amount = SIM.bossHit(W, u, src, amount); }
     else if(src && !SIM.isHero(src) && SIM.isHero(u)) amount *= levelGap(SIM.gapOf(u, src)).taken;
-    if(u.shield > 0){ const ab = Math.min(u.shield, amount); u.shield -= ab; amount -= ab; if(amount <= 0){ SIM.fx(W, { k: "num", x: u.x, y: u.y, v: "absorbed", hero: 1 }); return 0; } }
+    if(u.shield > 0){ const ab = Math.min(u.shield, amount); u.shield -= ab; amount -= ab; if(amount <= 0){ SIM.fx(W, { k: "num", x: u.x, y: u.y, v: "absorbed", hero: 1, tgt: u.side || "" }); return 0; } }
     if(SIM.isHero(u) && u.armor) amount *= 300 / (300 + u.armor);
     u.hp -= amount;
-    SIM.fx(W, { k: "num", x: u.x, y: u.y, v: Math.round(amount), hero: SIM.isHero(u) ? 1 : 0, src: src && src.side ? src.side : "" });
+    SIM.fx(W, { k: "num", x: u.x, y: u.y, v: Math.round(amount), hero: SIM.isHero(u) ? 1 : 0, src: src && src.side ? src.side : "", tgt: SIM.isHero(u) ? u.side : "" });
     if(u.hp > 0) return amount;
     u.hp = 0;
     if(SIM.isHero(u)){

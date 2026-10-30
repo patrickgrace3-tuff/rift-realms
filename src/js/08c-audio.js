@@ -13,7 +13,13 @@ const SFX = {
   "attack-melee": "src/audio/sfx/attack-melee.mp3",
   "attack-ranged": "src/audio/sfx/attack-ranged.mp3",
   "attack-caster": "src/audio/sfx/attack-caster.mp3",
+  "hit-flesh": "src/audio/sfx/hit-flesh.mp3",
+  "hit-player": "src/audio/sfx/hit-player.mp3",
+  "miss": "src/audio/sfx/miss.mp3",
 };
+// the shortest gap (seconds) between two plays of the same effect, so rapid hits don't buzz
+const SFX_GAP = { "hit-flesh": .07, "hit-player": .18, "miss": .1 };
+const sfxLast = {};
 // basic-attack sound for each champion class (a missing file just stays silent)
 const ATTACK_SFX = { melee: "attack-melee", ranged: "attack-ranged", caster: "attack-caster" };
 
@@ -61,6 +67,7 @@ addEventListener("pointerdown", tryResumeMusic); addEventListener("keydown", try
 let sfxPlaying = 0; // cap overlapping effects so a big fight doesn't become noise
 function sfx(name, vol = 1){
   const src = SFX[name]; if(!canPlay() || !src || SOUND.muted || !SOUND.sfxVol || vol <= 0 || sfxPlaying >= 12) return;
+  const now = performance.now() / 1000; if(now - (sfxLast[name] || -9) < (SFX_GAP[name] || .04)) return; sfxLast[name] = now;
   try{
     const a = new Audio(src); a.volume = Math.min(1, SOUND.sfxVol * vol);
     sfxPlaying++; const done = () => { sfxPlaying--; a.onended = a.onerror = null; }; a.onended = a.onerror = done;
