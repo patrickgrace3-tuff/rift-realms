@@ -343,3 +343,10 @@ test("the ultimate (R) unlocks at level 6", () => {
   h.lvl = 6; SIM.recalc(h); SIM.input(W, "blue", { cast: "R", at: [h.x + 200, h.y] });
   assert.ok(h.cds.R > 0, "R casts at level 6");
 });
+
+test("zones: the list covers the world without overlaps, and zoneAt finds each one", () => {
+  for(const a of G.ZONES) for(const b of G.ZONES) if(a !== b)
+    assert.ok(a.x0 + a.w <= b.x0 || b.x0 + b.w <= a.x0 || a.y0 + a.h <= b.y0 || b.y0 + b.h <= a.y0, `${a.name} overlaps ${b.name}`);
+  for(const z of G.ZONES) assert.equal(G.zoneAt(z.y0 + z.h / 2, z.x0 + z.w / 2).key, z.key);
+  assert.equal(new Set(G.ZONES.map(z => z.key)).size, G.ZONES.length, "zone keys are unique");
+});

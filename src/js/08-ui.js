@@ -191,6 +191,7 @@ function drawMapIcons(g, toS, me, o){
     if(edge || !obj.r){ g.beginPath(); g.arc(cx, cy, 6, 0, Math.PI * 2); g.strokeStyle = "#ffd84a"; g.lineWidth = 2.5; g.stroke(); g.beginPath(); g.arc(cx, cy, 2, 0, Math.PI * 2); g.fillStyle = "#ffd84a"; g.fill(); }
   }
   for(const m of G.snap.m){
+    if(o.world && m[1] !== "boar") continue; // the world map only marks elites
     const [sx, sy] = toS(m[2], m[3]);
     if(m[1] === "boar"){ g.beginPath(); g.arc(sx, sy, 5, 0, Math.PI * 2); g.fillStyle = "#ff6a50"; g.fill(); g.strokeStyle = "#1b1410"; g.lineWidth = 1.5; g.stroke(); }
     else if(m[1] === "bandit"){ g.beginPath(); g.arc(sx, sy, 3, 0, Math.PI * 2); g.fillStyle = "#ff5040"; g.fill(); }
@@ -224,29 +225,87 @@ function drawMinimap(me){
   g.fillStyle = "#2a3226"; g.fillRect(0, 0, S, S);
   const k = R / MM.view, toS = (x, y) => [S / 2 + (x - me.x) * k, S / 2 - (y - me.y) * k];
   g.imageSmoothingEnabled = true;
-  if(MAPIMG){ const [x0, y0] = toS(0, ZS); g.drawImage(MAPIMG, x0, y0, ZS * k, ZS * k); }
-  if(PEAKIMG){ const [x0, y0] = toS(0, WH); g.drawImage(PEAKIMG, x0, y0, ZS * k, ZS * k); }
+  for(const z of ZONES){ const pic = ZONE_PICS[z.key]; if(!pic) continue; const [x0, y0] = toS(z.x0, z.y0 + z.h); g.drawImage(pic, x0, y0, z.w * k, z.h * k); }
   drawMapIcons(g, toS, me, { clampR: R - 9, cx: S / 2, cy: S / 2, scale: k });
   g.restore();
   g.lineWidth = 4; g.strokeStyle = "#8a6a3a"; g.beginPath(); g.arc(S / 2, S / 2, R, 0, Math.PI * 2); g.stroke();
   g.lineWidth = 1.5; g.strokeStyle = "#f0d58e"; g.beginPath(); g.arc(S / 2, S / 2, R + 2, 0, Math.PI * 2); g.stroke();
   mapText(g, "N", S / 2, S / 2 - R + 1, "#f0d58e", 13);
 }
+// The map (M) opens on your zone. Right-click (or the World map button) zooms out to every zone; click a zone to zoom in.
+const MAPVIEW = { world: false, zone: null, hover: null, fit: null };
 function drawBigMap(me){
   const S = Math.round(bmCv.getBoundingClientRect().width) || 640;
   if(bmCv.width !== S * dpr){ bmCv.width = bmCv.height = S * dpr; }
   const g = bmG; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, S, S);
-  // the world map shows the zone you're in
-  const Z = zoneAt(me.y), top = Z.y0 + ZS, k = S / ZS, toS = (x, y) => [x * k, (top - y) * k], pic = Z.y0 ? PEAKIMG : MAPIMG;
-  $("#bigTitle").textContent = Z.name;
+  bmCv.classList.toggle("world", MAPVIEW.world);
+  $("#bigWorld").textContent = MAPVIEW.world ? "Your zone" : "World map";
+  if(MAPVIEW.world) return drawWorldMap(g, S, me);
+  const Z = (MAPVIEW.zone && ZONES.find(z => z.key === MAPVIEW.zone)) || zoneAt(me.y, me.x), top = Z.y0 + Z.h, k = S / Z.w;
+  const toS = (x, y) => [(x - Z.x0) * k, (top - y) * k], pic = ZONE_PICS[Z.key];
+  $("#bigTitle").textContent = Z.name; $("#bigHint").textContent = "Right-click the map to see the whole world.";
   if(pic){ g.imageSmoothingEnabled = true; g.drawImage(pic, 0, 0, S, S); }
   for(const p of POIS){
-    if(p.y < Z.y0 || p.y > top) continue; const [x, y] = toS(p.x, p.y); g.font = "400 16px 'Marcellus SC', Georgia, serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.lineWidth = 4; g.strokeStyle = "rgba(20,14,8,.85)"; g.strokeText(p.name, x, y); g.fillStyle = "#f3ead2"; g.fillText(p.name, x, y); }
+    if(p.y < Z.y0 || p.y > top || p.x < Z.x0 || p.x > Z.x0 + Z.w) continue; const [x, y] = toS(p.x, p.y); g.font = "400 16px 'Marcellus SC', Georgia, serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.lineWidth = 4; g.strokeStyle = "rgba(20,14,8,.85)"; g.strokeText(p.name, x, y); g.fillStyle = "#f3ead2"; g.fillText(p.name, x, y); }
   drawMapIcons(g, toS, me, { scale: k, big: true });
 }
+function worldBounds(){
+  const x0 = Math.min(...ZONES.map(z => z.x0)), y0 = Math.min(...ZONES.map(z => z.y0));
+  const x1 = Math.max(...ZONES.map(z => z.x0 + z.w)), y1 = Math.max(...ZONES.map(z => z.y0 + z.h));
+  return { x0, y0, x1, y1, w: x1 - x0, h: y1 - y0 };
+}
+function drawWorldMap(g, S, me){
+  const b = worldBounds(), pad = S * .05, k = (S - pad * 2) / Math.max(b.w, b.h), ox = (S - b.w * k) / 2, oy = (S - b.h * k) / 2;
+  const toS = (x, y) => [ox + (x - b.x0) * k, oy + (b.y1 - y) * k];
+  MAPVIEW.fit = { b, k, ox, oy };
+  $("#bigTitle").textContent = "World map"; $("#bigHint").textContent = "Click a zone to zoom in. Right-click to go back to your zone.";
+  g.strokeStyle = "rgba(240,213,142,.06)"; g.lineWidth = 1;
+  for(let v = 0; v <= S; v += 32){ g.beginPath(); g.moveTo(v, 0); g.lineTo(v, S); g.moveTo(0, v); g.lineTo(S, v); g.stroke(); }
+  g.imageSmoothingEnabled = true;
+  const here = zoneAt(me.y, me.x);
+  for(const z of ZONES){
+    const [x, y] = toS(z.x0, z.y0 + z.h), w = z.w * k, h = z.h * k, pic = ZONE_PICS[z.key];
+    if(pic) g.drawImage(pic, x, y, w, h);
+    if(z !== here && z.key !== MAPVIEW.hover){ g.fillStyle = "rgba(10,14,20,.28)"; g.fillRect(x, y, w, h); }
+    g.lineWidth = z.key === MAPVIEW.hover ? 3 : 1.5; g.strokeStyle = z.key === MAPVIEW.hover ? "#f0d58e" : "rgba(20,14,8,.9)"; g.strokeRect(x, y, w, h);
+  }
+  drawMapIcons(g, toS, me, { scale: k, world: true });
+  // place names show for the zone under the mouse; the other zones show just their name
+  const hov = ZONES.find(z => z.key === MAPVIEW.hover);
+  if(hov) for(const p of POIS){ if(zoneAt(p.y, p.x) !== hov) continue; const [x, y] = toS(p.x, p.y); mapText(g, p.name, x, y, "#f3ead2", 12); }
+  for(const z of ZONES){
+    if(z === hov) continue;
+    const [x, y] = toS(z.x0 + z.w / 2, z.y0 + z.h / 2);
+    g.font = "400 22px 'Marcellus SC', Georgia, serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.lineWidth = 5; g.strokeStyle = "rgba(20,14,8,.9)"; g.strokeText(z.name, x, y); g.fillStyle = z === here ? "#f0d58e" : "#f3ead2"; g.fillText(z.name, x, y);
+    if(z === here){ g.font = "600 12px 'Barlow Condensed', sans-serif"; g.lineWidth = 3; g.strokeText("YOU ARE HERE", x, y + 20); g.fillStyle = "#ffd27a"; g.fillText("YOU ARE HERE", x, y + 20); }
+  }
+}
+// which zone is under a point on the world map canvas
+function worldMapZoneAt(e){
+  const f = MAPVIEW.fit; if(!MAPVIEW.world || !f) return null;
+  const r = bmCv.getBoundingClientRect(), S = r.width, sx = (e.clientX - r.left) * (Math.round(S) / S), sy = (e.clientY - r.top) * (Math.round(S) / S);
+  const x = f.b.x0 + (sx - f.ox) / f.k, y = f.b.y1 - (sy - f.oy) / f.k;
+  return ZONES.find(z => x >= z.x0 && x < z.x0 + z.w && y >= z.y0 && y < z.y0 + z.h) || null;
+}
+function setMapView(world, zone){
+  Object.assign(MAPVIEW, { world, zone: zone || null, hover: null });
+  bmCv.style.cursor = "";
+  const me = G && G.snap && G.snap.h.find(h => h.side === G.myTeam); if(me) drawBigMap(me);
+}
+bmCv.addEventListener("contextmenu", e => { e.preventDefault(); setMapView(!MAPVIEW.world); });
+bmCv.addEventListener("click", e => { const z = worldMapZoneAt(e); if(z) setMapView(false, z.key); });
+bmCv.addEventListener("pointermove", e => {
+  const z = worldMapZoneAt(e), key = z ? z.key : null;
+  bmCv.style.cursor = key ? "pointer" : "";
+  if(key !== MAPVIEW.hover){ MAPVIEW.hover = key; const me = G && G.snap && G.snap.h.find(h => h.side === G.myTeam); if(me && MAPVIEW.world) drawBigMap(me); }
+});
+bmCv.addEventListener("pointerleave", () => { if(MAPVIEW.hover){ MAPVIEW.hover = null; bmCv.style.cursor = ""; } });
+$("#bigWorld").onclick = () => setMapView(!MAPVIEW.world);
 function toggleBigMap(force){
   const el = $("#bigmap"), open = force !== undefined ? force : el.hidden;
   el.hidden = !open;
+  if(open) Object.assign(MAPVIEW, { world: false, zone: null, hover: null });
   if(open){ const me = G.snap && G.snap.h.find(h => h.side === G.myTeam); if(me) drawBigMap(me); }
 }
 $("#mmIn").onclick = () => { MM.view = Math.max(900, MM.view - 400); };

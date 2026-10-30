@@ -173,9 +173,10 @@
   <div class="card mapcard">
     <div class="row" style="justify-content:space-between">
       <h2 id="bigTitle">Sunhollow Vale</h2>
-      <button class="btn" id="bigClose">Close</button>
+      <div class="row"><button class="btn" id="bigWorld">World map</button><button class="btn" id="bigClose">Close</button></div>
     </div>
-    <canvas id="bigmapCv" width="640" height="640"></canvas>
+    <canvas id="bigmapCv" width="640" height="640" aria-describedby="bigHint"></canvas>
+    <p class="maphint" id="bigHint">Right-click the map to see the whole world.</p>
     <div class="maplegend"><span><b>!</b> New quest</span><span><b>?</b> Turn in</span><span><b style="color:#b8b8b8">?</b> In progress</span><span><b>◎</b> Objective</span><span><b style="color:#7fd3ff">●</b> Party member</span><span><b style="color:#d8d8d8">●</b> Other player</span><span><b style="color:#ff6a50">●</b> Elite</span><span><b style="color:#ff9a40">▲</b> Beacon</span><span><b>◉</b> Lookout</span></div>
   </div>
 </div>

@@ -145,7 +145,7 @@ function buildPeaks(g, valeH, T){
     t2.setHSL(.08, .3, .6); c.lerp(t2, Math.max(f.path, f.out * .6));
     const o = (py * MS + px) * 4; img.data[o] = c.r * 255; img.data[o + 1] = c.g * 255; img.data[o + 2] = c.b * 255; img.data[o + 3] = 255;
   }
-  mg.putImageData(img, 0, 0);
+  mg.putImageData(img, 0, 0); ZONE_PICS.peaks = PEAKIMG;
   const toM = (x, y) => [x / ZS * MS, (WH - y) / ZS * MS];
   mg.fillStyle = "rgba(20,48,34,.55)"; for(const [x, y] of trees){ const [a, b] = toM(x, y); mg.fillRect(a - .7, b - .7, 1.5, 1.5); }
   { const [a, b] = toM(OUTPOST.x, OUTPOST.y); mg.strokeStyle = "#5a3a22"; mg.lineWidth = 1.5; mg.beginPath(); mg.arc(a, b, OUTPOST.r / ZS * MS, 0, Math.PI * 2); mg.stroke(); }

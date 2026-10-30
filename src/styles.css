@@ -171,6 +171,8 @@ h1{font:400 clamp(34px,6vw,58px)/1 var(--display);margin:8px 0 0;letter-spacing:
 /* World map */
 .mapcard{width:min(720px,100%)}
 #bigmapCv{width:100%;aspect-ratio:1;max-width:100%;border-radius:8px;border:1px solid var(--line);background:#1a2418;display:block}
+.maphint{margin:-6px 0 0;font:500 13px var(--num);letter-spacing:.05em;color:var(--muted);text-align:center}
+#bigmapCv.world{background:#101823}
 .maplegend{display:flex;flex-wrap:wrap;gap:14px;font:600 13px var(--num);letter-spacing:.04em;color:var(--muted)}
 .maplegend b{color:var(--gold-2)}
 /* Skill tree */

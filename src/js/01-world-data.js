@@ -60,8 +60,14 @@ const PEAK_OBSTACLES = [...RIDGE, ...CRAGS.map(([x, y, r]) => ({ x, y, r: r * .8
   { x: PASS.x - PASS.w - 330, y: ZS, r: 330 }, { x: PASS.x + PASS.w + 330, y: ZS, r: 330 },
   { x: BRAZIER[0], y: BRAZIER[1], r: 80 }, { x: OUTPOST.x - 260, y: OUTPOST.y + 230, r: 170 }, { x: OUTPOST.x + 300, y: OUTPOST.y + 180, r: 170 }];
 const FIRES = [CAMPFIRE, BRAZIER];
-const ZONES = [{ name: "Sunhollow Vale", y0: 0 }, { name: "Frostspine Peaks", y0: ZS }];
-const zoneAt = y => ZONES[y >= ZS ? 1 : 0];
+// Every zone: a key, its name, and its area in world units (x0, y0 is the south-west corner).
+// New zones go here; the minimap and world map draw whatever is in this list.
+const ZONES = [
+  { key: "vale", name: "Sunhollow Vale", x0: 0, y0: 0, w: ZS, h: ZS },
+  { key: "peaks", name: "Frostspine Peaks", x0: 0, y0: ZS, w: ZS, h: ZS },
+];
+const zoneAt = (y, x = ZS / 2) => ZONES.find(z => x >= z.x0 && x < z.x0 + z.w && y >= z.y0 && y < z.y0 + z.h) || ZONES[y >= ZS ? ZONES.length - 1 : 0];
+const ZONE_PICS = {}; // each zone's map picture (a canvas), keyed like ZONES; filled in when the scene is built
 const NPCS = [
   { id: "bram", name: "Farmer Bram", x: 3720, y: 3480, head: "farmer", style: "farmer", idle: "Fine weather for honest work. Mind the flock on your way out." },
   { id: "kaela", name: "Huntress Kaela", x: 5790, y: 5190, head: "huntress", style: "hunter", idle: "Keep your voice down out here. Sound carries in the Bramblewood." },
