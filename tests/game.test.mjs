@@ -240,7 +240,7 @@ test("loot rolls: a party kill puts Rare and Epic gear up for a roll", () => {
   const { W, hs: [a, b], group } = partyWorld(2);
   group(a, b);
   const wolf = W.mobs.find(m => m.kind === "wolf");
-  for(const h of [a, b]){ h.x = wolf.x + 100; h.y = wolf.y; }
+  for(const h of [a, b]){ h.x = wolf.x + 100; h.y = wolf.y; h.lvl = 4; } // same level as the wolf, so no misses
   const rnd = Math.random; Math.random = () => .001; // force a gear drop at Epic quality
   try{ SIM.damage(W, wolf, 1e6, a); } finally { Math.random = rnd; }
   assert.equal(W.rolls.length, 1);
@@ -349,4 +349,30 @@ test("zones: the list covers the world without overlaps, and zoneAt finds each o
     assert.ok(a.x0 + a.w <= b.x0 || b.x0 + b.w <= a.x0 || a.y0 + a.h <= b.y0 || b.y0 + b.h <= a.y0, `${a.name} overlaps ${b.name}`);
   for(const z of G.ZONES) assert.equal(G.zoneAt(z.y0 + z.h / 2, z.x0 + z.w / 2).key, z.key);
   assert.equal(new Set(G.ZONES.map(z => z.key)).size, G.ZONES.length, "zone keys are unique");
+});
+
+/* ---------- Fighting above your level ---------- */
+test("level gap: no penalty within 1 level, then misses, softer hits and harder hits taken", () => {
+  for(const g of [-5, 0, 1]){ const L = G.levelGap(g); assert.ok(L.miss === 0 && L.dealt === 1 && L.taken === 1, `gap ${g}`); }
+  let prev = G.levelGap(1);
+  for(let g = 2; g <= 10; g++){
+    const L = G.levelGap(g);
+    assert.ok(L.miss >= prev.miss && L.dealt <= prev.dealt && L.taken >= prev.taken, `gap ${g} is at least as bad as ${g - 1}`);
+    prev = L;
+  }
+  const two = G.levelGap(2); assert.ok(two.miss > 0 && two.dealt < 1 && two.taken > 1, "a 2-level gap already counts");
+  assert.ok(G.levelGap(20).miss <= .75 && G.levelGap(20).dealt >= .25 && G.levelGap(20).taken <= 2, "capped");
+});
+
+test("level gap: a level 1 hero misses a lot and deals little to a level 11 lynx, and gets hit harder", () => {
+  const { W, h } = newWorld();
+  const lynx = W.mobs.find(m => m.kind === "lynx"); h.x = lynx.x + 120; h.y = lynx.y;
+  let misses = 0, dealt = 0;
+  for(let i = 0; i < 400; i++){ lynx.hp = lynx.maxHp; lynx.dead = false; const r = SIM.damage(W, lynx, 100, h); if(r < 0) misses++; else dealt += r; }
+  assert.ok(misses > 200 && misses < 360, `missed ${misses} of 400 (expected about 75%)`);
+  assert.ok(Math.abs(dealt / (400 - misses) - 25) < 1, "hits deal 25%");
+  h.hp = h.maxHp; const before = h.hp; SIM.damage(W, h, 100, lynx);
+  assert.ok(before - h.hp > 150, "the lynx hits a level 1 hero harder");
+  h.lvl = 11; SIM.recalc(h); h.hp = h.maxHp;
+  for(let i = 0; i < 50; i++){ lynx.hp = lynx.maxHp; assert.ok(SIM.damage(W, lynx, 100, h) > 0, "no misses at the same level"); }
 });

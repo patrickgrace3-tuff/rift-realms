@@ -248,7 +248,12 @@ function render(dt){
     if(mv.hp < mv.maxHp || mv.angry || T.aggroR){
       octx.fillStyle = "rgba(0,0,0,.6)"; octx.fillRect(sx - 24, sy, 48, 5);
       octx.fillStyle = T.aggroR ? "#d9545b" : "#d9b23a"; octx.fillRect(sx - 24, sy, 48 * Math.max(0, mv.hp / mv.maxHp), 5);
-      label(`${mv.kind === "sheep" && mv.angry ? "Angry Sheep" : T.name}  ·  ${T.lvl}`, sx, sy - 4, T.aggroR || mv.angry ? "#ff8a70" : "#f3ead2", 12);
+      // name, then the level coloured by difficulty: grey (no XP), normal, orange (2–3 above you), red (4+ above)
+      const name = `${mv.kind === "sheep" && mv.angry ? "Angry Sheep" : T.name}  ·  `, lv = String(T.lvl), gap = meSnap ? T.lvl - meSnap.lvl : 0;
+      octx.font = "600 12px 'Barlow Condensed', sans-serif";
+      const wn = octx.measureText(name).width, wl = octx.measureText(lv).width, x0 = sx - (wn + wl) / 2;
+      label(name, x0 + wn / 2, sy - 4, T.aggroR || mv.angry ? "#ff8a70" : "#f3ead2", 12);
+      label(lv, x0 + wn + wl / 2, sy - 4, gap >= 4 ? "#ff4a3a" : gap >= 2 ? "#ffa040" : gap <= -5 ? "#9a9a9a" : "#f3ead2", 12, 700);
     }
   }
   for(const c of s.h){

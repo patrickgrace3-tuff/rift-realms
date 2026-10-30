@@ -191,6 +191,14 @@ const xpForLevel = lvl => Math.round(40 * Math.pow(lvl, 1.6) + 70);
 function mobXp(base, mobLvl, heroLvl){ const d = mobLvl - heroLvl; return Math.round(base * (d >= 0 ? 1 + .1 * Math.min(d, 4) : Math.max(0, 1 + .2 * d))); }
 // quests: full XP up to 3 levels below you, then −20% per level, never less than 20%
 function questXp(Q, heroLvl){ const over = heroLvl - (Q.lvl || heroLvl); return Math.round(Q.xp * (over <= 3 ? 1 : Math.max(.2, 1 - .2 * (over - 3)))); }
+/* ---------- Fighting above your level ---------- */
+// gap = enemy level − hero level. From a 2-level gap you miss more and deal less damage,
+// and the enemy hits you harder. It gets worse with every level.
+function levelGap(gap){
+  if(gap < 2) return { miss: 0, dealt: 1, taken: 1 };
+  const g = gap - 1;
+  return { miss: Math.min(.75, .12 * g), dealt: Math.max(.25, 1 - .15 * g), taken: Math.min(2, 1 + .15 * g) };
+}
 // prereq is a quest id or a list of them; all must be done
 function prereqMet(quests, Q){ const ids = !Q.prereq ? [] : Array.isArray(Q.prereq) ? Q.prereq : [Q.prereq]; return ids.every(id => quests[id] && quests[id].state === "done"); }
 const WEAPON_REWARD = { melee: "Tuskbreaker Blade", caster: "Tuskwood Staff", ranged: "Tuskbone Bow", ad: 32, abil: .18 };
@@ -265,7 +273,7 @@ const MOBS = {
   boar: { name: "Old Tusker", lvl: 5, r: 85, hp: 1700, dmg: 34, atkCd: 1.7, ms: 290, wander: 80, xp: 150, respawn: 25, leash: 1500, home: [DEN.x, DEN.y], roam: 300, count: 1, elite: true, charge: true },
   wolf: { name: "Gray Wolf", lvl: 4, r: 52, hp: 360, dmg: 15, atkCd: 1.3, ms: 330, wander: 120, xp: 45, respawn: 16, leash: 1900, home: [PINES.x, PINES.y], roam: PINES.r, count: 7, aggroR: 420, pack: true },
   ram: { name: "Crag Ram", lvl: 10, r: 60, hp: 1050, dmg: 30, atkCd: 1.6, ms: 300, wander: 120, xp: 95, respawn: 18, leash: 1700, home: [RAM_MEADOW.x, RAM_MEADOW.y], roam: RAM_MEADOW.r - 150, count: 9, charge: true },
-  lynx: { name: "Snowfang Lynx", lvl: 12, r: 55, hp: 980, dmg: 36, atkCd: 1.2, ms: 360, wander: 130, xp: 115, respawn: 16, leash: 1800, home: [LYNX_RIDGE.x, LYNX_RIDGE.y], roam: LYNX_RIDGE.r, count: 10, aggroR: 460 },
+  lynx: { name: "Snowfang Lynx", lvl: 11, r: 55, hp: 980, dmg: 36, atkCd: 1.2, ms: 360, wander: 130, xp: 115, respawn: 16, leash: 1800, home: [LYNX_RIDGE.x, LYNX_RIDGE.y], roam: LYNX_RIDGE.r, count: 10, aggroR: 460 },
   bandit: { name: "Vale Bandit", lvl: 6, r: 55, hp: 400, dmg: 19, atkCd: 1.4, ms: 300, wander: 100, xp: 60, respawn: 0, leash: 99999, home: [TOWER.x, TOWER.y], roam: 300, count: 0, aggroR: 900 },
 };
 const clampX = v => Math.max(ZMIN, Math.min(ZMAX, v));

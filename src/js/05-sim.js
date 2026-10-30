@@ -112,10 +112,20 @@ const SIM = {
     if(cc.slow){ u.cc.slow = Math.max(u.cc.slow, 1.6); u.cc.slowAmt = Math.max(u.cc.slowAmt, cc.slow); }
   },
   force(u, tx, ty, dur){ u.forced = { sx: u.x, sy: u.y, tx: clampX(tx), ty: clampY(ty), t: 0, dur }; u.dash = null; },
+  // level gap between a hero and a creature (positive when the creature is higher)
+  gapOf(hero, mob){ return mob && mob.kind && MOBS[mob.kind] ? MOBS[mob.kind].lvl - hero.lvl : 0; },
+  // a hero attacking a creature 2+ levels above them can miss; shows "Miss" and returns true
+  rollMiss(W, c, u){
+    if(!SIM.isHero(c) || SIM.isHero(u) || Math.random() >= levelGap(SIM.gapOf(c, u)).miss) return false;
+    SIM.fx(W, { k: "num", x: u.x, y: u.y, v: "Miss", hero: 0, src: c.side });
+    return true;
+  },
+  // returns -1 if it missed (no damage, no crowd control), otherwise the damage dealt
   hitAbility(W, c, u, p, mult = 1){
     let d = (p.dmg || 0) * SIM.dmgScale(c) * mult;
     if(p.execute) d *= 1 + (1 - u.hp / u.maxHp);
-    const dealt = d > 0 ? SIM.damage(W, u, d, c) : 0;
+    const dealt = d > 0 ? SIM.damage(W, u, d, c) : SIM.rollMiss(W, c, u) ? -1 : 0;
+    if(dealt < 0) return -1;
     SIM.applyCC(u, p.cc);
     if(p.drain && dealt > 0) c.hp = Math.min(c.maxHp, c.hp + dealt * .35);
     return dealt;
@@ -135,6 +145,9 @@ const SIM = {
     if(src && SIM.isHero(src)) src.lastCombat = W.t;
     if(SIM.isHero(u)) u.lastCombat = W.t;
     if(!SIM.isHero(u) && src && SIM.isHero(src)){ u.lastHit = src.id; if(!u.aggro && !u.returning){ u.aggro = src.id; SIM.fx(W, { k: "angry", id: u.id }); SIM.alertPack(W, u, src.id); } }
+    // level gap: heroes miss and hit softer against higher creatures, and those creatures hit harder
+    if(src && SIM.isHero(src) && !SIM.isHero(u)){ if(SIM.rollMiss(W, src, u)) return -1; amount *= levelGap(SIM.gapOf(src, u)).dealt; }
+    else if(src && !SIM.isHero(src) && SIM.isHero(u)) amount *= levelGap(SIM.gapOf(u, src)).taken;
     if(u.shield > 0){ const ab = Math.min(u.shield, amount); u.shield -= ab; amount -= ab; if(amount <= 0){ SIM.fx(W, { k: "num", x: u.x, y: u.y, v: "absorbed", hero: 1 }); return 0; } }
     if(SIM.isHero(u) && u.armor) amount *= 300 / (300 + u.armor);
     u.hp -= amount;
@@ -418,7 +431,7 @@ const SIM = {
           if(ds.p.type === "leap"){
             for(const u of SIM.enemies(W, c.team)){
               const dd = Math.hypot(u.x - c.x, u.y - c.y) || 1;
-              if(dd < ds.p.radius + u.r){ SIM.hitAbility(W, c, u, ds.p); if(!ds.p.cc.stun && !ds.p.cc.root && !u.dead) SIM.force(u, u.x + (u.x - c.x) / dd * 180, u.y + (u.y - c.y) / dd * 180, .15); }
+              if(dd < ds.p.radius + u.r && SIM.hitAbility(W, c, u, ds.p) >= 0){ if(!ds.p.cc.stun && !ds.p.cc.root && !u.dead) SIM.force(u, u.x + (u.x - c.x) / dd * 180, u.y + (u.y - c.y) / dd * 180, .15); }
             }
             SIM.fx(W, { k: "ring", x: c.x, y: c.y, r: ds.p.radius });
           }
@@ -555,8 +568,8 @@ const SIM = {
         sh.x += sh.vx * dt; sh.y += sh.vy * dt;
         for(const u of SIM.units(W)){
           if(u.team === sh.team || sh.hits.has(u.id) || Math.hypot(u.x - sh.x, u.y - sh.y) >= sh.r + u.r) continue;
-          sh.hits.add(u.id); SIM.hitAbility(W, owner, u, sh.p); SIM.fx(W, { k: "hit", x: sh.x, y: sh.y });
-          if(sh.kind === "hook" && !u.dead){ const dx = u.x - owner.x, dy = u.y - owner.y, d = Math.hypot(dx, dy) || 1, gap = owner.r + u.r + 30; SIM.force(u, owner.x + dx / d * gap, owner.y + dy / d * gap, .25); }
+          sh.hits.add(u.id); const res = SIM.hitAbility(W, owner, u, sh.p); SIM.fx(W, { k: "hit", x: sh.x, y: sh.y });
+          if(sh.kind === "hook" && !u.dead && res >= 0){ const dx = u.x - owner.x, dy = u.y - owner.y, d = Math.hypot(dx, dy) || 1, gap = owner.r + u.r + 30; SIM.force(u, owner.x + dx / d * gap, owner.y + dy / d * gap, .25); }
           if(!sh.p.pierce){ sh.life = 0; break; }
         }
       }else{
@@ -571,7 +584,7 @@ const SIM = {
     for(const f of W.fields){
       f.t -= dt; f.tick -= dt;
       const o = W.heroes[f.owner.slice(2)]; if(!o){ f.t = 0; continue; }
-      if(f.tick <= 0){ f.tick = .5; for(const u of SIM.enemies(W, f.team)) if(Math.hypot(u.x - f.x, u.y - f.y) < f.r + u.r){ SIM.damage(W, u, f.p.dmg * SIM.dmgScale(o), o); SIM.applyCC(u, Object.assign({}, f.p.cc, { slow: Math.max(f.p.slow, f.p.cc.slow || 0) })); } }
+      if(f.tick <= 0){ f.tick = .5; for(const u of SIM.enemies(W, f.team)) if(Math.hypot(u.x - f.x, u.y - f.y) < f.r + u.r){ if(SIM.damage(W, u, f.p.dmg * SIM.dmgScale(o), o) >= 0) SIM.applyCC(u, Object.assign({}, f.p.cc, { slow: Math.max(f.p.slow, f.p.cc.slow || 0) })); } }
     }
     W.fields = W.fields.filter(f => f.t > 0);
     for(const pt of W.pets){
