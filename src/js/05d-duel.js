@@ -54,7 +54,8 @@ Object.assign(SIM, {
     d.state = "done"; W.duels = W.duels.filter(x => x !== d);
     const A = W.heroes[d.a], B = W.heroes[d.b], both = [A, B].filter(Boolean);
     for(const h of both){ if(h.duel === d) h.duel = null; const o = h === A ? B : A; if(o && h.target === o.id) h.target = null; }
-    const near = SIM.heroes(W).filter(h => Math.hypot(h.x - d.x, h.y - d.y) < 3000).map(h => h.side);
+    SIM.arenaEnd(W, d, winner);
+    const near = SIM.heroes(W).filter(h => !h.bot && Math.hypot(h.x - d.x, h.y - d.y) < 3000).map(h => h.side);
     if(winner && loser){
       SIM.fx(W, { k: "duelend", to: both.map(h => h.side), win: winner.side, winName: winner.name, loseName: loser.name, why });
       if(near.length) SIM.note(W, near, why === "fled" ? `${loser.name} fled from a duel with ${winner.name}.` : why === "yield" ? `${loser.name} yielded to ${winner.name} in a duel.` : `${winner.name} has defeated ${loser.name} in a duel!`);

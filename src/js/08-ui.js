@@ -421,7 +421,7 @@ function updateHud(){
   if(!$("#charWin").hidden) renderChar();
   updateSocial(me);
   const wpn = $("#hudWeapon"); wpn.hidden = !me.weapon; if(me.weapon) wpn.textContent = `⚔ ${me.weapon}`;
-  const n = G.snap.h.length;
+  const n = G.snap.h.filter(h => !h.bot).length;
   let net = G.role === "host" ? (NET.code ? `World code ${NET.code}` : "") : "Co-op";
   if(n > 1) net += `${net ? " · " : ""}${n} players`;
   if(G.role === "guest" && NET.ping != null) net += ` · ${NET.ping} ms`;
@@ -476,6 +476,7 @@ function handleFx(f){
       break;
     }
     case "shop": if(mine) openShop(f.npc); break;
+    case "arena": if(mine) openArena(f); break;
     case "bought": if(mine) lootLine(`Bought ${f.n}${f.q > 1 ? ` ×${f.q}` : ""} for ${fmtCoins(f.coins)}`, "#f0d58e"); break;
   }
 }

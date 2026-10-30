@@ -29,6 +29,7 @@ const BEACONS = [{ name: "West Beacon", x: 1450, y: 4400 }, { name: "North Beaco
 const WAVES = [2, 2, 3, 3];
 const PASS = { x: 4100, y: ZS, w: 330 };       // Greywind Pass, the gap in the ridge between the zones
 const WELL = [4000, 3750], CAMPFIRE = [4380, 3380];
+const ARENA = { x: 5500, y: 3700, r: 650 };   // the Champion's Ring, a duelling yard east of the village
 const STALL = { x: 4150, y: 4140 };          // Peddler Osric's market stall, just behind him
 const HOUSES = [[3350, 4200, .2], [4700, 4250, -.3], [3250, 3150, 1.3], [4850, 3000, -1.2]];
 const PATHS = [
@@ -101,6 +102,7 @@ const NPCS = [
   { id: "merrin", name: "Old Merrin", x: 1440, y: 2960, head: "fisher", style: "fisher", idle: "Westwind's blowing. Good day to mend nets and not much else." },
   { id: "rhea", name: "Captain Rhea", x: 4350, y: 3780, head: "guard", style: "guard", idle: "The Vale is quiet. I intend to keep it that way." },
   { id: "osric", name: "Peddler Osric", title: "Potions", x: 4150, y: 4000, head: "merchant", style: "merchant", shop: ["hpot"], idle: "Potions! Fresh potions! Brewed this morning, and only slightly fizzy." },
+  { id: "vex", name: "Arenamaster Vex", title: "Practice duels", x: 4730, y: 3640, head: "gladiator", style: "gladiator", arena: true, idle: "Steel sharpens steel. Step into the ring." },
   { id: "halvard", name: "Warden Halvard", x: 4010, y: 9560, head: "warden", style: "warden", idle: "Keep your fire lit and your back to the rock. The mountain forgives nothing." },
   { id: "maren", name: "Sister Maren", x: 3980, y: 9300, head: "healer", style: "healer", idle: "Cold hands, warm heart, my mother used to say. Mostly cold hands, up here." },
   { id: "ketil", name: "Old Ketil", x: KETIL_CAMP.x - 200, y: KETIL_CAMP.y - 150, head: "miner", style: "miner", idle: "Forty years I dug that mine. Forty years, and now a pack of walking pebbles has the run of it." },
@@ -400,6 +402,7 @@ const POIS = [
   { name: "Sunhollow Village", x: VILLAGE.x, y: VILLAGE.y - 650 }, { name: "Pasture", x: PASTURE.x, y: PASTURE.y + 1050 },
   { name: "Bramblewood Hollow", x: DEN.x, y: DEN.y + 800 }, { name: "Kaela's Camp", x: CAMP.x - 650, y: CAMP.y - 120 },
   { name: "Merrin's Cabin", x: CABIN.x + 150, y: CABIN.y - 450 }, { name: "Stillwater Pond", x: POND.x, y: POND.y - 780 },
+  { name: "Champion's Ring", x: ARENA.x + 350, y: ARENA.y - 700 },
   { name: "Howling Pines", x: PINES.x, y: PINES.y - 900 }, { name: "Old Watchtower", x: TOWER.x + 900, y: TOWER.y + 150 },
   { name: "Greywind Pass", x: PASS.x + 1000, y: PASS.y + 250 }, { name: "Highwatch Outpost", x: OUTPOST.x + 1100, y: OUTPOST.y - 150 },
   { name: "Ramsfoot Meadow", x: RAM_MEADOW.x - 200, y: RAM_MEADOW.y - 950 }, { name: "Whitefang Ridge", x: LYNX_RIDGE.x, y: LYNX_RIDGE.y + 950 },

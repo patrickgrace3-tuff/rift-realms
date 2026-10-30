@@ -63,12 +63,13 @@ function buildZone(){
     const dDen = Math.hypot(x - DEN.x, y - DEN.y), dCamp = Math.min(Math.hypot(x - CAMP.x, y - CAMP.y), Math.hypot(x - CABIN.x, y - CABIN.y)), dTower = Math.hypot(x - TOWER.x, y - TOWER.y);
     const dE = Math.min(x, y, ZS - x, ZS - y);
     const gap = (1 - ss(PASS.w, PASS.w + 600, Math.abs(x - PASS.x))) * ss(ZS - 1800, ZS - 700, y); // Greywind Pass cuts the north ridge
+    const dAr = Math.hypot(x - ARENA.x, y - ARENA.y);
     return { dP, dV, dPa, dPo, dE, dDen, dCamp, den: 1 - ss(DEN.r * .6, DEN.r + 80, dDen), camp: 1 - ss(260, 460, dCamp), dTower, tow: 1 - ss(500, 760, dTower), path: 1 - ss(110, 230, dP), vil: 1 - ss(VILLAGE.r * .7, VILLAGE.r, dV), past: 1 - ss(PASTURE.r - 50, PASTURE.r + 150, dPa),
-      pond: 1 - ss(POND.r * .5, POND.r, dPo), edge: (1 - ss(250, 900, dE)) * (1 - gap) };
+      pond: 1 - ss(POND.r * .5, POND.r, dPo), edge: (1 - ss(250, 900, dE)) * (1 - gap), dAr, arena: 1 - ss(ARENA.r * .75, ARENA.r + 120, dAr) };
   };
   const height = (x, y, f) => {
     let h = noise(x, y) * 1.1 + .4 * noise(x * 2.3 + 900, y * 2.1 - 400);
-    const flat = Math.max(f.vil, f.past * .8, f.path * .6, f.den * .9, f.camp, f.tow);
+    const flat = Math.max(f.vil, f.past * .8, f.path * .6, f.den * .9, f.camp, f.tow, f.arena);
     h = h * (1 - flat) + .15 * flat;
     h -= f.pond * 1.6;
     h += Math.pow(f.edge, 1.6) * 11 * (.8 + .4 * noise(x * 3, y * 3));
@@ -86,6 +87,7 @@ function buildZone(){
     t2.setHSL(.24, .5, .45 + .03 * n); c.lerp(t2, f.past * .6);
     t2.setHSL(.09, .3, .46 + .03 * n); c.lerp(t2, Math.max(f.path * .95, f.vil * .55, f.tow * .6));
     t2.setHSL(.07, .35, .27 + .04 * n); c.lerp(t2, f.den * .85);
+    t2.setHSL(.11, .45, .62 + .04 * n); c.lerp(t2, f.arena * .85);
     t2.setHSL(.13, .35, .3); c.lerp(t2, f.pond);
     t2.setHSL(.08, .12, .38 + .05 * n); c.lerp(t2, ss(1.8, 4, h) * f.edge);
     t2.setHSL(.6, .15, .93); c.lerp(t2, ss(7.5, 9.5, h));
@@ -107,7 +109,7 @@ function buildZone(){
   const trees = [];
   for(let k = 0; k < 4200; k++){
     const x = 300 + rnd() * (ZS - 600), y = 300 + rnd() * (ZS - 600), f = fields(x, y);
-    if(f.dP < 260 || f.dV < VILLAGE.r + 250 || f.dPa < PASTURE.r + 260 || f.dPo < POND.r + 220 || f.dDen < DEN.r + 120 || f.dCamp < 420 || inClear(x, y)) continue;
+    if(f.dAr < ARENA.r + 250 || f.dP < 260 || f.dV < VILLAGE.r + 250 || f.dPa < PASTURE.r + 260 || f.dPo < POND.r + 220 || f.dDen < DEN.r + 120 || f.dCamp < 420 || inClear(x, y)) continue;
     const h = height(x, y, f); if(h > 7.5) continue;
     const dens = .12 + .75 * Math.max(f.edge, ss(.2, 1, noise(x * .8 + 500, y * .8 - 300))) + (Math.hypot(x - PINES.x, y - PINES.y) < PINES.r + 450 ? .45 : 0);
     if(rnd() < dens) trees.push([x, y, h]);
@@ -132,7 +134,7 @@ function buildZone(){
   let nf = 0;
   for(let k = 0; k < 5000 && nf < 900; k++){
     const x = 700 + rnd() * (ZS - 1400), y = 700 + rnd() * (ZS - 1400), f = fields(x, y);
-    if(f.dP < 160 || f.dV < 700 || f.pond > .1 || f.edge > .3 || f.dDen < DEN.r + 50 || f.dCamp < 300) continue;
+    if(f.dAr < ARENA.r + 100 || f.dP < 160 || f.dV < 700 || f.pond > .1 || f.edge > .3 || f.dDen < DEN.r + 50 || f.dCamp < 300) continue;
     const w = XF(x, y); d.position.set(w.x, height(x, y, f) + .1, w.z); d.rotation.set(0, 0, 0); d.scale.setScalar(.8 + rnd() * .6); d.updateMatrix();
     flowers.setMatrixAt(nf, d.matrix); flowers.setColorAt(nf++, c.set([0xffe066, 0xff8fb0, 0xffffff, 0xb59cff][Math.floor(rnd() * 4)]));
   }
@@ -141,7 +143,7 @@ function buildZone(){
   let nk = 0;
   for(let k = 0; k < 2000 && nk < 220; k++){
     const x = 400 + rnd() * (ZS - 800), y = 400 + rnd() * (ZS - 800), f = fields(x, y);
-    if(f.dP < 200 || f.dV < VILLAGE.r || f.dPa < PASTURE.r + 100 || f.pond > .2 || f.dDen < DEN.r + 60 || f.dCamp < 350) continue;
+    if(f.dAr < ARENA.r + 100 || f.dP < 200 || f.dV < VILLAGE.r || f.dPa < PASTURE.r + 100 || f.pond > .2 || f.dDen < DEN.r + 60 || f.dCamp < 350) continue;
     const w = XF(x, y), sc = .4 + rnd() * 1.3; d.position.set(w.x, height(x, y, f), w.z); d.rotation.set(rnd() * 3, rnd() * 6, rnd() * 3); d.scale.set(sc, sc * (.5 + rnd() * .5), sc); d.updateMatrix();
     rocks.setMatrixAt(nk, d.matrix); rocks.setColorAt(nk++, c.setHSL(.08, .06, .45 + rnd() * .15));
   }
@@ -200,6 +202,22 @@ function buildZone(){
     stall.position.set(sw.x, ZH(STALL.x, STALL.y), sw.z);
     const nw = XF(npc.x, npc.y); stall.rotation.y = Math.atan2(nw.x - sw.x, nw.z - sw.z);
     g.add(stall); }
+  // the Champion's Ring: a sandy yard with a rope fence, banners and a weapon rack
+  { const postM = new THREE.MeshLambertMaterial({ color: 0x6a4428 }), ropeM = new THREE.MeshLambertMaterial({ color: 0xc8b48a }), bannerM = new THREE.MeshLambertMaterial({ color: 0xb8322a, side: THREE.DoubleSide });
+    const n = 28, gapA = Math.atan2(NPCS.find(p => p.arena).y - ARENA.y, NPCS.find(p => p.arena).x - ARENA.x);
+    const pts = []; for(let i = 0; i < n; i++){ const a = i / n * Math.PI * 2; if(Math.abs(Math.atan2(Math.sin(a - gapA), Math.cos(a - gapA))) < .25) { pts.push(null); continue; } pts.push([ARENA.x + Math.cos(a) * (ARENA.r + 40), ARENA.y + Math.sin(a) * (ARENA.r + 40)]); }
+    pts.forEach((p, i) => {
+      if(!p) return; const w = XF(...p), h = ZH(...p);
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(.12, .14, 1.4, 6), postM); post.position.set(w.x, h + .7, w.z); g.add(post);
+      if(i % 7 === 0){ const ban = new THREE.Mesh(new THREE.PlaneGeometry(.7, 1.1), bannerM); ban.position.set(w.x, h + 1.9, w.z); ban.rotation.y = -Math.atan2(p[1] - ARENA.y, p[0] - ARENA.x); const pole = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 2.6, 5), postM); pole.position.set(w.x, h + 1.3, w.z); g.add(ban, pole); }
+      const q = pts[(i + 1) % n]; if(!q) return; const wq = XF(...q), len = Math.hypot(wq.x - w.x, wq.z - w.z);
+      const rope = new THREE.Mesh(new THREE.BoxGeometry(len, .06, .06), ropeM); rope.position.set((w.x + wq.x) / 2, h + 1.15, (w.z + wq.z) / 2); rope.rotation.y = -Math.atan2(wq.z - w.z, wq.x - w.x); g.add(rope);
+    });
+    const rack = new THREE.Group(), rw = XF(ARENA.x - ARENA.r + 140, ARENA.y + 420);
+    const bar2 = new THREE.Mesh(new THREE.BoxGeometry(2, .12, .12), postM); bar2.position.y = 1.3; rack.add(bar2);
+    for(const sx of [-.9, .9]){ const leg = new THREE.Mesh(new THREE.BoxGeometry(.12, 1.4, .12), postM); leg.position.set(sx, .7, 0); rack.add(leg); }
+    for(let k = 0; k < 4; k++){ const blade = new THREE.Mesh(new THREE.BoxGeometry(.08, 1.4, .02), new THREE.MeshStandardMaterial({ color: 0xc0ccdc, metalness: .6, roughness: .4 })); blade.position.set(-.6 + k * .4, .9, .1); blade.rotation.z = .08; rack.add(blade); }
+    rack.position.set(rw.x, ZH(ARENA.x - ARENA.r + 140, ARENA.y + 420), rw.z); rack.rotation.y = .6; g.add(rack); }
   // campfire
   const cw = XF(...CAMPFIRE), fire = new THREE.Group();
   for(let i = 0; i < 8; i++){ const a = i / 8 * Math.PI * 2, s = new THREE.Mesh(new THREE.IcosahedronGeometry(.2, 0), stone); s.position.set(Math.cos(a) * .6, .1, Math.sin(a) * .6); fire.add(s); }
@@ -302,6 +320,7 @@ function buildZone(){
     t2.setHSL(.24, .45, .42); c.lerp(t2, f.past * .6);
     t2.setHSL(.09, .35, .56); c.lerp(t2, Math.max(f.path, f.vil * .6, f.camp * .5, f.tow * .5));
     t2.setHSL(.07, .35, .3); c.lerp(t2, f.den * .85);
+    t2.setHSL(.11, .45, .62); c.lerp(t2, f.arena * .85);
     t2.setHSL(.55, .55, .52); c.lerp(t2, f.pond > .35 ? 1 : 0);
     t2.setHSL(.08, .1, .44); c.lerp(t2, ss(1.8, 4, h) * f.edge);
     t2.setHSL(.6, .15, .9); c.lerp(t2, ss(7.5, 9.5, h));

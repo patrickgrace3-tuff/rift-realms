@@ -649,3 +649,73 @@ test("duel: leaving the area forfeits; declines, timeouts and bad input are hand
   SIM.input(W, "blue", { duel: "red" }); SIM.input(W, "red", { duelaccept: "blue" }); SIM.removeHero(W, "red"); step(.1);
   assert.ok(!W.duels.length && !a.duel);
 });
+
+/* ---------- Arena: practice duels against a computer champion ---------- */
+const MAGE = () => champ("Mage", 550, ["Mage"], [["Spark", "Fires a bolt that deals damage."], ["Ward", "Gains a shield."], ["Flicker", "Blinks a short distance."], ["Meteor", "Calls down a blast in an area, dealing damage."]]);
+function arenaWorld(lvl = 8){
+  const W = SIM.create(), p = SIM.addHero(W, "blue", GAREN_LIKE()), vex = G.NPCS.find(n => n.arena);
+  p.lvl = lvl; for(const sl of ["head", "chest", "hands", "legs", "feet", "weapon"]) p.equip[sl] = G.genItem({ ilvl: lvl + 1, rarity: 2, cls: "melee", slot: sl, nid: 7000 + sl.length });
+  SIM.recalc(p); p.hp = p.maxHp; p.x = vex.x + 120; p.y = vex.y;
+  const fx = [], step = (secs, each) => { for(let i = 0; i < secs * 60; i++){ if(each) each(i); SIM.step(W, 1 / 60); fx.push(...W.fxNet); W.fxNet.length = W.fxLocal.length = 0; } };
+  return { W, p, vex, fx, step };
+}
+
+test("arena: talk to Vex, a computer champion of your level enters the ring, and the duel counts down", () => {
+  const { W, p, vex, fx, step } = arenaWorld();
+  SIM.input(W, "blue", { talk: "vex" }); step(1);
+  assert.ok(fx.some(f => f.k === "arena" && f.npc === "vex"), "talking opens the arena");
+  p.x = vex.x + 3000; SIM.input(W, "blue", { arena: 1 }); assert.equal(W.arenaReqs.length, 0, "you must be at Vex");
+  p.x = vex.x + 120; SIM.input(W, "blue", { arena: 1 }); SIM.input(W, "blue", { arena: 1 });
+  assert.equal(W.arenaReqs.length, 1, "one request at a time");
+  W.arenaReqs.shift();
+  const b = SIM.arenaStart(W, "blue", MAGE());
+  assert.ok(b && b.bot && b.lvl === p.lvl && Object.keys(b.equip).length === 6, "same level, geared");
+  assert.ok(p.duel && p.duel === b.duel && p.duel.arena && p.duel.state === "count");
+  assert.equal(G.SIM.hero(W, b.side), null, "nobody can send commands as the computer champion");
+  assert.ok(Math.hypot(p.x - G.ARENA.x, p.y - G.ARENA.y) < G.ARENA.r * .6, "you're placed inside the ring");
+  step(5.5); assert.equal(p.duel.state, "fight");
+  const snap = SIM.snapshot(W); assert.ok(snap.h.some(h => h.side === b.side && h.bot === 1));
+});
+
+test("arena: the computer champion dodges most skillshots", () => {
+  const { W, p, step } = arenaWorld(10);
+  SIM.arenaStart(W, "blue", GAREN_LIKE()); const b = W.heroes[Object.keys(W.heroes).find(s => s !== "blue")];
+  step(5.5);
+  let fired = 0, hits = 0;
+  for(let k = 0; k < 30 && p.duel; k++){
+    b.hp = b.maxHp; p.hp = p.maxHp; b.potions = 0;
+    b.x = G.ARENA.x + 100; b.y = G.ARENA.y; p.x = b.x - 650; p.y = b.y; b.target = null; b.move = null;   // both well inside the ring
+    const before = b.hp;
+    W.shots.push({ id: "s" + W.nid++, kind: "sk", slot: "Q", team: p.team, owner: p.id, x: p.x + 60, y: p.y, vx: 1400, vy: 0, life: 1, r: 60, p: { dmg: 80, cc: {} }, hits: new Set() });
+    fired++; step(1); if(b.hp < before - 20) hits++;
+  }
+  console.log(`# computer champion was hit by ${hits} of ${fired} skillshots`);
+  assert.ok(fired >= 20 && hits <= fired * .4, `dodged most (${hits}/${fired} hit)`);
+});
+
+test("arena: the computer champion beats an average player most of the time", () => {
+  let botWins = 0, fights = 0;
+  for(let n = 0; n < 10; n++){ const opp = n % 2 ? GAREN_LIKE : MAGE;
+    const { W, p, fx, step } = arenaWorld(10);
+    const b = SIM.arenaStart(W, "blue", opp());
+    // an average player: walks in, attacks, spams abilities at the opponent, never dodges
+    step(120, i => { if(i % 20 || !p.duel || p.duel.state !== "fight") return; SIM.input(W, "blue", { atk: b.id }); for(const k of ["Q", "W", "E", "R"]) SIM.input(W, "blue", { cast: k, at: [b.x, b.y] }); });
+    const end = fx.find(f => f.k === "duelend");
+    if(end){ fights++; if(end.win === b.side) botWins++; }
+  }
+  console.log(`# computer champion won ${botWins} of ${fights} duels`);
+  assert.ok(fights >= 7 && botWins >= fights * .5, `skilled: won ${botWins}/${fights}`);   // it usually wins about 80%
+});
+
+test("arena: winning pays coins and counts, losing leaves you at 1 health, and the opponent leaves", () => {
+  const { W, p, fx, step } = arenaWorld(6);
+  const b = SIM.arenaStart(W, "blue", MAGE()); step(5.5);
+  const coins = p.coins; b.hp = 5; SIM.damage(W, b, 1e6, p);
+  assert.ok(!b.dead && b.hp === 1 && !p.duel);
+  assert.ok(p.coins === coins + 15 * p.lvl && p.arenaWins === 1, "a win pays and counts");
+  step(3); assert.ok(!W.heroes[b.side], "the opponent leaves the ring");
+  const b2 = SIM.arenaStart(W, "blue", MAGE()); step(5.5);
+  SIM.damage(W, p, 1e6, b2);
+  assert.ok(!p.dead && p.hp === 1 && p.arenaWins === 1, "losing: still alive, no win counted");
+  step(3); assert.ok(!W.heroes[b2.side]);
+});

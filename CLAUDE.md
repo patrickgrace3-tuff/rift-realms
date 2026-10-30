@@ -24,6 +24,7 @@ Scripts are classic `<script>` files (not modules) loaded in order by `index.htm
 | `src/js/05b-party.js` | Adds parties, Need/Greed loot rolls and chat to `SIM`; player slots (`SIDES`) |
 | `src/js/05c-raid.js` | Raid bosses (`RAID` tuning, `SIM.bossTick`, threat, telegraphs, raid loot) |
 | `src/js/05d-duel.js` | PvP duels (`DUEL` tuning, `SIM.hostile`, challenge/accept, countdown, forfeit) |
+| `src/js/05e-arena.js` | The Champion's Ring: practice duels against a computer champion (`ARENA_RULES`, `SIM.botTick`) |
 | `src/js/06-net.js` | PeerJS co-op (host shares a 5-letter code; up to 4 guests) |
 | `src/js/07-world.js` | Entering the world, hero visuals, input, quest dialog |
 | `src/js/08-ui.js` | Tracker, loot feed, character window, skill tree, maps, HUD, effects |
@@ -49,6 +50,7 @@ Scripts are classic `<script>` files (not modules) loaded in order by `index.htm
 - **Audio.** Files live in `src/audio/` (`music/`, and `sfx/` for effects) so every build copies them. Use MP3. Music is per zone in `MUSIC` (keys match `ZONES`); it starts on "Enter world" (browsers need a click first), crossfades when the zone's track changes, and stops when you leave. Call sounds through `playSound(() => ...)` from render or UI code so a sound problem can never break the game. Add an effect by putting its file in `src/audio/sfx/`, adding `SFX.name = "src/audio/sfx/file.mp3"`, and calling `sfx("name")` where it should play (`handleFx` is usually the place). Only add audio you have the rights to, and credit it in the README.
 - **Who can hit whom.** Always ask `SIM.hostile(attacker, target)` (or use `SIM.enemies(W, attacker)`), never compare `team`. Heroes and creatures are always hostile; two heroes only while they're in a running duel together. Heals and shields never go to a hostile player.
 - **Duels.** Right-click a party member's portrait → Challenge to a duel. Commands: `duel`, `duelaccept`, `dueldecline`, `duelyield`. Accepting drops a flag halfway between the two (`W.duels`, snapshot `du`), counts down 5 → Fight!, then `SIM.duelHit` stops the loser at 1 health and ends the duel (nobody dies). Leaving `DUEL.radius` for `DUEL.outGrace` seconds forfeits; death or a disconnect cancels.
+- **Arena.** Arenamaster Vex (`arena: true` NPC) runs the Champion's Ring (`ARENA`). The `arena` command queues `W.arenaReqs`; the host's `serviceArena` (07-world.js) picks a random champion from `champs` and calls `SIM.arenaStart`, which spawns a computer hero (`bot: true`, side `bot<n>`, not in `SIDES` so it can't be commanded) at your level and gear and starts an arena duel. `SIM.botTick` drives it: dodges skillshots and blasts (`ARENA_RULES.dodge`), leads its aim, kites or gap-closes, shields/heals/drinks potions. Wins pay `ARENA_RULES.reward` × level and count `arenaWins`; the opponent leaves 2.5 s after the duel. Hide `bot` heroes from player lists.
 - **Obstacles** are circles in `OBSTACLES`. Moving units slide around them; avoid placing two circles so they touch and form a corner (merge them into one, like Osric's stall). A test fails if any two obstacles leave a gap narrower than a player.
 
 ## Rules for this project

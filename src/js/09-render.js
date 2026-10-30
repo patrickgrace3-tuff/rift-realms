@@ -333,6 +333,7 @@ function frame(now){
     let rest = dt; while(rest > 0){ const st = Math.min(1 / 60, rest); SIM.step(G.W, st); rest -= st; }
     G.snap = SIM.snapshot(G.W);
     for(const f of G.W.fxLocal) G.fxQueue.push(f); G.W.fxLocal.length = 0;
+    serviceArena();
     G.sendT -= dt;
     if(!NET.guests.size) G.W.fxNet.length = 0;
     else if(G.sendT <= 0){ G.sendT = .05; netBroadcast(G.snap, G.W.fxNet); G.W.fxNet = []; }
@@ -347,6 +348,7 @@ function frame(now){
   render(dt);
   if((hudTick = (hudTick + 1) % 3) === 0) updateHud();
   // close the dialog if you walk away from the NPC
+  if(G.arenaNpc){ const me = G.snap.h.find(h => h.side === G.myTeam), npc = NPCS.find(n => n.id === G.arenaNpc); if(!me || Math.hypot(me.x - npc.x, me.y - npc.y) > 700) closeArena(); }
   if(G.shop){ const me = G.snap.h.find(h => h.side === G.myTeam), npc = NPCS.find(n => n.id === G.shop); if(!me || Math.hypot(me.x - npc.x, me.y - npc.y) > 700) closeShop(); }
   if(G.dialog){ const me = G.snap.h.find(h => h.side === G.myTeam), npc = NPCS.find(n => n.id === G.dialog.npc); if(!me || Math.hypot(me.x - npc.x, me.y - npc.y) > 700) closeDialog(); }
 }

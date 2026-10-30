@@ -52,7 +52,7 @@ function renderSocial(){
   const key = JSON.stringify([G.snap.h.map(h => [h.side, h.lvl, h.party]), p, [...invited]]);
   if(key === G.socialKey) return;
   G.socialKey = key;
-  const rows = G.snap.h.map(h => {
+  const rows = G.snap.h.filter(h => !h.bot).map(h => {
     const me = h.side === G.myTeam, mate = !me && inMyParty(h.side);
     let act = "", status = "";
     if(me) status = p ? (lead ? "You · party leader" : "You") : "You";
@@ -63,7 +63,7 @@ function renderSocial(){
     return `<div class="prow"><img alt="" src="${champIcon(h.champId)}" style="border-color:${SIDE_COLOR[h.side]}"><div class="pinfo"><b>${esc(h.name)}</b><span>Level ${h.lvl} · ${status}</span></div>${act}</div>`;
   });
   $("#socialList").innerHTML = rows.join("");
-  $("#socialEmpty").hidden = G.snap.h.length > 1;
+  $("#socialEmpty").hidden = G.snap.h.filter(h => !h.bot).length > 1;
   $("#socialLeave").hidden = !p;
   $("#socialInvite").hidden = G.role !== "host";
 }

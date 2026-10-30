@@ -21,6 +21,7 @@ const BODY = {
   bandit: { tunic: "#5a4a3a", dark: "#3a2e24", trim: "#8a2a22", pants: "#2e2a26", boots: "#1e1a16", weapon: "sword" },
   miner: { tunic: "#6a5a4a", dark: "#4a3e32", trim: "#c9a55c", pants: "#3e3a34", boots: "#2a2018", weapon: "none", shirt: "#8a3a2a" },
   healer: { tunic: "#e8e2d4", dark: "#b8b0a0", trim: "#5fb0c8", pants: "#8a8478", boots: "#4a4038", weapon: "staff", robe: true },
+  gladiator: { tunic: "#8a3a2a", dark: "#5a2418", trim: "#d8b06a", pants: "#4a3a2a", boots: "#2a2018", weapon: "sword" },
   merchant: { tunic: "#8a3a5a", dark: "#5a2440", trim: "#e0c56e", pants: "#4a3a2a", boots: "#2a2018", weapon: "none", shirt: "#e0c56e" },
   warden: { tunic: "#6a5040", dark: "#46342a", trim: "#e8e2d4", pants: "#3e3a44", boots: "#2a2220", weapon: "sword" },
 };
@@ -157,6 +158,15 @@ function drawHealerHead(g, x, y, r){
   g.fillStyle = "#d87a6a"; g.fillRect(x - 5, y + 20, 10, 3);
   g.lineWidth = 4; g.strokeStyle = "#1b1410"; g.beginPath(); g.arc(x, y, r * .96, 0, Math.PI * 2); g.stroke();
 }
+function drawGladiatorHead(g, x, y, r){
+  g.fillStyle = "#c98a3a"; g.beginPath(); g.arc(x, y + 4, r * .8, 0, Math.PI * 2); g.fill();                 // bronze helm
+  g.fillStyle = "#e0aa82"; g.fillRect(x - r * .42, y - 2, r * .84, r * .9);                                      // face opening
+  g.fillStyle = "#1b1410"; g.fillRect(x - 13, y + 6, 7, 6); g.fillRect(x + 6, y + 6, 7, 6);
+  g.fillStyle = "#a8603a"; g.fillRect(x - 9, y + 2, 14, 3);                                                     // scar
+  g.fillStyle = "#6a4a2a"; g.fillRect(x - 8, y + 22, 16, 5);
+  g.fillStyle = "#b8322a"; for(let i = 0; i < 7; i++) g.fillRect(x - 6 + (i % 2) * 2, y - r * .8 - i * 5, 12, 6); // red crest
+  g.lineWidth = 4; g.strokeStyle = "#1b1410"; g.beginPath(); g.arc(x, y + 4, r * .8, 0, Math.PI * 2); g.stroke();
+}
 function drawMerchantHead(g, x, y, r){
   g.fillStyle = "#e6b28a"; g.beginPath(); g.arc(x, y + 6, r * .72, 0, Math.PI * 2); g.fill();
   g.fillStyle = "#3a2618"; g.beginPath(); g.moveTo(x - 20, y + 16); g.quadraticCurveTo(x - 6, y + 10, x, y + 16); g.quadraticCurveTo(x + 6, y + 10, x + 20, y + 16); g.lineTo(x + 14, y + 20); g.quadraticCurveTo(x, y + 15, x - 14, y + 20); g.fill(); // curled moustache
@@ -216,7 +226,7 @@ function drawFlower(g){
   g.fillStyle = "#ffe066"; for(let i = 0; i < 6; i++){ const a = i / 6 * Math.PI * 2; g.beginPath(); g.ellipse(32 + Math.cos(a) * 9, 24 + Math.sin(a) * 9, 7, 5, a, 0, Math.PI * 2); g.fill(); }
   g.fillStyle = "#ff9a30"; g.beginPath(); g.arc(32, 24, 6, 0, Math.PI * 2); g.fill();
 }
-const HEADS = { farmer: drawFarmerHead, huntress: drawHuntressHead, fisher: drawFisherHead, guard: drawGuardHead, warden: drawWardenHead, merchant: drawMerchantHead, miner: drawMinerHead, healer: drawHealerHead };
+const HEADS = { farmer: drawFarmerHead, huntress: drawHuntressHead, fisher: drawFisherHead, guard: drawGuardHead, warden: drawWardenHead, merchant: drawMerchantHead, gladiator: drawGladiatorHead, miner: drawMinerHead, healer: drawHealerHead };
 const MOB_ART = {
   sheep: { cw: 96, ch: 80, sx: 1.35, sy: 1.12, sh: .6, plate: 1.35, draw: (g, f, fl, an) => drawSheep(g, f, fl, an, false) },
   boar: { cw: 128, ch: 96, sx: 2.8, sy: 2.1, sh: 1.15, plate: 2.4, draw: (g, f, fl, an, wu) => drawBoar(g, f, fl, an, wu) },

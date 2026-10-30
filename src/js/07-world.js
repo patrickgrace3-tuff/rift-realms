@@ -138,7 +138,8 @@ addEventListener("keydown", e => {
     let best = null, bd = 900; for(const n of NPCS){ const d = Math.hypot(n.x - me.x, n.y - me.y); if(d < bd){ bd = d; best = n; } }
     if(best) command({ talk: best.id });
   }else if(e.key === "Escape"){
-    if(!$("#shop").hidden) closeShop();
+    if(!$("#arena").hidden) closeArena();
+    else if(!$("#shop").hidden) closeShop();
     else if(!$("#social").hidden) $("#social").hidden = true;
     else if(!$("#charWin").hidden) $("#charWin").hidden = true;
     else if(!$("#skills").hidden) $("#skills").hidden = true;
@@ -183,6 +184,24 @@ function openDialog(f){
     $("#dlgClose").textContent = f.state === "offer" ? "Decline" : "Goodbye";
   }
   $("#dialog").hidden = false; (act.hidden ? $("#dlgClose") : act).focus();
+}
+/* ---------- Arena (Arenamaster Vex) ---------- */
+function openArena(f){
+  const npc = NPCS.find(n => n.id === f.npc); if(!npc) return;
+  G.arenaNpc = npc.id; $("#arenaName").textContent = npc.name; $("#arenaWins").textContent = f.wins ? `Your wins in the ring: ${f.wins}` : "You haven't won in the ring yet.";
+  $("#arena").hidden = false; $("#arenaGo").focus();
+}
+function closeArena(){ $("#arena").hidden = true; if(G) G.arenaNpc = null; }
+$("#arenaGo").onclick = () => { command({ arena: 1 }); closeArena(); };
+$("#arenaClose").onclick = closeArena;
+// host only: the simulation asks for an opponent; pick a random champion (not your own) and load its abilities
+function serviceArena(){
+  if(G.role !== "host" || !G.W.arenaReqs.length) return;
+  const req = G.W.arenaReqs.shift(), me = G.W.heroes[req.side];
+  const pool = champs.filter(c => !me || c.id !== me.champId);
+  if(!pool.length){ SIM.arenaFail(G.W, req.side); return; }
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  getDetail(pick.id).then(d => { if(G && G.W) SIM.arenaStart(G.W, req.side, d); }).catch(() => { if(G && G.W) SIM.arenaFail(G.W, req.side); });
 }
 /* ---------- Vendor ---------- */
 function openShop(npcId){

@@ -6,7 +6,7 @@
    ===================================================================== */
 const SIM = {
   create(){
-    const W = { t: 0, heroes: {}, mobs: [], shots: [], zones: [], fields: [], pets: [], loot: [], respawnQ: [], fxNet: [], fxLocal: [], nid: 1, parties: {}, invites: [], rolls: [], duels: [], duelReqs: [] };
+    const W = { t: 0, heroes: {}, mobs: [], shots: [], zones: [], fields: [], pets: [], loot: [], respawnQ: [], fxNet: [], fxLocal: [], nid: 1, parties: {}, invites: [], rolls: [], duels: [], duelReqs: [], arenaReqs: [], botLeave: [] };
     for(const kind in MOBS) for(let i = 0; i < MOBS[kind].count; i++) SIM.spawnMob(W, kind);
     W.nodes = [];
     let nid = 0;
@@ -202,6 +202,7 @@ const SIM = {
   },
   talk(W, c, npc){
     if(npc.shop){ SIM.fx(W, { k: "shop", side: c.side, npc: npc.id }); return; }
+    if(npc.arena){ SIM.fx(W, { k: "arena", side: c.side, npc: npc.id, wins: c.arenaWins || 0 }); return; }
     const qf = questFor(c.quests, npc.id);
     SIM.fx(W, { k: "dialog", side: c.side, npc: npc.id, quest: qf.quest, state: qf.state });
   },
@@ -289,7 +290,7 @@ const SIM = {
   },
   input(W, side, cmd){
     const c = SIM.hero(W, side); if(!c || !cmd || typeof cmd !== "object") return;
-    if(SIM.socialInput(W, c, cmd) || SIM.duelInput(W, c, cmd)) return;
+    if(SIM.socialInput(W, c, cmd) || SIM.duelInput(W, c, cmd) || SIM.arenaInput(W, c, cmd)) return;
     if(cmd.stop){ c.move = c.target = c.talkTo = null; return; }
     if(cmd.accept){
       const Q = QUESTS[cmd.accept]; if(!Q) return;
@@ -465,10 +466,11 @@ const SIM = {
     W.respawnQ = W.respawnQ.filter(r => { if(W.t >= r.at){ SIM.spawnMob(W, r.kind); return false; } return true; });
     for(const n of W.nodes) if(!n.ready && W.t >= n.respawnAt) n.ready = true;
     W.loot = W.loot.filter(l => !l.expires || l.expires > W.t);
-    SIM.socialTick(W); SIM.duelTick(W);
+    SIM.socialTick(W); SIM.duelTick(W); SIM.arenaTick(W);
     // heroes
     for(const c of SIM.heroes(W)){
       for(const k in c.cds) c.cds[k] = Math.max(0, c.cds[k] - dt);
+      if(c.bot && !c.dead) SIM.botTick(W, c, dt); // computer-controlled arena opponents decide what to do
       if(c.dead){ if(W.t >= c.respawnAt){ const home = SIM.respawnAt(c); c.dead = 0; c.hp = c.maxHp; c.x = home[0]; c.y = home[1]; SIM.fx(W, { k: "spawn", side: c.side }); } continue; }
       SIM.tickTimers(c, dt);
       c.shieldT -= dt; if(c.shieldT <= 0) c.shield = 0;
@@ -669,7 +671,7 @@ const SIM = {
         cc: c.cc.stun > 0 ? "stun" : c.cc.root > 0 ? "root" : c.cc.slow > 0 ? "slow" : "", quests: SIM.questView(W, c), weapon: c.weapon ? c.weapon.name : null,
         talents: c.talents, points: talentPoints(c.lvl, c.talents), orbN: c.orbN || 3, ad: Math.round(c.ad),
         wglow: c.weapon && c.weapon.glow ? 1 : 0, coins: c.coins, ap: Math.round(c.ap), armor: Math.round(c.armor), haste: Math.round(c.hasteG), msPct: Math.round(c.msPct),
-        pot: c.potT > W.t ? Math.ceil(c.potT - W.t) : 0,
+        pot: c.potT > W.t ? Math.ceil(c.potT - W.t) : 0, bot: c.bot ? 1 : 0,
         chan: c.channel ? { n: c.channel.name, p: Math.round(c.channel.t / c.channel.dur * 100) / 100 } : null, party: c.party || "",
         gear: { ver: c.gearVer, inv: c.inv, equip: c.equip } })),
       m: W.mobs.map(m => [m.id, m.kind, r(m.x), r(m.y), r(m.hp), r(m.maxHp), Math.round(m.face * 10) / 10, (m.moving ? 1 : 0) | (m.aggro ? 2 : 0) | (m.charging ? 4 : 0) | (m.windup > 0 || m.cast ? 8 : 0)]),
