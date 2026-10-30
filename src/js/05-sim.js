@@ -91,7 +91,7 @@ const SIM = {
     if(!h) return false;
     m.aggro = h.id; m.wp = null; SIM.fx(W, { k: "angry", id: m.id }); SIM.alertPack(W, m, h.id); return true;
   },
-  xpNext: lvl => 80 + 45 * lvl,
+  xpNext: xpForLevel,
   // fallen heroes return to the village, or to Highwatch if they fell in the Peaks
   respawnAt: c => c.y >= ZS ? [OUTPOST.x + 120, OUTPOST.y - 260] : SPAWN,
   dmgScale: c => (1 + .09 * ((c.lvl || 1) - 1)) * (1 + (c.ap || 0) / 100),
@@ -122,9 +122,9 @@ const SIM = {
   },
   burst(W, c, x, y, radius, p){ for(const u of SIM.enemies(W, c.team)) if(Math.hypot(u.x - x, u.y - y) < radius + u.r) SIM.hitAbility(W, c, u, p); },
   gainXp(W, c, v){
-    if(c.lvl >= 20) return;
+    if(c.lvl >= MAX_LEVEL || v <= 0) return;
     c.xp += v; SIM.fx(W, { k: "xp", side: c.side, v, x: c.x, y: c.y });
-    while(c.lvl < 20 && c.xp >= SIM.xpNext(c.lvl)){
+    while(c.lvl < MAX_LEVEL && c.xp >= SIM.xpNext(c.lvl)){
       c.xp -= SIM.xpNext(c.lvl); c.lvl++;
       SIM.recalc(c); c.hp = c.maxHp;
       SIM.fx(W, { k: "lvl", x: c.x, y: c.y, side: c.side, lvl: c.lvl });
@@ -158,7 +158,7 @@ const SIM = {
       if(looter) SIM.dropBag(W, looter, u, group);
       for(const c of group){
         if(c.dead) continue;
-        SIM.gainXp(W, c, MOBS[u.kind].xp);
+        SIM.gainXp(W, c, mobXp(MOBS[u.kind].xp, MOBS[u.kind].lvl, c.lvl));
         for(const qid in c.quests){
           const qs = c.quests[qid], Q = QUESTS[qid];
           if(qs.state !== "active") continue;
@@ -289,8 +289,9 @@ const SIM = {
         }
         if(got){ item = got.n; SIM.giveReward(W, c, got); }
         if(Q.coins){ c.coins += Q.coins; c.gearVer++; }
-        SIM.fx(W, { k: "qdone", side, quest: Q.id, xp: Q.xp, item, itemR: got ? got.r : 0, coins: Q.coins || 0 });
-        SIM.gainXp(W, c, Q.xp);
+        const xp = questXp(Q, c.lvl);
+        SIM.fx(W, { k: "qdone", side, quest: Q.id, xp, item, itemR: got ? got.r : 0, coins: Q.coins || 0 });
+        SIM.gainXp(W, c, xp);
       }
       return;
     }

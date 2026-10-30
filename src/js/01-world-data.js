@@ -79,7 +79,7 @@ const OBSTACLES = [
 ];
 const QUESTS = {
   sheep: {
-    id: "sheep", title: "Woolly Menace", giver: "bram", turnin: "bram", prereq: null, xp: 250, where: [PASTURE.x, PASTURE.y], whereR: PASTURE.r,
+    id: "sheep", lvl: 1, title: "Woolly Menace", giver: "bram", turnin: "bram", prereq: null, xp: 250, where: [PASTURE.x, PASTURE.y], whereR: PASTURE.r,
     obj: { type: "kill", kind: "sheep", count: 5, label: "Sheep slain" },
     offer: "Ah, an adventurer! Fresh off the road, by the look of you. My flock's gone wild since that strange storm rolled over the Vale. Rams butting the fences, ewes chasing the children. Thin the herd for me, would you? Five of them should calm the rest.",
     objective: "Slay 5 Sheep in the pasture northwest of the village.",
@@ -88,7 +88,7 @@ const QUESTS = {
     done: "The flock's been calm ever since. Thank you, friend.",
   },
   tusker: {
-    id: "tusker", title: "The Old Tusker", giver: "bram", turnin: "kaela", prereq: "sheep", xp: 300, reward: "weapon", where: [DEN.x, DEN.y], whereR: DEN.r,
+    id: "tusker", lvl: 3, title: "The Old Tusker", giver: "bram", turnin: "kaela", prereq: "sheep", xp: 300, reward: "weapon", where: [DEN.x, DEN.y], whereR: DEN.r,
     obj: { type: "loot", from: "boar", item: "tooth", itemName: "Old Tusker's Tooth", count: 1, label: "Old Tusker's Tooth" },
     offer: "There's a boar out in the Bramblewood big as a hay cart. Folk call him the Old Tusker. He gored two of my best rams last spring. Huntress Kaela has been tracking him for weeks. Head east past the woods, find his den, and bring Kaela his tooth. She'll see you're paid properly.",
     objective: "Slay the Old Tusker in his den in the Bramblewood, east of the village. Bring his tooth to Huntress Kaela at her camp.",
@@ -98,7 +98,7 @@ const QUESTS = {
     done: "That weapon suits you. Wear it well.",
   },
   courier: {
-    id: "courier", title: "Against the Clock", giver: "kaela", turnin: "merrin", prereq: "tusker", xp: 200, timeLimit: 600, where: [CABIN.x, CABIN.y],
+    id: "courier", lvl: 4, title: "Against the Clock", giver: "kaela", turnin: "merrin", prereq: "tusker", xp: 200, timeLimit: 600, where: [CABIN.x, CABIN.y],
     obj: { type: "deliver", itemName: "Kaela's Healing Draught", label: "Deliver the draught to Old Merrin" },
     offer: "One more thing, while you've got the legs for it. Old Merrin, the fisherman on the far western shore, took a fever three days back. This draught will break it, but it spoils fast. Ten minutes, no more, before it turns to swamp water. Will you run it to him?",
     objective: "Deliver Kaela's Healing Draught to Old Merrin on the far west side of the Vale within 10 minutes.",
@@ -109,7 +109,7 @@ const QUESTS = {
     fail: "The draught spoiled before it reached Merrin. Return to Huntress Kaela for a fresh one.",
   },
   scout: {
-    id: "scout", title: "Eyes on the Vale", giver: "rhea", turnin: "rhea", prereq: "sheep", xp: 250, reward: { item: 1 },
+    id: "scout", lvl: 3, title: "Eyes on the Vale", giver: "rhea", turnin: "rhea", prereq: "sheep", xp: 250, reward: { item: 1 },
     obj: { type: "explore", points: LOOKOUTS, count: 3, label: "Lookouts scouted" },
     offer: "You're the one who settled Bram's flock. Good. I need a scout. Something has been moving along the edges of the Vale at night. Visit the three lookouts, the East Overlook, the Southwest Bluff and Pinecrest Ridge, and tell me what you see.",
     objective: "Visit the East Overlook, the Southwest Bluff and Pinecrest Ridge.",
@@ -118,7 +118,7 @@ const QUESTS = {
     done: "Keep your eyes open out there.",
   },
   wolves: {
-    id: "wolves", title: "The Hungry Pack", giver: "kaela", turnin: "kaela", prereq: "tusker", xp: 350, reward: { item: 2 }, where: [PINES.x, PINES.y], whereR: PINES.r,
+    id: "wolves", lvl: 5, title: "The Hungry Pack", giver: "kaela", turnin: "kaela", prereq: "tusker", xp: 350, reward: { item: 2 }, where: [PINES.x, PINES.y], whereR: PINES.r,
     obj: { type: "kill", kind: "wolf", count: 6, label: "Gray Wolves slain" },
     offer: "With the Old Tusker gone, the wolves of the Howling Pines have grown bold. They took a calf from Bram's field last night. Thin the pack, six of them. They hunt together, so if one sees you, expect the rest.",
     objective: "Slay 6 Gray Wolves in the Howling Pines, north of the village.",
@@ -127,7 +127,7 @@ const QUESTS = {
     done: "The pines are quieter now. Good hunting.",
   },
   herbs: {
-    id: "herbs", title: "Sunpetal Tea", giver: "merrin", turnin: "merrin", prereq: "courier", xp: 300, coins: 150, reward: { item: 1 }, where: [HERB_AREA.x, HERB_AREA.y], whereR: HERB_AREA.r,
+    id: "herbs", lvl: 5, title: "Sunpetal Tea", giver: "merrin", turnin: "merrin", prereq: "courier", xp: 300, coins: 150, reward: { item: 1 }, where: [HERB_AREA.x, HERB_AREA.y], whereR: HERB_AREA.r,
     obj: { type: "collect", node: "herb", count: 6, label: "Sunpetals gathered" },
     offer: "Kaela's draught broke the fever, but I'm weak as a newborn lamb. Sunpetal grows in the grass around Stillwater Pond, east of the village. Little yellow flowers that catch the light. Bring me six and I'll brew myself back to health.",
     objective: "Gather 6 Sunpetals around Stillwater Pond. Walk over them or right-click to pick them.",
@@ -136,7 +136,7 @@ const QUESTS = {
     done: "Feeling stronger every day, thanks to you.",
   },
   beacons: {
-    id: "beacons", title: "Light the Beacons", giver: "rhea", turnin: "rhea", prereq: "scout", xp: 350, reward: { item: 2 },
+    id: "beacons", lvl: 6, title: "Light the Beacons", giver: "rhea", turnin: "rhea", prereq: "scout", xp: 350, reward: { item: 2 },
     obj: { type: "interact", points: BEACONS, count: 3, label: "Beacons lit" },
     offer: "If bandits are gathering, every farm in the Vale needs warning. There are three old signal beacons on the hills: west, north and south-east. Light them all. Stand at each one for a moment while the fire catches.",
     objective: "Light the West, North and South Beacons. Right-click a beacon and stand still while it lights.",
@@ -145,7 +145,7 @@ const QUESTS = {
     done: "The beacons will burn for days yet.",
   },
   defend: {
-    id: "defend", title: "Hold the Watchtower", giver: "rhea", turnin: "rhea", prereq: "beacons", xp: 500, reward: { item: 3, slot: "chest", name: "Watch Captain's" }, where: [TOWER.x, TOWER.y], whereR: 550,
+    id: "defend", lvl: 7, title: "Hold the Watchtower", giver: "rhea", turnin: "rhea", prereq: "beacons", xp: 500, reward: { item: 3, slot: "chest", name: "Watch Captain's" }, where: [TOWER.x, TOWER.y], whereR: 550,
     obj: { type: "defend", at: TOWER, dur: 60, label: "Hold the Old Watchtower" },
     offer: "The bandits are coming up the southern road, and the Old Watchtower is all that stands between them and the village. Get down there and hold it. One minute is all I need to rally the farmers. Whatever happens, don't leave the tower.",
     objective: "Go to the Old Watchtower on the southern road. When the bandits attack, survive for 60 seconds without leaving the tower.",
@@ -155,7 +155,7 @@ const QUESTS = {
     fail: "You abandoned the watchtower. Speak to Captain Rhea to try again.",
   },
   northpass: {
-    id: "northpass", title: "The Road North", giver: "rhea", turnin: "halvard", prereq: ["sheep", "tusker", "courier", "scout", "wolves", "herbs", "beacons", "defend"], xp: 400, coins: 120,
+    id: "northpass", lvl: 9, title: "The Road North", giver: "rhea", turnin: "halvard", prereq: ["sheep", "tusker", "courier", "scout", "wolves", "herbs", "beacons", "defend"], xp: 400, coins: 120,
     where: [OUTPOST.x, OUTPOST.y],
     obj: { type: "deliver", itemName: "Captain Rhea's Letter", label: "Bring Rhea's letter to Warden Halvard" },
     offer: "Every farm in the Vale owes you something now, and so do I. But the Vale is small, and you've outgrown it. North of the Howling Pines the road climbs to Greywind Pass and into the Frostspine Peaks. My old friend Halvard keeps the outpost at Highwatch. He's been asking for help all winter. Take him this letter. It says you're the best I've seen.",
@@ -166,7 +166,7 @@ const QUESTS = {
     done: "Any friend of Rhea's has a place by our fire.",
   },
   lynx: {
-    id: "lynx", title: "Claws on the Ridge", giver: "halvard", turnin: "halvard", prereq: "northpass", xp: 700, coins: 200, reward: { item: 2 }, where: [LYNX_RIDGE.x, LYNX_RIDGE.y], whereR: LYNX_RIDGE.r,
+    id: "lynx", lvl: 10, title: "Claws on the Ridge", giver: "halvard", turnin: "halvard", prereq: "northpass", xp: 700, coins: 200, reward: { item: 2 }, where: [LYNX_RIDGE.x, LYNX_RIDGE.y], whereR: LYNX_RIDGE.r,
     obj: { type: "kill", kind: "lynx", count: 8, label: "Snowfang Lynxes slain" },
     offer: "The snowfang lynxes have come down off Whitefang Ridge. Hungry winter, too many cubs. They've taken two of our pack mules and they stalk anyone who walks the east trail. They hunt alone, but they'll spring on you from the snow before you see them. Thin them out. Eight should do it.",
     objective: "Slay 8 Snowfang Lynxes on Whitefang Ridge, east of Highwatch Outpost.",
@@ -176,6 +176,14 @@ const QUESTS = {
   },
 };
 const QUEST_ORDER = ["sheep", "tusker", "courier", "scout", "wolves", "herbs", "beacons", "defend", "northpass", "lynx"];
+/* ---------- Experience ---------- */
+// Each level needs more XP than the last. Creatures and quests well below your level give less.
+const MAX_LEVEL = 20;
+const xpForLevel = lvl => Math.round(40 * Math.pow(lvl, 1.6) + 70);
+// creatures: +10% per level above you (up to +40%), −20% per level below (nothing at 5 below)
+function mobXp(base, mobLvl, heroLvl){ const d = mobLvl - heroLvl; return Math.round(base * (d >= 0 ? 1 + .1 * Math.min(d, 4) : Math.max(0, 1 + .2 * d))); }
+// quests: full XP up to 3 levels below you, then −20% per level, never less than 20%
+function questXp(Q, heroLvl){ const over = heroLvl - (Q.lvl || heroLvl); return Math.round(Q.xp * (over <= 3 ? 1 : Math.max(.2, 1 - .2 * (over - 3)))); }
 // prereq is a quest id or a list of them; all must be done
 function prereqMet(quests, Q){ const ids = !Q.prereq ? [] : Array.isArray(Q.prereq) ? Q.prereq : [Q.prereq]; return ids.every(id => quests[id] && quests[id].state === "done"); }
 const WEAPON_REWARD = { melee: "Tuskbreaker Blade", caster: "Tuskwood Staff", ranged: "Tuskbone Bow", ad: 32, abil: .18 };

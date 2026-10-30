@@ -147,7 +147,8 @@ $("#leaveBtn").onclick = () => { $("#menu").hidden = true; leaveWorld(); show("s
 /* ---------- Quest dialog ---------- */
 const dlgFace = $("#dlgFace").getContext("2d");
 function rewardText(Q){
-  let t = `Reward: ${Q.xp} experience`;
+  const me = G.snap && G.snap.h.find(h => h.side === G.myTeam), xp = me ? questXp(Q, me.lvl) : Q.xp;
+  let t = `Reward: ${xp} experience${xp < Q.xp ? " (less, because this quest is below your level)" : ""}`;
   if(Q.reward === "weapon") t += ` and a glowing new weapon, ${WEAPON_REWARD[G.myKit.cls]} (+${WEAPON_REWARD.ad} attack damage, +${Math.round(WEAPON_REWARD.abil * 100)}% ability damage)`;
   if(Q.reward && Q.reward.item !== undefined){ const R = RARITY[Q.reward.item].n; t += `, and ${/^[AEIOU]/.test(R) ? "an" : "a"} ${R} ${Q.reward.slot ? SLOT_NAME[Q.reward.slot].toLowerCase() : "armor"} piece`; }
   if(Q.coins) t += ` · ${fmtCoins(Q.coins)}`;

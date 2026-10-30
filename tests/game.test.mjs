@@ -61,7 +61,11 @@ test("full quest chain can be completed in order", () => {
     SIM.input(W, "blue", { gather: n.id }); t.step(15);
   }
   t.turnIn("merrin", "herbs");
-  t.accept("rhea", "beacons"); G.BEACONS.forEach((b, i) => { SIM.input(W, "blue", { use: i }); t.step(30); }); t.turnIn("rhea", "beacons");
+  t.accept("rhea", "beacons");
+  G.BEACONS.forEach((b, i) => {
+    for(let k = 0; k < 4 && !h.quests.beacons.flags[i]; k++){ t.travel(b.x, b.y - 150); SIM.input(W, "blue", { use: i }); t.step(5); }
+  });
+  t.turnIn("rhea", "beacons");
   t.accept("rhea", "defend"); t.walk(G.TOWER.x + 200, G.TOWER.y + 300, 12); t.step(70, t.fight("bandit")); t.turnIn("rhea", "defend");
   // all of the Vale is done: Rhea sends you north through Greywind Pass
   t.accept("rhea", "northpass");
@@ -299,4 +303,34 @@ test("Peaks: heroes who fall in the mountains return to Highwatch", () => {
   const t = newWorld(), { W, h } = t;
   h.x = G.LYNX_RIDGE.x; h.y = G.LYNX_RIDGE.y; G.SIM.damage(W, h, 1e6, null); t.step(7);
   assert.ok(!h.dead && Math.hypot(h.x - G.OUTPOST.x, h.y - G.OUTPOST.y) < 600);
+});
+
+/* ---------- Experience ---------- */
+test("XP: each level takes longer than the last", () => {
+  for(let l = 1; l < G.MAX_LEVEL - 1; l++){
+    const a = G.xpForLevel(l), b = G.xpForLevel(l + 1), c = G.xpForLevel(l + 2);
+    assert.ok(b > a && c - b >= b - a, `level ${l}: the step grows (${a}, ${b}, ${c})`);
+  }
+  assert.ok(G.xpForLevel(19) > 4 * G.xpForLevel(5));
+});
+
+test("XP: creatures above you give more, far below you give nothing", () => {
+  assert.equal(G.mobXp(100, 10, 10), 100);
+  assert.equal(G.mobXp(100, 12, 10), 120);
+  assert.equal(G.mobXp(100, 20, 10), 140, "the bonus is capped");
+  assert.equal(G.mobXp(100, 8, 10), 60);
+  assert.equal(G.mobXp(100, 1, 10), 0, "grey creatures give no XP");
+  const t = newWorld(), { W, h } = t;
+  h.lvl = 9; const sheep = W.mobs.find(m => m.kind === "sheep"); h.x = sheep.x + 100; h.y = sheep.y;
+  const xp = h.xp; SIM.damage(W, sheep, 1e6, h);
+  assert.equal(h.xp, xp, "a level 9 hero gets nothing for a sheep");
+});
+
+test("XP: quests far below your level pay less", () => {
+  const Q = G.QUESTS.sheep;
+  assert.equal(G.questXp(Q, 1), Q.xp);
+  assert.equal(G.questXp(Q, 4), Q.xp, "full XP up to 3 levels over");
+  assert.equal(G.questXp(Q, 5), Math.round(Q.xp * .8));
+  assert.equal(G.questXp(Q, 20), Math.round(Q.xp * .2), "never below 20%");
+  for(const id of G.QUEST_ORDER) assert.ok(G.QUESTS[id].lvl >= 1, `${id} has a level`);
 });
