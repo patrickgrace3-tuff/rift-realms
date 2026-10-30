@@ -325,11 +325,13 @@ function render(dt){
 
 /* ---------- Main loop ---------- */
 let hudTick = 0, pingTick = 0;
+// each part of a frame runs on its own, so one failing part can't stop the world from drawing
+function guarded(where, fn){ try{ fn(); }catch(e){ reportError(where, e); } }
 function frame(now){
   requestAnimationFrame(frame);
   if(!G) return;
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  if(G.role === "host"){
+  if(G.role === "host") guarded("simulation", () => {
     let rest = dt; while(rest > 0){ const st = Math.min(1 / 60, rest); SIM.step(G.W, st); rest -= st; }
     G.snap = SIM.snapshot(G.W);
     for(const f of G.W.fxLocal) G.fxQueue.push(f); G.W.fxLocal.length = 0;
@@ -337,20 +339,24 @@ function frame(now){
     G.sendT -= dt;
     if(!NET.guests.size) G.W.fxNet.length = 0;
     else if(G.sendT <= 0){ G.sendT = .05; netBroadcast(G.snap, G.W.fxNet); G.W.fxNet = []; }
-  }else{
+  });
+  else guarded("network", () => {
     pingTick -= dt;
     if(pingTick <= 0){ pingTick = 2; NET.pingId = Math.random(); NET.pingSent = performance.now(); send({ t: "ping", id: NET.pingId }); }
-  }
+  });
   if(rmb){ G.holdT -= dt; if(G.holdT <= 0){ G.holdT = .15; rightClick(G.mouse.x, G.mouse.y, true); } }
-  while(G.fxQueue.length) handleFx(G.fxQueue.shift());
-  for(const f of G.fx){ f.t += dt; if(f.t >= f.dur) removeFxMesh(f); } G.fx = G.fx.filter(f => f.t < f.dur);
-  for(const n of G.nums){ n.t -= dt; n.h += .9 * dt; } G.nums = G.nums.filter(n => n.t > 0);
-  render(dt);
-  if((hudTick = (hudTick + 1) % 3) === 0) updateHud();
+  while(G.fxQueue.length){ const f = G.fxQueue.shift(); guarded("effects", () => handleFx(f)); }
+  guarded("effects", () => { for(const f of G.fx){ f.t += dt; if(f.t >= f.dur) removeFxMesh(f); } G.fx = G.fx.filter(f => f.t < f.dur); for(const n of G.nums){ n.t -= dt; n.h += .9 * dt; } G.nums = G.nums.filter(n => n.t > 0); });
+  guarded("drawing", () => render(dt));
+  if((hudTick = (hudTick + 1) % 3) === 0) guarded("HUD", updateHud);
   // close the dialog if you walk away from the NPC
-  if(G.arenaNpc){ const me = G.snap.h.find(h => h.side === G.myTeam), npc = NPCS.find(n => n.id === G.arenaNpc); if(!me || Math.hypot(me.x - npc.x, me.y - npc.y) > 700) closeArena(); }
-  if(G.shop){ const me = G.snap.h.find(h => h.side === G.myTeam), npc = NPCS.find(n => n.id === G.shop); if(!me || Math.hypot(me.x - npc.x, me.y - npc.y) > 700) closeShop(); }
-  if(G.dialog){ const me = G.snap.h.find(h => h.side === G.myTeam), npc = NPCS.find(n => n.id === G.dialog.npc); if(!me || Math.hypot(me.x - npc.x, me.y - npc.y) > 700) closeDialog(); }
+  guarded("HUD", () => {
+    if(!G.snap) return;
+    const me = G.snap.h.find(h => h.side === G.myTeam), far = id => { const npc = NPCS.find(n => n.id === id); return !me || Math.hypot(me.x - npc.x, me.y - npc.y) > 700; };
+    if(G.arenaNpc && far(G.arenaNpc)) closeArena();
+    if(G.shop && far(G.shop)) closeShop();
+    if(G.dialog && far(G.dialog.npc)) closeDialog();
+  });
 }
 requestAnimationFrame(frame);
 boot();

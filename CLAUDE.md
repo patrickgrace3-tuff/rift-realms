@@ -5,7 +5,8 @@ A browser MMO-style fan game: League of Legends champions questing in two origin
 ## Run and test
 
 - Play: open `index.html` in a browser, or `npm start` and visit the printed URL.
-- After changing anything in `src/`, run `node scripts/stamp.mjs`. It writes `?v=<hash>` onto every script and stylesheet link in `index.html`, so browsers never run a mix of old and new files (that once froze the game). A test fails if you forget.
+- After changing anything in `src/`, run `node scripts/stamp.mjs`. It writes `?v=<hash>` onto every script and stylesheet link in `index.html` and a build code into `<meta name="build">`, so browsers never run a mix of old and new files (that once froze the game, and once blacked it out). A small script in the page's head fetches the latest page and reloads once if its build code differs. A test fails if you forget to stamp.
+- Errors show on screen through `reportError` (00-core.js), and each part of the main loop runs inside `guarded(...)`, so one failing part can't stop the world from drawing.
 - Test: `npm test` (Node 20+, no dependencies). Run it after every change to game logic. Tests load the scripts in `index.html` order into one shared scope with a fake DOM, then play through every quest headless.
 
 ## Layout

@@ -2,6 +2,25 @@
 // Shared helpers and the ability bank: matches each champion's Q/W/E/R to an archetype from Data Dragon text.
 
 const $ = s => document.querySelector(s);
+// Show errors on screen instead of failing silently (once per kind, so it can't spam).
+// Built from plain DOM so it works even if the page and scripts don't match.
+const errSeen = new Set();
+function reportError(where, e){
+  const msg = (e && (e.message || e)) + ""; console.error(where, e);
+  if(errSeen.has(where + msg) || typeof document === "undefined" || !document.body || !document.createElement) return; errSeen.add(where + msg);
+  let box = document.getElementById("errBox");
+  if(!box){
+    box = document.createElement("div"); box.id = "errBox"; box.setAttribute("role", "alert");
+    box.style.cssText = "position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:99;max-width:min(560px,calc(100vw - 32px));background:#3a0f0f;color:#ffd8d0;border:1px solid #d9545b;border-radius:8px;padding:10px 14px;font:14px/1.4 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.5)";
+    document.body.appendChild(box);
+  }
+  box.innerHTML = "";
+  const t = document.createElement("div"); t.textContent = `Something went wrong (${where}): ${msg}`; t.style.fontWeight = "600";
+  const h = document.createElement("div"); h.textContent = "Try a hard refresh (Ctrl+Shift+R, or Cmd+Shift+R on a Mac). If it keeps happening, send a screenshot of this box.";
+  const x = document.createElement("button"); x.textContent = "Dismiss"; x.style.cssText = "margin-top:6px;background:none;border:1px solid #d9545b;color:inherit;border-radius:6px;padding:3px 10px;cursor:pointer"; x.onclick = () => box.remove();
+  box.append(t, h, x);
+}
+if(typeof addEventListener === "function") addEventListener("error", e => reportError("loading", e.error || e.message));
 const DD = "https://ddragon.leagueoflegends.com";
 let V = null, champs = [], detailCache = new Map();
 const champIcon = id => `${DD}/cdn/${V}/img/champion/${id}.png`;

@@ -3,6 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="build" content="d52a1934e3">
+<script>
+// If this copy of the page is out of date (a browser can hold on to an old one), load the latest.
+// The build code changes whenever any game file does (scripts/stamp.mjs writes it).
+(function(){
+  var me = document.querySelector('meta[name="build"]'); if(!me || !window.fetch || location.protocol === "file:") return;
+  fetch(location.pathname + "?check=" + Date.now(), { cache: "no-store" }).then(function(r){ return r.ok ? r.text() : ""; }).then(function(t){
+    var m = t.match(/<meta name="build" content="([0-9a-f]+)"/);
+    if(!m || m[1] === me.content) return;
+    var key = "rr.reloaded." + m[1];
+    try{ if(sessionStorage.getItem(key)) return; sessionStorage.setItem(key, "1"); }catch(e){}
+    location.replace(location.pathname + "?b=" + m[1]);
+  }).catch(function(){});
+})();
+</script>
 <title>Rift Realms</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -294,7 +309,7 @@
   </div>
 </div>
 
-<script src="src/js/00-core.js?v=cb3f88d590"></script>
+<script src="src/js/00-core.js?v=a75aa8578d"></script>
 <script src="src/js/01-world-data.js?v=27774e3795"></script>
 <script src="src/js/02-boot-select.js?v=01f3747cfe"></script>
 <script src="src/js/03-art.js?v=7610874759"></script>
@@ -310,6 +325,6 @@
 <script src="src/js/08-ui.js?v=8de91cc6c8"></script>
 <script src="src/js/08b-social.js?v=8a79ccf2c1"></script>
 <script src="src/js/08c-audio.js?v=063a9050c9"></script>
-<script src="src/js/09-render.js?v=cb3b851d19"></script>
+<script src="src/js/09-render.js?v=5ece71d87e"></script>
 </body>
 </html>
