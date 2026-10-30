@@ -29,6 +29,7 @@ function slotBtn(it, attrs, label, sel){
 }
 function itemMeta(it){
   if(it.s === "mat") return "Trade good · salvage for coin";
+  if(it.s === "use") return `Use: ${SHOP_ITEMS[it.key] ? SHOP_ITEMS[it.key].desc : ""}`;
   const kind = it.s === "weapon" ? ({ sword: "Sword", staff: "Staff", bow: "Bow" }[it.wt] || "Weapon") : `${MATERIAL[it.m].label} ${SLOT_NAME[it.s]}`;
   return `${RARITY[it.r].n} ${kind} · Item level ${it.il}`;
 }
@@ -52,10 +53,10 @@ function renderChar(){
   const det = $("#idetail");
   if(!sel) det.innerHTML = `<p class="lobbymsg" style="text-align:left">Select an item to see its stats. Double-click a bag item to equip it.</p>`;
   else {
-    const fromBag = G.sel.from === "bag", cmp = fromBag && sel.s !== "mat" ? gear.equip[sel.s] : null;
+    const fromBag = G.sel.from === "bag", cmp = fromBag && isGear(sel) ? gear.equip[sel.s] : null;
     const stats = Object.keys(sel.st || {}).map(k => STAT[k].line(sel.st[k])).join("<br>");
     let cmpHtml = "";
-    if(fromBag && sel.s !== "mat"){
+    if(fromBag && isGear(sel)){
       if(!cmp) cmpHtml = `<div class="cmp">Your ${SLOT_NAME[sel.s].toLowerCase()} slot is empty.</div>`;
       else {
         const keys = [...new Set([...Object.keys(sel.st), ...Object.keys(cmp.st)])];
@@ -65,7 +66,7 @@ function renderChar(){
     }
     const val = fmtCoins(sel.v * (sel.q || 1)), armed = G.salvArm === sel.id;
     const btns = fromBag
-      ? `${sel.s !== "mat" ? `<button class="btn primary" data-act="equip">Equip</button>` : ""}<button class="btn" data-act="salvage">${armed ? "Click again to salvage" : `Salvage for ${val}`}</button>`
+      ? `${isGear(sel) ? `<button class="btn primary" data-act="equip">Equip</button>` : sel.key === "hpot" ? `<button class="btn primary" data-act="drink">Drink (F)</button>` : ""}<button class="btn" data-act="salvage">${armed ? "Click again to salvage" : `Salvage for ${val}`}</button>`
       : `<button class="btn" data-act="unequip">Unequip</button>`;
     det.innerHTML = `<div class="in" style="color:${RARITY[sel.r].c}">${esc(sel.n)}${(sel.q || 1) > 1 ? ` ×${sel.q}` : ""}</div><div class="im">${itemMeta(sel)}</div>${stats ? `<div class="ist">${stats}</div>` : ""}${cmpHtml}<div class="row">${btns}</div>`;
   }
@@ -86,6 +87,7 @@ $("#charWin").addEventListener("click", e => {
   else if(b.dataset.act && G.sel){
     const a = b.dataset.act;
     if(a === "equip"){ command({ equip: G.sel.id }); G.sel = null; }
+    else if(a === "drink") command({ potion: 1 });
     else if(a === "unequip"){ command({ unequip: G.sel.slot }); G.sel = null; }
     else if(a === "salvage"){
       const me = G.snap.h.find(h => h.side === G.myTeam), it = me.gear.inv.find(x => x.id === G.sel.id);
@@ -95,7 +97,7 @@ $("#charWin").addEventListener("click", e => {
   }
   G.charKey = ""; renderChar();
 });
-$("#charWin").addEventListener("dblclick", e => { const b = e.target.closest("[data-bag]"); if(!b || !G) return; const me = G.snap.h.find(h => h.side === G.myTeam), it = me.gear.inv.find(x => x.id === b.dataset.bag); if(it && it.s !== "mat"){ command({ equip: it.id }); G.sel = null; G.charKey = ""; } });
+$("#charWin").addEventListener("dblclick", e => { const b = e.target.closest("[data-bag]"); if(!b || !G) return; const me = G.snap.h.find(h => h.side === G.myTeam), it = me.gear.inv.find(x => x.id === b.dataset.bag); if(isGear(it)){ command({ equip: it.id }); G.sel = null; G.charKey = ""; } });
 
 /* ---------- Skill tree panel ---------- */
 function openSkills(){ $("#skills").hidden = false; G.skillKey = ""; const me = G.snap && G.snap.h.find(h => h.side === G.myTeam); if(me) renderSkills(me); }
@@ -326,11 +328,26 @@ function buildSlots(){
     s.addEventListener("pointerleave", hide); s.addEventListener("blur", hide);
     el.appendChild(s); return s;
   });
+  // the potion button (F) sits after the abilities
+  const pot = document.createElement("div"); pot.className = "slot potslot"; pot.tabIndex = 0; pot.style.pointerEvents = "auto";
+  pot.setAttribute("aria-label", "F: Health Potion"); pot.setAttribute("aria-describedby", "abTip");
+  pot.innerHTML = `<img alt="" src="${itemIconURL(makePotion(0))}"><div class="cd"></div><span class="key">F</span><span class="qty"></span>`;
+  pot.addEventListener("click", () => command({ potion: 1 }));
+  const showP = () => { G.tipKey = "F"; renderAbilityTip(); }, hideP = () => { if(G) G.tipKey = null; $("#abTip").hidden = true; };
+  pot.addEventListener("pointerenter", showP); pot.addEventListener("focus", showP); pot.addEventListener("pointerleave", hideP); pot.addEventListener("blur", hideP);
+  el.appendChild(pot); G.potEl = pot;
   G.myKit = buildKit(d); G.tipKey = null; $("#abTip").hidden = true;
 }
+const potCount = me => ((me.gear && me.gear.inv) || []).filter(x => x.key === "hpot").reduce((a, x) => a + (x.q || 1), 0);
 // Tooltip for an ability button: what it does, with numbers at your current level, gear and talents
 function renderAbilityTip(){
   const k = G && G.tipKey, me = G && G.snap && G.snap.h.find(h => h.side === G.myTeam); if(!k || !me) return;
+  if(k === "F"){
+    const n = potCount(me), key = `F|${n}|${me.pot}`; if(key === G.tipRendered && !$("#abTip").hidden) return; G.tipRendered = key;
+    $("#abTip").innerHTML = `<div class="tk"><span class="tag">F</span>Health Potion</div><div class="tr">${n} in your bags</div><p>${esc(SHOP_ITEMS.hpot.desc)}</p>
+      ${n ? (me.pot ? `<div class="tl">Ready in ${me.pot}s</div>` : "") : `<div class="tl">Buy more from Peddler Osric in Sunhollow Village</div>`}`;
+    $("#abTip").hidden = false; return;
+  }
   const i = SLOTS.indexOf(k), sp = G.details[G.myTeam].spells[i], base = G.myKit[k], p = applyTalents(base, me.talents && me.talents[k]);
   const lvlScale = 1 + .1 * (me.lvl - 1), cdNow = Math.round(p.cd * (1 - (me.haste || 0) / 100) * 10) / 10, bits = [];
   if(p.dmg) bits.push(`${Math.round(p.dmg * SIM.dmgScale({ lvl: me.lvl, ap: me.ap }))} damage`);
@@ -368,6 +385,9 @@ function updateHud(){
     cdEl.textContent = locked ? `Lv${ULT_LEVEL}` : cd > 0 ? (cd >= 1 ? Math.ceil(cd) : cd.toFixed(1)) : "";
     cdEl.style.background = cd > 0 && !locked ? `conic-gradient(rgba(5,8,14,.72) ${Math.min(1, cd / (applyTalents(G.myKit[k], me.talents && me.talents[k]).cd * (1 - (me.haste || 0) / 100))) * 360}deg, transparent 0)` : "none";
   });
+  if(G.potEl){ const n = potCount(me); G.potEl.classList.toggle("locked", !n || !!me.dead); G.potEl.querySelector(".qty").textContent = n || "";
+    const pcd = G.potEl.querySelector(".cd"); pcd.textContent = me.pot ? me.pot : ""; pcd.style.background = me.pot ? `conic-gradient(rgba(5,8,14,.72) ${me.pot / POTION.cd * 360}deg, transparent 0)` : "none"; }
+  if(G.shop) renderShop();
   if(G.tipKey) renderAbilityTip();
   const badge = $("#skillBadge"); badge.hidden = !(me.points > 0); badge.textContent = me.points;
   const tkey = JSON.stringify(me.talents) + me.points + me.lvl;
@@ -427,7 +447,16 @@ function handleFx(f){
     case "angry": { const mv = G.mobVis.get(f.id); if(mv) mv.angryT = 1.2; break; }
     case "butt": { const mv = G.mobVis.get(f.id); if(mv) mv.buttT = .25; break; }
     case "pop": G.fx.push(Object.assign({ t: 0, dur: .45 }, f)); break;
-    case "ring": case "nova": case "hit": case "cone": case "blink": case "heal": G.fx.push(Object.assign({ t: 0, dur: f.k === "nova" ? .75 : .4 }, f)); break;
+    case "ring": case "nova": case "hit": case "cone": case "blink": G.fx.push(Object.assign({ t: 0, dur: f.k === "nova" ? .75 : .4 }, f)); break;
+    case "heal": case "shielded": {
+      if(f.k === "heal") G.fx.push(Object.assign({ t: 0, dur: .4 }, f));
+      const hs = G.snap && G.snap.h.find(h => h.side === f.side);
+      if(hs && f.v) G.nums.push({ x: hs.x, y: hs.y, v: f.k === "heal" ? `+${f.v}` : `+${f.v} shield`, t: 1.1, h: 3.1, color: f.k === "heal" ? "#6be08f" : "#9fe6ff", big: true });
+      if(mine && f.from && f.from !== G.myTeam) toast(`${f.name} ${f.k === "heal" ? "healed" : "shielded"} you`);
+      break;
+    }
+    case "shop": if(mine) openShop(f.npc); break;
+    case "bought": if(mine) lootLine(`Bought ${f.n}${f.q > 1 ? ` ×${f.q}` : ""} for ${fmtCoins(f.coins)}`, "#f0d58e"); break;
   }
 }
 function fxMesh(f){

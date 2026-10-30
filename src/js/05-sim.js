@@ -26,7 +26,7 @@ const SIM = {
       face: Math.PI, moving: false, dash: null, forced: null, spin: null, orbT: 0, orbA: 0, orbHits: {}, orbP: null,
       cc: { stun: 0, root: 0, slow: 0, slowAmt: 0 }, shield: 0, shieldT: 0, buffT: 0, buffAS: 0, buffOnHit: 0, boostT: 0, boost: 0, stealthT: 0,
       lastCombat: -99, quests: {}, weapon: null, lootTo: null, talents: newTalents(), orbN: 3, ambush: false,
-      inv: [], equip: {}, coins: 0, gearVer: 1, party: null, chatT: -99, chatN: 0, gatherTo: null, useTo: null, channel: null, ap: 0, armor: 0, hasteG: 0, msPct: 0 };
+      inv: [], equip: {}, coins: 0, gearVer: 1, party: null, chatT: -99, chatN: 0, potT: 0, gatherTo: null, useTo: null, channel: null, ap: 0, armor: 0, hasteG: 0, msPct: 0 };
     SIM.recalc(c); c.hp = c.maxHp;
     W.heroes[side] = c;
     return c;
@@ -67,7 +67,7 @@ const SIM = {
     if(Math.random() < L.gear) items.push(genItem({ ilvl: L.ilvl + Math.floor(Math.random() * 2), rarity: rollRarity(L.minRarity || 0, L.epic || 0), cls: c.kit.cls, nid: W.nid++ }));
     // in a party, Rare and better gear goes to a Need/Greed roll instead of the killer's bag
     const rollers = (group || []).filter(h => !h.dead);
-    if(rollers.length > 1){ for(const it of items) if(it.s !== "mat" && it.r >= ROLL_MIN) SIM.startRoll(W, it, rollers, c); items = items.filter(it => it.s === "mat" || it.r < ROLL_MIN); }
+    if(rollers.length > 1){ for(const it of items) if(isGear(it) && it.r >= ROLL_MIN) SIM.startRoll(W, it, rollers, c); items = items.filter(it => !isGear(it) || it.r < ROLL_MIN); }
     const a = Math.random() * Math.PI * 2;
     W.loot.push({ id: "l" + W.nid++, side: c.side, bag: true, item: "bag", coins, items, rar: items.reduce((m, it) => Math.max(m, it.r), 0), x: clampX(u.x + Math.cos(a) * 40), y: clampY(u.y + Math.sin(a) * 40), expires: W.t + 90 });
     const bags = W.loot.filter(l => l.bag);
@@ -190,6 +190,7 @@ const SIM = {
     return amount;
   },
   talk(W, c, npc){
+    if(npc.shop){ SIM.fx(W, { k: "shop", side: c.side, npc: npc.id }); return; }
     const qf = questFor(c.quests, npc.id);
     SIM.fx(W, { k: "dialog", side: c.side, npc: npc.id, quest: qf.quest, state: qf.state });
   },
@@ -325,6 +326,25 @@ const SIM = {
       if(c.inv.length >= BAG_SIZE){ SIM.fx(W, { k: "msg", side, text: "Your bags are full." }); return; }
       c.inv.push(c.equip[sl]); delete c.equip[sl]; SIM.recalc(c); c.gearVer++; return;
     }
+    if(cmd.buy){
+      const key = String(cmd.buy), n = Math.max(1, Math.min(20, Math.floor(+cmd.n) || 1)), item = SHOP_ITEMS[key];
+      const npc = NPCS.find(x => x.shop && x.shop.includes(key));
+      if(!item || !npc || !Object.hasOwn(SHOP_ITEMS, key) || Math.hypot(c.x - npc.x, c.y - npc.y) > 500) return;
+      if(c.coins < item.price * n){ SIM.fx(W, { k: "msg", side, text: "You can't afford that." }); return; }
+      if(!SIM.addItem(c, makePotion(W.nid++, n))){ SIM.fx(W, { k: "msg", side, text: "Your bags are full." }); return; }
+      c.coins -= item.price * n; c.gearVer++;
+      SIM.fx(W, { k: "bought", side, n: item.n, q: n, coins: item.price * n }); return;
+    }
+    if(cmd.potion){
+      const it = c.inv.find(x => x.key === "hpot");
+      if(c.dead || !it) { if(!c.dead) SIM.fx(W, { k: "msg", side, text: "You have no Health Potions. Peddler Osric in the village sells them." }); return; }
+      if(W.t < c.potT){ SIM.fx(W, { k: "msg", side, text: `Potion ready in ${Math.ceil(c.potT - W.t)}s.` }); return; }
+      if(c.hp >= c.maxHp){ SIM.fx(W, { k: "msg", side, text: "You're already at full health." }); return; }
+      const healed = Math.min(c.maxHp - c.hp, c.maxHp * POTION.heal); c.hp += healed; c.potT = W.t + POTION.cd;
+      if(--it.q <= 0) c.inv.splice(c.inv.indexOf(it), 1);
+      c.gearVer++;
+      SIM.fx(W, { k: "heal", side, v: Math.round(healed) }); return;
+    }
     if(cmd.salvage){
       const i = c.inv.findIndex(x => x.id === String(cmd.salvage)), it = c.inv[i]; if(!it) return;
       const val = it.v * (it.q || 1); c.coins += val; c.inv.splice(i, 1); c.gearVer++;
@@ -343,6 +363,16 @@ const SIM = {
     if(cmd.move){ c.move = [clampX(+cmd.move[0] || 0), clampY(+cmd.move[1] || 0)]; c.target = null; c.talkTo = null; }
     else if(cmd.atk){ const t = SIM.find(W, String(cmd.atk)); if(t && t.team !== c.team){ c.target = t.id; c.move = null; c.talkTo = null; } }
     else if(cmd.cast && ["Q", "W", "E", "R"].includes(cmd.cast) && Array.isArray(cmd.at)) SIM.cast(W, c, cmd.cast, [+cmd.at[0] || 0, +cmd.at[1] || 0]);
+  },
+  // heals and shields go to the living player nearest the cursor (within ALLY_PICK of it and
+  // ALLY_RANGE of the caster); if nobody is closer to the cursor than you, they go to you
+  supportTarget(W, c, at){
+    let best = c, bd = Math.min(ALLY_PICK, Math.hypot(c.x - at[0], c.y - at[1]));
+    for(const h of SIM.heroes(W)){
+      if(h === c || h.dead || Math.hypot(h.x - c.x, h.y - c.y) > ALLY_RANGE) continue;
+      const d = Math.hypot(h.x - at[0], h.y - at[1]); if(d < bd){ bd = d; best = h; }
+    }
+    return best;
   },
   cast(W, c, key, at){
     if(c.dead || c.cds[key] > 0 || c.dash || !SIM.canAct(c)) return;
@@ -381,15 +411,20 @@ const SIM = {
         break;
       }
       case "spin": c.spin = { left: p.dur, done: 0, p }; break;
-      case "shield":
-        c.shield = p.amount * (1 + .1 * (c.lvl - 1)); c.shieldT = p.dur; c.boostT = 2; c.boost = p.boost;
-        if(p.cleanse) c.cc = { stun: 0, root: 0, slow: 0, slowAmt: 0 };
+      case "shield": {
+        const t = SIM.supportTarget(W, c, at), amt = p.amount * (1 + .1 * (c.lvl - 1));
+        t.shield = Math.max(t.shield, amt); t.shieldT = p.dur; t.boostT = 2; t.boost = p.boost;
+        if(p.cleanse) t.cc = { stun: 0, root: 0, slow: 0, slowAmt: 0 };
+        SIM.fx(W, { k: "shielded", side: t.side, v: Math.round(amt), from: c.side, name: c.name });
         if(p.dmg){ SIM.burst(W, c, c.x, c.y, p.radius, p); SIM.fx(W, { k: "ring", x: c.x, y: c.y, r: p.radius }); }
         break;
-      case "heal":
-        c.hp = Math.min(c.maxHp, c.hp + p.amount * (1 + .1 * (c.lvl - 1))); SIM.fx(W, { k: "heal", side: c.side });
+      }
+      case "heal": {
+        const t = SIM.supportTarget(W, c, at), healed = Math.min(t.maxHp - t.hp, p.amount * (1 + .1 * (c.lvl - 1)));
+        t.hp += healed; SIM.fx(W, { k: "heal", side: t.side, v: Math.round(healed), from: c.side, name: c.name });
         if(p.dmg){ SIM.burst(W, c, c.x, c.y, p.radius, p); SIM.fx(W, { k: "ring", x: c.x, y: c.y, r: p.radius }); }
         break;
+      }
       case "steroid": c.buffT = p.dur; c.buffAS = p.as; c.buffOnHit = p.onHit * SIM.dmgScale(c); break;
       case "field": W.fields.push({ id: "f" + W.nid++, team: c.team, owner: c.id, slot: key, x: tx, y: ty, r: p.radius, t: p.dur, tick: 0, p }); break;
       case "summon": {
@@ -555,7 +590,13 @@ const SIM = {
       if(d < min && d > .01){ const push = (min - d) / 2, nx = dx / d, ny = dy / d; if(!a.dash && !a.forced){ a.x -= nx * push; a.y -= ny * push; } if(!b.dash && !b.forced){ b.x += nx * push; b.y += ny * push; } }
     }
     for(const u of all){
-      for(const o of OBSTACLES){ const dx = u.x - o.x, dy = u.y - o.y, d = Math.hypot(dx, dy), min = o.r + u.r; if(d < min && d > .01){ u.x = o.x + dx / d * min; u.y = o.y + dy / d * min; } }
+      for(const o of OBSTACLES){
+        const dx = u.x - o.x, dy = u.y - o.y, d = Math.hypot(dx, dy), min = o.r + u.r;
+        if(d >= min || d <= .01) continue;
+        const rx = dx / d, ry = dy / d; u.x = o.x + rx * min; u.y = o.y + ry * min;
+        // moving units slide around the edge instead of stopping dead when they walk straight into it
+        if(u.moving){ const tx = -ry, ty = rx, side = Math.sin(u.face) * tx + Math.cos(u.face) * ty >= 0 ? 1 : -1, slide = Math.min(min - d, 8) + 2; u.x += tx * side * slide; u.y += ty * side * slide; }
+      }
       if(Math.hypot(u.x - POND.x, u.y - POND.y) < POND.r * .62){ const dx = u.x - POND.x, dy = u.y - POND.y, d = Math.hypot(dx, dy) || 1; u.x = POND.x + dx / d * POND.r * .62; u.y = POND.y + dy / d * POND.r * .62; }
       u.x = clampX(u.x); u.y = clampY(u.y);
     }
@@ -610,6 +651,7 @@ const SIM = {
         cc: c.cc.stun > 0 ? "stun" : c.cc.root > 0 ? "root" : c.cc.slow > 0 ? "slow" : "", quests: SIM.questView(W, c), weapon: c.weapon ? c.weapon.name : null,
         talents: c.talents, points: talentPoints(c.lvl, c.talents), orbN: c.orbN || 3, ad: Math.round(c.ad),
         wglow: c.weapon && c.weapon.glow ? 1 : 0, coins: c.coins, ap: Math.round(c.ap), armor: Math.round(c.armor), haste: Math.round(c.hasteG), msPct: Math.round(c.msPct),
+        pot: c.potT > W.t ? Math.ceil(c.potT - W.t) : 0,
         chan: c.channel ? { n: c.channel.name, p: Math.round(c.channel.t / c.channel.dur * 100) / 100 } : null, party: c.party || "",
         gear: { ver: c.gearVer, inv: c.inv, equip: c.equip } })),
       m: W.mobs.map(m => [m.id, m.kind, r(m.x), r(m.y), r(m.hp), r(m.maxHp), Math.round(m.face * 10) / 10, (m.moving ? 1 : 0) | (m.aggro ? 2 : 0) | (m.charging ? 4 : 0) | (m.windup > 0 ? 8 : 0)]),

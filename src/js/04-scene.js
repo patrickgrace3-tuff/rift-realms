@@ -178,6 +178,21 @@ function buildZone(){
   for(const sx of [-.85, .85]){ const p = new THREE.Mesh(new THREE.BoxGeometry(.15, 2, .15), beamM); p.position.set(sx, 1.4, 0); well.add(p); }
   const wroof = new THREE.Mesh(new THREE.ConeGeometry(1.4, .9, 4), new THREE.MeshStandardMaterial({ color: 0xb4472f, flatShading: true })); wroof.position.y = 2.75; wroof.rotation.y = Math.PI / 4; well.add(wroof);
   well.position.set(ww.x, ZH(...WELL), ww.z); g.add(well);
+  // Peddler Osric's market stall: a counter with potion bottles under a striped awning
+  { const sw = XF(STALL.x, STALL.y), stall = new THREE.Group(), npc = NPCS.find(n => n.shop);
+    const counter = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1, 1.1), beamM); counter.position.set(0, .5, 0);
+    for(const sx of [-1.5, 1.5]) for(const sz of [-.5, .5]){ const p = new THREE.Mesh(new THREE.BoxGeometry(.12, 2.6, .12), beamM); p.position.set(sx, 1.3, sz); stall.add(p); }
+    const sc2 = document.createElement("canvas"); sc2.width = 64; sc2.height = 16; const sg2 = sc2.getContext("2d");
+    for(let i = 0; i < 8; i++){ sg2.fillStyle = i % 2 ? "#f2e8d0" : "#8a3a5a"; sg2.fillRect(i * 8, 0, 8, 16); }
+    const awnTex = new THREE.CanvasTexture(sc2); awnTex.encoding = THREE.sRGBEncoding;
+    const awning = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.6), new THREE.MeshLambertMaterial({ map: awnTex, side: THREE.DoubleSide })); awning.position.set(0, 2.7, .1); awning.rotation.x = -Math.PI / 2 + .35;
+    stall.add(counter, awning);
+    const bottle = new THREE.SphereGeometry(.13, 8, 6), red = new THREE.MeshLambertMaterial({ color: 0xc0392b, emissive: 0x401010 });
+    for(let i = 0; i < 7; i++){ const b2 = new THREE.Mesh(bottle, red); b2.position.set(-1.2 + i * .4, 1.12, (i % 2 ? .2 : -.15)); stall.add(b2); }
+    for(let i = 0; i < 2; i++){ const cr = new THREE.Mesh(new THREE.BoxGeometry(.7, .7, .7), beamM); cr.position.set(2.1, .35 + i * .7, -.4); stall.add(cr); }
+    stall.position.set(sw.x, ZH(STALL.x, STALL.y), sw.z);
+    const nw = XF(npc.x, npc.y); stall.rotation.y = Math.atan2(nw.x - sw.x, nw.z - sw.z);
+    g.add(stall); }
   // campfire
   const cw = XF(...CAMPFIRE), fire = new THREE.Group();
   for(let i = 0; i < 8; i++){ const a = i / 8 * Math.PI * 2, s = new THREE.Mesh(new THREE.IcosahedronGeometry(.2, 0), stone); s.position.set(Math.cos(a) * .6, .1, Math.sin(a) * .6); fire.add(s); }

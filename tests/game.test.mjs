@@ -1,7 +1,7 @@
 // Run with: npm test   (or: node --test tests/)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { loadGame, GAREN_LIKE } from "./harness.mjs";
+import { loadGame, GAREN_LIKE, champ } from "./harness.mjs";
 
 const G = loadGame();
 const { SIM } = G;
@@ -375,4 +375,47 @@ test("level gap: a level 1 hero misses a lot and deals little to a level 11 lynx
   assert.ok(before - h.hp > 150, "the lynx hits a level 1 hero harder");
   h.lvl = 11; SIM.recalc(h); h.hp = h.maxHp;
   for(let i = 0; i < 50; i++){ lynx.hp = lynx.maxHp; assert.ok(SIM.damage(W, lynx, 100, h) > 0, "no misses at the same level"); }
+});
+
+/* ---------- Support abilities and the potion vendor ---------- */
+const HEALER = () => champ("Healer", 550, ["Support"], [["Mend", "Heals an ally."], ["Ward", "Shields an ally."], ["Spark", "Fires a bolt of light."], ["Radiance", "Calls down a blast."]]);
+
+test("heals and shields go to the ally nearest the cursor, in or out of combat", () => {
+  const W = SIM.create(), a = SIM.addHero(W, "blue", HEALER()), b = SIM.addHero(W, "red", GAREN_LIKE());
+  const heal = G.SLOTS.find(k => a.kit[k].type === "heal"), shield = G.SLOTS.find(k => a.kit[k].type === "shield");
+  assert.ok(heal && shield, `healer kit: ${G.SLOTS.map(k => a.kit[k].type)}`);
+  b.x = a.x + 500; b.y = a.y; b.hp = 100; b.lastCombat = W.t; // the ally is in combat
+  SIM.cast(W, a, heal, [b.x + 40, b.y]);
+  assert.ok(b.hp > 100, "the ally was healed");
+  SIM.cast(W, a, shield, [b.x, b.y + 30]);
+  assert.ok(b.shield > 0 && a.shield === 0, "the ally got the shield, not the caster");
+  // cursor away from everyone: it goes to the caster
+  a.cds[heal] = 0; a.hp = 50; SIM.cast(W, a, heal, [a.x - 2000, a.y]);
+  assert.ok(a.hp > 50, "self-heal when no ally is near the cursor");
+  // allies too far from the caster aren't picked
+  b.x = a.x + 3000; const bh = b.hp = 100; a.cds[heal] = 0; SIM.cast(W, a, heal, [b.x, b.y]);
+  assert.equal(b.hp, bh, "out of reach");
+});
+
+test("vendor: buy potions near Peddler Osric, drink them with a cooldown", () => {
+  const { W, h } = newWorld(), osric = G.NPCS.find(n => n.id === "osric");
+  h.coins = 100; h.x = osric.x; h.y = osric.y - 150;
+  SIM.input(W, "blue", { talk: "osric" }); const fx = []; for(let i = 0; i < 120; i++){ SIM.step(W, 1 / 60); fx.push(...W.fxNet); W.fxNet.length = W.fxLocal.length = 0; }
+  assert.ok(fx.some(f => f.k === "shop" && f.npc === "osric"), "talking to Osric opens his shop");
+  SIM.input(W, "blue", { buy: "hpot", n: 3 });
+  const pots = () => h.inv.filter(x => x.key === "hpot").reduce((a, x) => a + x.q, 0);
+  assert.equal(pots(), 3); assert.equal(h.coins, 100 - 3 * G.SHOP_ITEMS.hpot.price);
+  SIM.input(W, "blue", { buy: "hpot", n: 5 });
+  assert.equal(pots(), 3, "can't buy what you can't afford");
+  for(const bad of [{ buy: "__proto__" }, { buy: "toString" }, { buy: "hpot", n: -5 }, { buy: "hpot", n: "lots" }]) SIM.input(W, "blue", bad);
+  assert.ok(h.coins >= 0 && pots() <= 4, "bad buy commands never overspend"); // a count below 1 buys one
+  const p0 = pots();
+  h.x = osric.x + 3000; h.coins = 1000; SIM.input(W, "blue", { buy: "hpot", n: 1 });
+  assert.equal(pots(), p0, "you must be at the vendor to buy");
+  h.hp = 100; SIM.input(W, "blue", { potion: 1 });
+  assert.ok(h.hp > 100 && pots() === p0 - 1, "drinking heals and uses one potion");
+  h.hp = 100; SIM.input(W, "blue", { potion: 1 });
+  assert.ok(h.hp === 100 && pots() === p0 - 1, "cooldown blocks a second potion");
+  SIM.step(W, G.POTION.cd + 1); h.hp = 100; SIM.input(W, "blue", { potion: 1 });
+  assert.ok(h.hp > 100 && pots() === p0 - 2, "usable again after the cooldown");
 });

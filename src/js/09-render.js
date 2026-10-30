@@ -233,7 +233,7 @@ function render(dt){
   // sprites face the camera, so their top is along the camera's up direction, not straight up in the world
   const camUp = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
   const spriteTop = (p, h) => worldToScreen(p.x + camUp.x * h, p.y + camUp.y * h, p.z + camUp.z * h);
-  for(const nv of G.npcVis){ const [sx, sy, sz] = spriteTop(nv.pos, 2.4); if(sz < 1) label(`<${nv.n.name}>`, sx, sy - 6, "#ffd84a", 14); }
+  for(const nv of G.npcVis){ const [sx, sy, sz] = spriteTop(nv.pos, 2.4); if(sz < 1){ label(`<${nv.n.name}>`, sx, sy - (nv.n.title ? 20 : 6), "#ffd84a", 14); if(nv.n.title) label(nv.n.title, sx, sy - 5, "#e8e2d4", 12, 500); } }
   for(const [, mv] of G.mobVis){
     if(!mv.pos) continue;
     if(mv.kind === "boar"){
@@ -315,6 +315,7 @@ function frame(now){
   render(dt);
   if((hudTick = (hudTick + 1) % 3) === 0) updateHud();
   // close the dialog if you walk away from the NPC
+  if(G.shop){ const me = G.snap.h.find(h => h.side === G.myTeam), npc = NPCS.find(n => n.id === G.shop); if(!me || Math.hypot(me.x - npc.x, me.y - npc.y) > 700) closeShop(); }
   if(G.dialog){ const me = G.snap.h.find(h => h.side === G.myTeam), npc = NPCS.find(n => n.id === G.dialog.npc); if(!me || Math.hypot(me.x - npc.x, me.y - npc.y) > 700) closeDialog(); }
 }
 requestAnimationFrame(frame);

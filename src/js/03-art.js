@@ -19,6 +19,7 @@ const BODY = {
   fisher: { tunic: "#c9b98a", dark: "#8a7a52", trim: "#3f6a9a", pants: "#4a5a6a", boots: "#2a2a2a", weapon: "none", shirt: "#3f6a9a" },
   guard: { tunic: "#3f5f9a", dark: "#2a3f6a", trim: "#c9a55c", pants: "#5a6270", boots: "#2a2a30", weapon: "sword" },
   bandit: { tunic: "#5a4a3a", dark: "#3a2e24", trim: "#8a2a22", pants: "#2e2a26", boots: "#1e1a16", weapon: "sword" },
+  merchant: { tunic: "#8a3a5a", dark: "#5a2440", trim: "#e0c56e", pants: "#4a3a2a", boots: "#2a2018", weapon: "none", shirt: "#e0c56e" },
   warden: { tunic: "#6a5040", dark: "#46342a", trim: "#e8e2d4", pants: "#3e3a44", boots: "#2a2220", weapon: "sword" },
 };
 class CharArt {
@@ -136,6 +137,16 @@ function drawGuardHead(g, x, y, r){
   g.fillStyle = "#c0392b"; g.beginPath(); g.moveTo(x - 4, y - r * .7); g.quadraticCurveTo(x + 22, y - r * 1.25, x + 34, y - r * .5); g.quadraticCurveTo(x + 14, y - r * .75, x + 4, y - r * .6); g.fill();
   g.lineWidth = 4; g.strokeStyle = "#1b1410"; g.beginPath(); g.arc(x, y + 8, r * .62, 0, Math.PI * 2); g.stroke();
 }
+function drawMerchantHead(g, x, y, r){
+  g.fillStyle = "#e6b28a"; g.beginPath(); g.arc(x, y + 6, r * .72, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#3a2618"; g.beginPath(); g.moveTo(x - 20, y + 16); g.quadraticCurveTo(x - 6, y + 10, x, y + 16); g.quadraticCurveTo(x + 6, y + 10, x + 20, y + 16); g.lineTo(x + 14, y + 20); g.quadraticCurveTo(x, y + 15, x - 14, y + 20); g.fill(); // curled moustache
+  g.fillStyle = "#1b1410"; g.fillRect(x - 14, y, 7, 6); g.fillRect(x + 7, y, 7, 6);
+  g.fillStyle = "#c97a5a"; g.beginPath(); g.arc(x, y + 9, 5, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#8a3a5a"; g.beginPath(); g.ellipse(x, y - 16, r * .9, 16, 0, Math.PI, 0); g.fill();                 // floppy hat
+  g.fillStyle = "#6a2a46"; g.fillRect(x - r * .95, y - 18, r * 1.9, 7);
+  g.fillStyle = "#e0c56e"; g.beginPath(); g.moveTo(x + 10, y - 30); g.quadraticCurveTo(x + 34, y - 52, x + 40, y - 30); g.quadraticCurveTo(x + 30, y - 38, x + 14, y - 26); g.fill(); // feather
+  g.lineWidth = 4; g.strokeStyle = "#1b1410"; g.beginPath(); g.arc(x, y + 6, r * .72, 0, Math.PI * 2); g.stroke();
+}
 function drawWardenHead(g, x, y, r){
   g.fillStyle = "#e8e2d4"; g.beginPath(); g.arc(x, y, r * .98, 0, Math.PI * 2); g.fill();          // fur hood
   g.fillStyle = "#d8cfbe"; for(let i = 0; i < 9; i++){ const a = Math.PI + i / 8 * Math.PI; g.fillRect(x + Math.cos(a) * r * .9 - 4, y + Math.sin(a) * r * .9 - 4, 8, 8); }
@@ -185,7 +196,7 @@ function drawFlower(g){
   g.fillStyle = "#ffe066"; for(let i = 0; i < 6; i++){ const a = i / 6 * Math.PI * 2; g.beginPath(); g.ellipse(32 + Math.cos(a) * 9, 24 + Math.sin(a) * 9, 7, 5, a, 0, Math.PI * 2); g.fill(); }
   g.fillStyle = "#ff9a30"; g.beginPath(); g.arc(32, 24, 6, 0, Math.PI * 2); g.fill();
 }
-const HEADS = { farmer: drawFarmerHead, huntress: drawHuntressHead, fisher: drawFisherHead, guard: drawGuardHead, warden: drawWardenHead };
+const HEADS = { farmer: drawFarmerHead, huntress: drawHuntressHead, fisher: drawFisherHead, guard: drawGuardHead, warden: drawWardenHead, merchant: drawMerchantHead };
 const MOB_ART = {
   sheep: { cw: 96, ch: 80, sx: 1.35, sy: 1.12, sh: .6, plate: 1.35, draw: (g, f, fl, an) => drawSheep(g, f, fl, an, false) },
   boar: { cw: 128, ch: 96, sx: 2.8, sy: 2.1, sh: 1.15, plate: 2.4, draw: (g, f, fl, an, wu) => drawBoar(g, f, fl, an, wu) },

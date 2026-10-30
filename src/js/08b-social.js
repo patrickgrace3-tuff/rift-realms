@@ -86,7 +86,7 @@ function updateRolls(me){
     let el = G.rollEls.get(id);
     if(!el){
       el = document.createElement("div"); el.className = "rollcard"; el.style.borderColor = RARITY[it.r].c;
-      const cur = it.s !== "mat" && me.gear && me.gear.equip ? me.gear.equip[it.s] : null;
+      const cur = isGear(it) && me.gear && me.gear.equip ? me.gear.equip[it.s] : null;
       const stats = Object.keys(it.st || {}).map(k => STAT[k].line(it.st[k])).join("<br>");
       el.innerHTML = `<div class="in" style="color:${RARITY[it.r].c}">${esc(it.n)}</div><div class="im">${itemMeta(it)}</div>
         ${stats ? `<div class="ist">${stats}</div>` : ""}<div class="cmp">${cur ? `You have <span style="color:${RARITY[cur.r].c}">${esc(cur.n)}</span>` : `Your ${SLOT_NAME[it.s].toLowerCase()} slot is empty`}</div>

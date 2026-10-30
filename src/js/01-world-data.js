@@ -28,6 +28,7 @@ const BEACONS = [{ name: "West Beacon", x: 1450, y: 4400 }, { name: "North Beaco
 const WAVES = [2, 2, 3, 3];
 const PASS = { x: 4100, y: ZS, w: 330 };       // Greywind Pass, the gap in the ridge between the zones
 const WELL = [4000, 3750], CAMPFIRE = [4380, 3380];
+const STALL = { x: 4150, y: 4140 };          // Peddler Osric's market stall, just behind him
 const HOUSES = [[3350, 4200, .2], [4700, 4250, -.3], [3250, 3150, 1.3], [4850, 3000, -1.2]];
 const PATHS = [
   [[4000, 3600], [3300, 4500], [2850, 5000]],
@@ -73,15 +74,16 @@ const NPCS = [
   { id: "kaela", name: "Huntress Kaela", x: 5790, y: 5190, head: "huntress", style: "hunter", idle: "Keep your voice down out here. Sound carries in the Bramblewood." },
   { id: "merrin", name: "Old Merrin", x: 1440, y: 2960, head: "fisher", style: "fisher", idle: "Westwind's blowing. Good day to mend nets and not much else." },
   { id: "rhea", name: "Captain Rhea", x: 4300, y: 3820, head: "guard", style: "guard", idle: "The Vale is quiet. I intend to keep it that way." },
+  { id: "osric", name: "Peddler Osric", title: "Potions", x: 4150, y: 4000, head: "merchant", style: "merchant", shop: ["hpot"], idle: "Potions! Fresh potions! Brewed this morning, and only slightly fizzy." },
   { id: "halvard", name: "Warden Halvard", x: 4010, y: 9560, head: "warden", style: "warden", idle: "Keep your fire lit and your back to the rock. The mountain forgives nothing." },
 ];
 const OBSTACLES = [
   ...HOUSES.map(h => ({ x: h[0], y: h[1], r: 270 })),
   { x: WELL[0], y: WELL[1], r: 90 }, { x: CAMPFIRE[0], y: CAMPFIRE[1], r: 80 },
-  ...NPCS.map(n => ({ x: n.x, y: n.y, r: 55 })),
+  ...NPCS.filter(n => !n.shop).map(n => ({ x: n.x, y: n.y, r: 55 })), // vendors are covered by their stall
   { x: CAMP.x, y: CAMP.y, r: 190 }, { x: CABIN.x, y: CABIN.y, r: 250 }, { x: TOWER.x, y: TOWER.y, r: 220 },
   ...BEACONS.map(b => ({ x: b.x, y: b.y, r: 70 })), ...LOOKOUTS.map(p => ({ x: p.x, y: p.y, r: 55 })),
-  ...PEAK_OBSTACLES,
+  ...PEAK_OBSTACLES, { x: STALL.x, y: STALL.y - 50, r: 150 }, // one circle around the stall and its vendor, so there's no corner to get stuck in
 ];
 const QUESTS = {
   sheep: {
@@ -325,6 +327,12 @@ function genItem(o){
   if(r >= 2 && keys[1]) n += ` ${SUFFIX[keys[1]]}`;
   return { id: "i" + o.nid, n, s: slot, r, m: mat, st, il: o.ilvl, v: Math.round((o.ilvl * 3 + 5) * Math.pow(r + 1, 1.6)), color: M.color[r], wt: slot === "weapon" ? WEAPON_NAMES[cls].wt : null };
 }
+// Usable items (bought from vendors). Only gear can be equipped.
+const isGear = it => !!it && EQ_SLOTS.includes(it.s);
+const ALLY_PICK = 300, ALLY_RANGE = 1100; // how close to the cursor, and to you, an ally must be for heals and shields
+const POTION = { heal: .4, cd: 60 }; // a Health Potion restores 40% of max health; 60 second cooldown
+const SHOP_ITEMS = { hpot: { n: "Health Potion", price: 25, desc: `Restores ${POTION.heal * 100}% of your health. Usable in combat. ${POTION.cd} second cooldown. Press F to drink.` } };
+function makePotion(nid, q){ return { id: "i" + nid, n: SHOP_ITEMS.hpot.n, s: "use", key: "hpot", r: 0, q: q || 1, v: 6, stack: true }; }
 function makeMat(key, nid){ const M = MATERIALS[key]; return { id: "i" + nid, n: M.n, s: "mat", key, r: 0, q: 1, v: M.v, stack: true }; }
 function fmtCoins(c){
   c = Math.max(0, Math.round(c || 0));
@@ -373,6 +381,7 @@ function itemIconURL(it){
     g.shadowBlur = 0;
   }
   else if(it.key === "wool"){ g.fillStyle = "#f4f1ea"; [[18, 26, 9], [28, 22, 10], [32, 30, 8], [22, 32, 8]].forEach(([x, y, r]) => { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }); }
+  else if(it.key === "hpot"){ P([[20, 8], [28, 8], [28, 16], [20, 16]], "#c9a55c"); g.beginPath(); g.arc(24, 30, 13, 0, Math.PI * 2); g.fillStyle = "#c0392b"; g.fill(); g.stroke(); P([[20, 14], [28, 14], [28, 20], [20, 20]], "#e8e2d4"); g.fillStyle = "rgba(255,255,255,.55)"; g.fillRect(17, 25, 4, 7); }
   else if(it.key === "horn"){ g.lineWidth = 9; g.strokeStyle = "#0b0f17"; g.beginPath(); g.arc(24, 24, 12, -2.4, 2.2); g.stroke(); g.lineWidth = 6; g.strokeStyle = "#d8ccb0"; g.stroke(); }
   else { const pc = { pelt: ["#8a8580", "#a8a29a"], frostpelt: ["#d8d4ca", "#f2efe8"] }[it.key] || ["#6a4428", "#8a5a32"]; P([[10, 14], [20, 10], [28, 12], [38, 10], [40, 22], [36, 36], [26, 40], [14, 38], [8, 26]], pc[0]); P([[16, 18], [32, 18], [30, 32], [18, 32]], pc[1]); }
   g.lineWidth = 3; g.strokeStyle = RARITY[it.r].c; g.strokeRect(1.5, 1.5, 45, 45);

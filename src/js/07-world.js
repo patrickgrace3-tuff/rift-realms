@@ -126,12 +126,14 @@ addEventListener("keydown", e => {
   else if(k === "C"){ if($("#charWin").hidden) openChar(); else $("#charWin").hidden = true; }
   else if(k === "P") toggleSocial();
   else if(e.key === "Enter"){ e.preventDefault(); $("#chatIn").focus(); }
-  else if(k === "F"){
+  else if(k === "F") command({ potion: 1 });
+  else if(k === "T"){
     const me = G.snap && G.snap.h.find(h => h.side === G.myTeam); if(!me) return;
     let best = null, bd = 900; for(const n of NPCS){ const d = Math.hypot(n.x - me.x, n.y - me.y); if(d < bd){ bd = d; best = n; } }
     if(best) command({ talk: best.id });
   }else if(e.key === "Escape"){
-    if(!$("#social").hidden) $("#social").hidden = true;
+    if(!$("#shop").hidden) closeShop();
+    else if(!$("#social").hidden) $("#social").hidden = true;
     else if(!$("#charWin").hidden) $("#charWin").hidden = true;
     else if(!$("#skills").hidden) $("#skills").hidden = true;
     else if(!$("#bigmap").hidden) toggleBigMap(false);
@@ -176,6 +178,23 @@ function openDialog(f){
   }
   $("#dialog").hidden = false; (act.hidden ? $("#dlgClose") : act).focus();
 }
+/* ---------- Vendor ---------- */
+function openShop(npcId){
+  const npc = NPCS.find(n => n.id === npcId); if(!npc) return;
+  G.shop = npc.id; G.shopKey = ""; $("#shopName").textContent = npc.name; renderShop(); $("#shop").hidden = false;
+}
+function renderShop(){
+  const npc = G && NPCS.find(n => n.id === G.shop), me = G && G.snap && G.snap.h.find(h => h.side === G.myTeam); if(!npc || !me) return;
+  const have = ((me.gear && me.gear.inv) || []).filter(x => x.key === "hpot").reduce((a, x) => a + (x.q || 1), 0);
+  const key = `${npc.id}|${me.coins}|${have}`; if(key === G.shopKey) return; G.shopKey = key; // only rebuild when something changed, so clicks aren't lost
+  $("#shopCoins").textContent = fmtCoins(me.coins);
+  $("#shopList").innerHTML = npc.shop.map(key => { const it = SHOP_ITEMS[key];
+    return `<div class="shoprow"><img alt="" src="${itemIconURL(makePotion(0))}"><div class="si"><b>${esc(it.n)}</b><span>${esc(it.desc)}</span><span>You have ${have}</span></div>
+      <div class="sb"><span class="coins">${fmtCoins(it.price)}</span><div class="row"><button class="btn" data-buy="${key}" data-n="1" ${me.coins < it.price ? "disabled" : ""}>Buy 1</button><button class="btn primary" data-buy="${key}" data-n="5" ${me.coins < it.price * 5 ? "disabled" : ""}>Buy 5</button></div></div></div>`; }).join("");
+}
+function closeShop(){ $("#shop").hidden = true; if(G) G.shop = null; }
+$("#shopClose").onclick = closeShop;
+$("#shopList").addEventListener("click", e => { const b = e.target.closest("[data-buy]"); if(b) command({ buy: b.dataset.buy, n: +b.dataset.n }); });
 function closeDialog(){ $("#dialog").hidden = true; if(G) G.dialog = null; }
 $("#dlgClose").onclick = closeDialog;
 $("#dlgAction").onclick = () => {

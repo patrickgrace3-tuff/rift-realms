@@ -150,7 +150,7 @@
     <div class="chan" id="chan" hidden><span id="chanText"></span><div class="cb"><i id="chanFill"></i></div></div>
     <div class="abtip" id="abTip" role="tooltip" hidden></div>
     <div class="slots" id="slots"></div>
-    <div class="helpline">Right-click to move, attack, talk or pick up · Q W E R abilities · F talk · C character · K skills · M map · P players · Enter chat · S stop · scroll to zoom</div>
+    <div class="helpline">Right-click to move, attack, talk or pick up · Q W E R abilities · F potion · T talk · C character · K skills · M map · P players · Enter chat · S stop · scroll to zoom</div>
   </div>
 </div>
 
@@ -234,6 +234,16 @@
       <button class="btn" id="socialLeave" hidden>Leave party</button>
       <button class="btn" id="socialInvite">Invite friends</button>
     </div>
+  </div>
+</div>
+
+<div id="shop" class="modal" hidden>
+  <div class="card" style="width:min(480px,100%)">
+    <div class="row" style="justify-content:space-between">
+      <div><div class="eyebrow">Vendor</div><h2 id="shopName"></h2></div>
+      <div class="row"><span class="coins" id="shopCoins"></span><button class="btn" id="shopClose">Close</button></div>
+    </div>
+    <div id="shopList"></div>
   </div>
 </div>
 

@@ -26,7 +26,8 @@ npm start
 |---|---|
 | Right-click | Move, attack, talk, pick up, use |
 | Q W E R | Cast at the cursor (R unlocks at level 6). Hover an ability to see what it does |
-| F | Talk to the nearest NPC |
+| F | Drink a Health Potion (buy them from Peddler Osric in the village) |
+| T | Talk to the nearest NPC |
 | C | Character window |
 | K | Skill tree |
 | M | World map |
