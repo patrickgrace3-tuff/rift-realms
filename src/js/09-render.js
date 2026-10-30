@@ -221,6 +221,7 @@ function render(dt){
   if(me){
     scene.fog.near = camDist * 1.8; scene.fog.far = camDist * 4.2;
     camera.position.set(me.x, me.y + camDist * .8, me.z + camDist * .6); camera.lookAt(me.x, me.y + .8, me.z);
+    if(meSnap) updateClimate(dt, meSnap.y, me);
   }
   renderer.render(scene, camera);
 

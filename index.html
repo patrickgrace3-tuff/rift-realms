@@ -107,7 +107,7 @@
   <div class="topright">
     <div class="mm">
       <canvas id="minimap" width="180" height="180" aria-label="Minimap"></canvas>
-      <div class="mmzone">Sunhollow Vale</div>
+      <div class="mmzone" id="mmZone">Sunhollow Vale</div>
       <div class="mmbtns">
         <button class="hudbtn" id="mmIn" aria-label="Zoom minimap in">+</button>
         <button class="hudbtn" id="mmOut" aria-label="Zoom minimap out">−</button>
@@ -171,7 +171,7 @@
 <div id="bigmap" class="modal" hidden>
   <div class="card mapcard">
     <div class="row" style="justify-content:space-between">
-      <h2>Sunhollow Vale</h2>
+      <h2 id="bigTitle">Sunhollow Vale</h2>
       <button class="btn" id="bigClose">Close</button>
     </div>
     <canvas id="bigmapCv" width="640" height="640"></canvas>
@@ -258,6 +258,7 @@
 <script src="src/js/02-boot-select.js"></script>
 <script src="src/js/03-art.js"></script>
 <script src="src/js/04-scene.js"></script>
+<script src="src/js/04b-peaks.js"></script>
 <script src="src/js/05-sim.js"></script>
 <script src="src/js/05b-party.js"></script>
 <script src="src/js/06-net.js"></script>

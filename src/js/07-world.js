@@ -18,7 +18,7 @@ function startWorld(opts){
   buildNpcs();
   const me = G.details[myTeam];
   $("#hudHead").src = champIcon(me.id); $("#hudName").textContent = me.name;
-  $("#inviteBtn").hidden = opts.role !== "host";
+  $("#inviteBtn").hidden = opts.role !== "host"; $("#mmZone").textContent = "Sunhollow Vale";
   buildSlots(); resetSocial();
   for(const s of ["#menu", "#notice"]) $(s).hidden = true;
   show("game"); last = performance.now();

@@ -7,7 +7,7 @@ function questLine(id, me){
   if(qs.state === "ready") return [`Return to ${nm(Q.turnin)}`, "done"];
   if(qs.state === "failed") return [`Failed. Return to ${nm(Q.giver)}`, "warn"];
   const clock = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-  if(o.type === "deliver"){ const left = qs.left || 0; return [`${o.label} · ${clock(left)} left`, left < 60 ? "warn" : ""]; }
+  if(o.type === "deliver"){ if(!Q.timeLimit) return [o.label, ""]; const left = qs.left || 0; return [`${o.label} · ${clock(left)} left`, left < 60 ? "warn" : ""]; }
   if(o.type === "loot") return [G.snap.l.some(l => l[1] === G.myTeam && l[2] === o.item) ? `Pick up ${o.itemName}` : `${o.label}: ${qs.count}/${o.count}`, ""];
   if(o.type === "defend") return qs.phase ? [`Survive ${clock(qs.left || 0)} · stay near the tower`, "warn"] : ["Go to the Old Watchtower", ""];
   return [`${o.label}: ${qs.count}/${o.count}`, ""];
@@ -223,7 +223,9 @@ function drawMinimap(me){
   g.save(); g.beginPath(); g.arc(S / 2, S / 2, R, 0, Math.PI * 2); g.clip();
   g.fillStyle = "#2a3226"; g.fillRect(0, 0, S, S);
   const k = R / MM.view, toS = (x, y) => [S / 2 + (x - me.x) * k, S / 2 - (y - me.y) * k];
-  if(MAPIMG){ const [x0, y0] = toS(0, ZS); g.imageSmoothingEnabled = true; g.drawImage(MAPIMG, x0, y0, ZS * k, ZS * k); }
+  g.imageSmoothingEnabled = true;
+  if(MAPIMG){ const [x0, y0] = toS(0, ZS); g.drawImage(MAPIMG, x0, y0, ZS * k, ZS * k); }
+  if(PEAKIMG){ const [x0, y0] = toS(0, WH); g.drawImage(PEAKIMG, x0, y0, ZS * k, ZS * k); }
   drawMapIcons(g, toS, me, { clampR: R - 9, cx: S / 2, cy: S / 2, scale: k });
   g.restore();
   g.lineWidth = 4; g.strokeStyle = "#8a6a3a"; g.beginPath(); g.arc(S / 2, S / 2, R, 0, Math.PI * 2); g.stroke();
@@ -234,9 +236,12 @@ function drawBigMap(me){
   const S = Math.round(bmCv.getBoundingClientRect().width) || 640;
   if(bmCv.width !== S * dpr){ bmCv.width = bmCv.height = S * dpr; }
   const g = bmG; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, S, S);
-  const k = S / ZS, toS = (x, y) => [x * k, (ZS - y) * k];
-  if(MAPIMG){ g.imageSmoothingEnabled = true; g.drawImage(MAPIMG, 0, 0, S, S); }
-  for(const p of POIS){ const [x, y] = toS(p.x, p.y); g.font = "400 16px 'Marcellus SC', Georgia, serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.lineWidth = 4; g.strokeStyle = "rgba(20,14,8,.85)"; g.strokeText(p.name, x, y); g.fillStyle = "#f3ead2"; g.fillText(p.name, x, y); }
+  // the world map shows the zone you're in
+  const Z = zoneAt(me.y), top = Z.y0 + ZS, k = S / ZS, toS = (x, y) => [x * k, (top - y) * k], pic = Z.y0 ? PEAKIMG : MAPIMG;
+  $("#bigTitle").textContent = Z.name;
+  if(pic){ g.imageSmoothingEnabled = true; g.drawImage(pic, 0, 0, S, S); }
+  for(const p of POIS){
+    if(p.y < Z.y0 || p.y > top) continue; const [x, y] = toS(p.x, p.y); g.font = "400 16px 'Marcellus SC', Georgia, serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.lineWidth = 4; g.strokeStyle = "rgba(20,14,8,.85)"; g.strokeText(p.name, x, y); g.fillStyle = "#f3ead2"; g.fillText(p.name, x, y); }
   drawMapIcons(g, toS, me, { scale: k, big: true });
 }
 function toggleBigMap(force){
@@ -281,8 +286,9 @@ function updateHud(){
   const tkey = JSON.stringify(me.talents) + me.points + me.lvl;
   if(!$("#skills").hidden && tkey !== G.skillKey) renderSkills(me);
   drawMinimap(me);
+  const zn = zoneAt(me.y).name; if($("#mmZone").textContent !== zn){ $("#mmZone").textContent = zn; banner(zn, me.y >= ZS ? "Highwatch Outpost lies north along the road" : "", 3000); }
   if(!$("#bigmap").hidden) drawBigMap(me);
-  $("#respawn").hidden = !me.dead; if(me.dead) $("#respawn").textContent = `You were defeated. Returning to the village in ${me.dead}…`;
+  $("#respawn").hidden = !me.dead; if(me.dead) $("#respawn").textContent = `You were defeated. Returning to ${me.y >= ZS ? "Highwatch Outpost" : "the village"} in ${me.dead}…`;
   // quest tracker lists every active quest; click one to point the arrow at it
   const active = QUEST_ORDER.filter(id => me.quests[id] && me.quests[id].state !== "done");
   $("#tracker").hidden = !active.length;

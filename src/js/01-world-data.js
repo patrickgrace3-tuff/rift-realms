@@ -4,7 +4,9 @@
 /* =====================================================================
    SUNHOLLOW VALE: zone layout in zone units (0–8000; y is north)
    ===================================================================== */
-const ZS = 8000, ZONE_W = 110, ZSC = ZONE_W / ZS;
+// The world is two zones stacked north to south, each ZS square: Sunhollow Vale (y 0–8000)
+// and Frostspine Peaks (y 8000–16000). A ridge separates them; Greywind Pass is the only way through.
+const ZS = 8000, WH = ZS * 2, ZONE_W = 110, ZSC = ZONE_W / ZS;
 const ZMIN = 650, ZMAX = ZS - 650;
 const XF = (() => {
   const f = (x, y) => ({ x: (x - ZS / 2) * ZSC, z: -(y - ZS / 2) * ZSC });
@@ -24,6 +26,7 @@ const HERB_AREA = { x: 5700, y: 2300, r: 1150 };
 const LOOKOUTS = [{ name: "East Overlook", x: 6950, y: 4650 }, { name: "Southwest Bluff", x: 1800, y: 1650 }, { name: "Pinecrest Ridge", x: 2700, y: 7000 }];
 const BEACONS = [{ name: "West Beacon", x: 1450, y: 4400 }, { name: "North Beacon", x: 5300, y: 6950 }, { name: "South Beacon", x: 6850, y: 1500 }];
 const WAVES = [2, 2, 3, 3];
+const PASS = { x: 4100, y: ZS, w: 330 };       // Greywind Pass, the gap in the ridge between the zones
 const WELL = [4000, 3750], CAMPFIRE = [4380, 3380];
 const HOUSES = [[3350, 4200, .2], [4700, 4250, -.3], [3250, 3150, 1.3], [4850, 3000, -1.2]];
 const PATHS = [
@@ -35,12 +38,36 @@ const PATHS = [
   [[4000, 3600], [2700, 3250], [1500, 3000]],
   [[3300, 4500], [3700, 5600], [3900, 6400]],
   [[4000, 3600], [2800, 2400], [1900, 1700]],
+  [[3900, 6400], [4050, 7300], [PASS.x, ZS + 1]],
 ];
+/* ---------- Frostspine Peaks (north zone) ---------- */
+const OUTPOST = { x: 4150, y: 9450, r: 520 };  // Highwatch Outpost, just north of the pass
+const RAM_MEADOW = { x: 2500, y: 10900, r: 900 }; // Ramsfoot Meadow (west)
+const LYNX_RIDGE = { x: 5700, y: 11700, r: 800 }; // Whitefang Ridge (east)
+const SUMMIT = { x: 4200, y: 14700 };             // Skyreach Overlook, where the road ends
+const BRAZIER = [4330, 9330];
+const PEAK_PATHS = [
+  [[PASS.x, ZS - 1], [4150, 8700], [OUTPOST.x, OUTPOST.y]],
+  [[OUTPOST.x, OUTPOST.y], [3950, 11000], [4350, 12900], [SUMMIT.x, SUMMIT.y]],
+  [[OUTPOST.x, OUTPOST.y], [3300, 10200], [RAM_MEADOW.x, RAM_MEADOW.y]],
+  [[3950, 11000], [4900, 11500], [LYNX_RIDGE.x, LYNX_RIDGE.y]],
+];
+// big rock spires inside the zone (solid, and drawn as peaks)
+const CRAGS = [[1700, 12900, 700], [6450, 9700, 520], [2600, 9100, 420], [6100, 14000, 700], [5200, 13400, 380], [2700, 14600, 520]];
+// the ridge between the zones: a wall of rock everywhere except the pass
+const RIDGE = []; for(let x = 500; x <= ZS - 500; x += 300) if(Math.abs(x - PASS.x) > PASS.w + 430) RIDGE.push({ x, y: ZS, r: 430 });
+const PEAK_OBSTACLES = [...RIDGE, ...CRAGS.map(([x, y, r]) => ({ x, y, r: r * .8 })),
+  { x: PASS.x - PASS.w - 330, y: ZS, r: 330 }, { x: PASS.x + PASS.w + 330, y: ZS, r: 330 },
+  { x: BRAZIER[0], y: BRAZIER[1], r: 80 }, { x: OUTPOST.x - 260, y: OUTPOST.y + 230, r: 170 }, { x: OUTPOST.x + 300, y: OUTPOST.y + 180, r: 170 }];
+const FIRES = [CAMPFIRE, BRAZIER];
+const ZONES = [{ name: "Sunhollow Vale", y0: 0 }, { name: "Frostspine Peaks", y0: ZS }];
+const zoneAt = y => ZONES[y >= ZS ? 1 : 0];
 const NPCS = [
   { id: "bram", name: "Farmer Bram", x: 3720, y: 3480, head: "farmer", style: "farmer", idle: "Fine weather for honest work. Mind the flock on your way out." },
   { id: "kaela", name: "Huntress Kaela", x: 5790, y: 5190, head: "huntress", style: "hunter", idle: "Keep your voice down out here. Sound carries in the Bramblewood." },
   { id: "merrin", name: "Old Merrin", x: 1440, y: 2960, head: "fisher", style: "fisher", idle: "Westwind's blowing. Good day to mend nets and not much else." },
   { id: "rhea", name: "Captain Rhea", x: 4300, y: 3820, head: "guard", style: "guard", idle: "The Vale is quiet. I intend to keep it that way." },
+  { id: "halvard", name: "Warden Halvard", x: 4010, y: 9560, head: "warden", style: "warden", idle: "Keep your fire lit and your back to the rock. The mountain forgives nothing." },
 ];
 const OBSTACLES = [
   ...HOUSES.map(h => ({ x: h[0], y: h[1], r: 270 })),
@@ -48,6 +75,7 @@ const OBSTACLES = [
   ...NPCS.map(n => ({ x: n.x, y: n.y, r: 55 })),
   { x: CAMP.x, y: CAMP.y, r: 190 }, { x: CABIN.x, y: CABIN.y, r: 250 }, { x: TOWER.x, y: TOWER.y, r: 220 },
   ...BEACONS.map(b => ({ x: b.x, y: b.y, r: 70 })), ...LOOKOUTS.map(p => ({ x: p.x, y: p.y, r: 55 })),
+  ...PEAK_OBSTACLES,
 ];
 const QUESTS = {
   sheep: {
@@ -122,16 +150,38 @@ const QUESTS = {
     offer: "The bandits are coming up the southern road, and the Old Watchtower is all that stands between them and the village. Get down there and hold it. One minute is all I need to rally the farmers. Whatever happens, don't leave the tower.",
     objective: "Go to the Old Watchtower on the southern road. When the bandits attack, survive for 60 seconds without leaving the tower.",
     progress: "The Old Watchtower, south down the road. Hold it for one minute.",
-    complete: "You held it, alone! The bandits are scattering into the hills. The Vale owes you, champion. This was forged for the captain of the watch. I think it belongs to you now.",
+    complete: "You held it, alone! The bandits are scattering into the hills. The Vale owes you, champion. This was forged for the captain of the watch. I think it belongs to you now. When you've seen to the rest of the Vale's troubles, come and find me. There's word from the north.",
     done: "Thanks to you, Sunhollow sleeps safe tonight.",
     fail: "You abandoned the watchtower. Speak to Captain Rhea to try again.",
   },
+  northpass: {
+    id: "northpass", title: "The Road North", giver: "rhea", turnin: "halvard", prereq: ["sheep", "tusker", "courier", "scout", "wolves", "herbs", "beacons", "defend"], xp: 400, coins: 120,
+    where: [OUTPOST.x, OUTPOST.y],
+    obj: { type: "deliver", itemName: "Captain Rhea's Letter", label: "Bring Rhea's letter to Warden Halvard" },
+    offer: "Every farm in the Vale owes you something now, and so do I. But the Vale is small, and you've outgrown it. North of the Howling Pines the road climbs to Greywind Pass and into the Frostspine Peaks. My old friend Halvard keeps the outpost at Highwatch. He's been asking for help all winter. Take him this letter. It says you're the best I've seen.",
+    objective: "Follow the road north past the Howling Pines, through Greywind Pass, to Highwatch Outpost. Give Captain Rhea's letter to Warden Halvard.",
+    progress: "North past the pines, through the pass, then follow the road to Highwatch. Dress warm.",
+    waiting: "Rhea sent you? Let's see that letter.",
+    complete: "\"The best I've seen.\" Rhea doesn't hand those out. Welcome to Highwatch, champion. Warm your hands by the brazier. You'll need them steady for what I have in mind.",
+    done: "Any friend of Rhea's has a place by our fire.",
+  },
+  lynx: {
+    id: "lynx", title: "Claws on the Ridge", giver: "halvard", turnin: "halvard", prereq: "northpass", xp: 700, coins: 200, reward: { item: 2 }, where: [LYNX_RIDGE.x, LYNX_RIDGE.y], whereR: LYNX_RIDGE.r,
+    obj: { type: "kill", kind: "lynx", count: 8, label: "Snowfang Lynxes slain" },
+    offer: "The snowfang lynxes have come down off Whitefang Ridge. Hungry winter, too many cubs. They've taken two of our pack mules and they stalk anyone who walks the east trail. They hunt alone, but they'll spring on you from the snow before you see them. Thin them out. Eight should do it.",
+    objective: "Slay 8 Snowfang Lynxes on Whitefang Ridge, east of Highwatch Outpost.",
+    progress: "Eight lynxes, up on Whitefang Ridge to the east. Watch the snowdrifts.",
+    complete: "Eight pelts' worth. The east trail will be safe for the mules again, and the rest will think twice about coming down. Take this, and my thanks. There's plenty more work up here for someone like you.",
+    done: "The ridge has been quiet since. Good work.",
+  },
 };
-const QUEST_ORDER = ["sheep", "tusker", "courier", "scout", "wolves", "herbs", "beacons", "defend"];
+const QUEST_ORDER = ["sheep", "tusker", "courier", "scout", "wolves", "herbs", "beacons", "defend", "northpass", "lynx"];
+// prereq is a quest id or a list of them; all must be done
+function prereqMet(quests, Q){ const ids = !Q.prereq ? [] : Array.isArray(Q.prereq) ? Q.prereq : [Q.prereq]; return ids.every(id => quests[id] && quests[id].state === "done"); }
 const WEAPON_REWARD = { melee: "Tuskbreaker Blade", caster: "Tuskwood Staff", ranged: "Tuskbone Bow", ad: 32, abil: .18 };
 // Which quest an NPC should talk about, given a hero's quest log (used by the host and for markers)
 function questFor(quests, npcId){
-  const prereqOk = Q => !Q.prereq || (quests[Q.prereq] && quests[Q.prereq].state === "done");
+  const prereqOk = Q => prereqMet(quests, Q);
   for(const id of QUEST_ORDER){ const Q = QUESTS[id], qs = quests[id]; if(Q.turnin === npcId && qs && (qs.state === "ready" || (qs.state === "active" && Q.obj.type === "deliver"))) return { quest: id, state: "complete" }; }
   for(const id of QUEST_ORDER){ const Q = QUESTS[id], qs = quests[id]; if(Q.giver === npcId && (!qs || qs.state === "failed") && prereqOk(Q)) return { quest: id, state: "offer" }; }
   for(const id of QUEST_ORDER){ const Q = QUESTS[id], qs = quests[id]; if(qs && qs.state === "active" && Q.giver === npcId) return { quest: id, state: "progress" }; }
@@ -191,14 +241,20 @@ const POIS = [
   { name: "Bramblewood Hollow", x: DEN.x, y: DEN.y + 800 }, { name: "Kaela's Camp", x: CAMP.x - 650, y: CAMP.y - 120 },
   { name: "Merrin's Cabin", x: CABIN.x + 150, y: CABIN.y - 450 }, { name: "Stillwater Pond", x: POND.x, y: POND.y - 780 },
   { name: "Howling Pines", x: PINES.x, y: PINES.y - 900 }, { name: "Old Watchtower", x: TOWER.x + 900, y: TOWER.y + 150 },
+  { name: "Greywind Pass", x: PASS.x + 1000, y: PASS.y + 250 }, { name: "Highwatch Outpost", x: OUTPOST.x + 1100, y: OUTPOST.y - 150 },
+  { name: "Ramsfoot Meadow", x: RAM_MEADOW.x, y: RAM_MEADOW.y + 1050 }, { name: "Whitefang Ridge", x: LYNX_RIDGE.x, y: LYNX_RIDGE.y + 950 },
+  { name: "Skyreach Overlook", x: SUMMIT.x, y: SUMMIT.y + 450 },
 ];
 const MOBS = {
   sheep: { name: "Sheep", lvl: 1, r: 45, hp: 140, dmg: 6, atkCd: 1.6, ms: 260, wander: 110, xp: 22, respawn: 12, leash: 1500, home: [PASTURE.x, PASTURE.y], roam: PASTURE.r - 180, count: 9 },
   boar: { name: "Old Tusker", lvl: 5, r: 85, hp: 1700, dmg: 34, atkCd: 1.7, ms: 290, wander: 80, xp: 150, respawn: 25, leash: 1500, home: [DEN.x, DEN.y], roam: 300, count: 1, elite: true, charge: true },
   wolf: { name: "Gray Wolf", lvl: 4, r: 52, hp: 360, dmg: 15, atkCd: 1.3, ms: 330, wander: 120, xp: 45, respawn: 16, leash: 1900, home: [PINES.x, PINES.y], roam: PINES.r, count: 7, aggroR: 420, pack: true },
+  ram: { name: "Crag Ram", lvl: 10, r: 60, hp: 1050, dmg: 30, atkCd: 1.6, ms: 300, wander: 120, xp: 95, respawn: 18, leash: 1700, home: [RAM_MEADOW.x, RAM_MEADOW.y], roam: RAM_MEADOW.r - 150, count: 9, charge: true },
+  lynx: { name: "Snowfang Lynx", lvl: 12, r: 55, hp: 980, dmg: 36, atkCd: 1.2, ms: 360, wander: 130, xp: 115, respawn: 16, leash: 1800, home: [LYNX_RIDGE.x, LYNX_RIDGE.y], roam: LYNX_RIDGE.r, count: 10, aggroR: 460 },
   bandit: { name: "Vale Bandit", lvl: 6, r: 55, hp: 400, dmg: 19, atkCd: 1.4, ms: 300, wander: 100, xp: 60, respawn: 0, leash: 99999, home: [TOWER.x, TOWER.y], roam: 300, count: 0, aggroR: 900 },
 };
-const clampZ = v => Math.max(ZMIN, Math.min(ZMAX, v));
+const clampX = v => Math.max(ZMIN, Math.min(ZMAX, v));
+const clampY = v => Math.max(ZMIN, Math.min(WH - ZMIN, v));
 
 /* ---------- Items: loot tables, armor generation, inventory ---------- */
 const BAG_SIZE = 20;
@@ -220,11 +276,13 @@ const BASE_NAMES = { head: { cloth: "Hood", leather: "Cap", plate: "Helm" }, che
 const WEAPON_NAMES = { melee: { base: ["Shortsword", "Blade", "Longsword"], pre: ["Rusty", "Sturdy", "Fine", "Runed"], wt: "sword" }, caster: { base: ["Rod", "Staff", "Spire"], pre: ["Cracked", "Oak", "Carved", "Runed"], wt: "staff" }, ranged: { base: ["Shortbow", "Bow", "Longbow"], pre: ["Warped", "Ash", "Recurve", "Runed"], wt: "bow" } };
 const SUFFIX = { hp: "of the Bear", ad: "of the Tiger", ap: "of the Owl", armor: "of the Turtle", haste: "of Swiftness", ms: "of the Fox" };
 const CLASS_MAT = { melee: "plate", caster: "cloth", ranged: "leather" };
-const MATERIALS = { wool: { n: "Tuft of Wool", v: 3 }, pelt: { n: "Wolf Pelt", v: 9 }, hide: { n: "Thick Boar Hide", v: 25 } };
+const MATERIALS = { wool: { n: "Tuft of Wool", v: 3 }, pelt: { n: "Wolf Pelt", v: 9 }, hide: { n: "Thick Boar Hide", v: 25 }, horn: { n: "Curled Ram Horn", v: 22 }, frostpelt: { n: "Snowfang Pelt", v: 30 } };
 const LOOT = {
   sheep: { coins: [1, 4], mat: ["wool", .7], gear: .12, ilvl: 2 },
   wolf: { coins: [4, 10], mat: ["pelt", .6], gear: .22, ilvl: 4 },
   bandit: { coins: [10, 24], mat: null, gear: .32, ilvl: 6 },
+  ram: { coins: [18, 34], mat: ["horn", .6], gear: .25, ilvl: 11 },
+  lynx: { coins: [20, 40], mat: ["frostpelt", .55], gear: .28, ilvl: 12 },
   boar: { coins: [40, 70], mat: ["hide", 1], gear: 1, minRarity: 2, epic: .15, ilvl: 5 },
 };
 function rollRarity(min, epic){ const r = Math.random(); const v = r < .01 + (epic || 0) ? 3 : r < .12 ? 2 : r < .45 ? 1 : 0; return Math.max(min || 0, v); }
@@ -292,7 +350,8 @@ function itemIconURL(it){
     g.shadowBlur = 0;
   }
   else if(it.key === "wool"){ g.fillStyle = "#f4f1ea"; [[18, 26, 9], [28, 22, 10], [32, 30, 8], [22, 32, 8]].forEach(([x, y, r]) => { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }); }
-  else { P([[10, 14], [20, 10], [28, 12], [38, 10], [40, 22], [36, 36], [26, 40], [14, 38], [8, 26]], it.key === "pelt" ? "#8a8580" : "#6a4428"); P([[16, 18], [32, 18], [30, 32], [18, 32]], it.key === "pelt" ? "#a8a29a" : "#8a5a32"); }
+  else if(it.key === "horn"){ g.lineWidth = 9; g.strokeStyle = "#0b0f17"; g.beginPath(); g.arc(24, 24, 12, -2.4, 2.2); g.stroke(); g.lineWidth = 6; g.strokeStyle = "#d8ccb0"; g.stroke(); }
+  else { const pc = { pelt: ["#8a8580", "#a8a29a"], frostpelt: ["#d8d4ca", "#f2efe8"] }[it.key] || ["#6a4428", "#8a5a32"]; P([[10, 14], [20, 10], [28, 12], [38, 10], [40, 22], [36, 36], [26, 40], [14, 38], [8, 26]], pc[0]); P([[16, 18], [32, 18], [30, 32], [18, 32]], pc[1]); }
   g.lineWidth = 3; g.strokeStyle = RARITY[it.r].c; g.strokeRect(1.5, 1.5, 45, 45);
   const url = c.toDataURL(); iconCache.set(key, url); return url;
 }
