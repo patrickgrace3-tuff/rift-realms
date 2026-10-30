@@ -28,9 +28,18 @@ function newWorld(){
   const fightUntil = (qid, kind, max = 240) => { for(let s = 0; s < max && h.quests[qid].state === "active"; s += 5) step(5, fight(kind)); };
   const talk = (npc, secs = 30) => { SIM.input(W, "blue", { talk: npc }); step(secs); };
   const walk = (x, y, secs) => { SIM.input(W, "blue", { move: [x, y] }); step(secs); };
+  // walk like a player: fight back when something attacks, otherwise keep heading for (x, y)
+  const travel = (x, y, max = 60) => {
+    for(let s = 0; s < max && Math.hypot(h.x - x, h.y - y) > 150; s++) step(1, i => {
+      if(i % 15) return;
+      const foe = W.mobs.filter(m => !m.dead && m.aggro === h.id).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
+      if(foe){ SIM.input(W, "blue", { atk: foe.id }); for(const k of ["Q", "W", "E", "R"]) SIM.input(W, "blue", { cast: k, at: [foe.x, foe.y] }); }
+      else SIM.input(W, "blue", { move: [x, y] });
+    });
+  };
   const accept = (npc, qid) => { talk(npc); SIM.input(W, "blue", { accept: qid }); step(.2); assert.ok(h.quests[qid], `${qid} should be accepted from ${npc}`); };
   const turnIn = (npc, qid) => { talk(npc); SIM.input(W, "blue", { turnin: qid }); step(.2); assert.equal(h.quests[qid].state, "done", `${qid} should be turned in to ${npc}`); };
-  return { W, h, step, fight, fightUntil, talk, walk, accept, turnIn, events };
+  return { W, h, step, fight, fightUntil, talk, walk, travel, accept, turnIn, events };
 }
 
 test("full quest chain can be completed in order", () => {
@@ -56,10 +65,11 @@ test("full quest chain can be completed in order", () => {
   t.accept("rhea", "defend"); t.walk(G.TOWER.x + 200, G.TOWER.y + 300, 12); t.step(70, t.fight("bandit")); t.turnIn("rhea", "defend");
   // all of the Vale is done: Rhea sends you north through Greywind Pass
   t.accept("rhea", "northpass");
-  t.walk(G.PASS.x, G.PASS.y - 700, 22); t.walk(G.PASS.x, G.PASS.y + 700, 8);
+  t.travel(G.PASS.x, G.PASS.y - 700); t.travel(G.PASS.x, G.PASS.y + 700);
   assert.ok(h.y > G.ZS, "walked through Greywind Pass into the Peaks");
   t.turnIn("halvard", "northpass");
-  t.accept("halvard", "lynx"); t.walk(G.LYNX_RIDGE.x - 300, G.LYNX_RIDGE.y - 300, 16); t.fightUntil("lynx", "lynx", 480); t.turnIn("halvard", "lynx");
+  t.accept("halvard", "lynx"); t.walk(G.LYNX_RIDGE.x - 300, G.LYNX_RIDGE.y - 300, 16); t.fightUntil("lynx", "lynx", 480);
+  const halvard = G.NPCS.find(n => n.id === "halvard"); t.travel(halvard.x, halvard.y - 250); t.turnIn("halvard", "lynx");
   for(const id of G.QUEST_ORDER) assert.equal(h.quests[id].state, "done", `${id} done`);
   assert.ok(h.coins > 0, "earned coins");
   assert.ok(Object.keys(h.equip).length >= 2, "has gear equipped");
