@@ -11,6 +11,8 @@ const MUSIC = {
 // Short sound effects by name; play with sfx("name") or sfxAt("name", x, y). Names match the checklist's file names.
 const SFX = {
   "attack-melee": "src/audio/sfx/attack-melee.mp3",
+  "attack-ranged": "src/audio/sfx/attack-ranged.mp3",
+  "attack-caster": "src/audio/sfx/attack-caster.mp3",
 };
 // basic-attack sound for each champion class (a missing file just stays silent)
 const ATTACK_SFX = { melee: "attack-melee", ranged: "attack-ranged", caster: "attack-caster" };

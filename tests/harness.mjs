@@ -31,7 +31,7 @@ function fakeEl(){
 
 export function loadGame(){
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-  const files = [...html.matchAll(/<script src="(src\/js\/[^"]+)"><\/script>/g)].map(m => m[1]);
+  const files = [...html.matchAll(/<script src="(src\/js\/[^"?]+)(?:\?v=[0-9a-f]*)?"><\/script>/g)].map(m => m[1]);
   if(!files.length) throw new Error("No game scripts found in index.html");
   const ctx = {
     console, Math, JSON, Date, Map, Set, Promise, Proxy, Array, Object, String, Number, Uint8ClampedArray, Float32Array, setTimeout, clearTimeout,

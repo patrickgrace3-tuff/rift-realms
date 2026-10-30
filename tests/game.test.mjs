@@ -575,3 +575,10 @@ test("raid: party members who died and respawned during the fight still share th
   for(const h of heroes) assert.equal(h.quests.rimewyrm.state, "ready", `${h.side} gets quest credit`);
   assert.ok(W.loot.some(l => l.side === c.side && l.items.some(it => it.r === 3)), "the respawned member still gets their Epic");
 });
+
+test("index.html links carry up-to-date version codes (run: node scripts/stamp.mjs)", async () => {
+  const fs = await import("node:fs"), { stamped, root } = await import("../scripts/stamp.mjs");
+  const html = fs.readFileSync(root + "/index.html", "utf8");
+  assert.ok(/src="src\/js\/00-core\.js\?v=[0-9a-f]{10}"/.test(html), "links are stamped");
+  assert.equal(stamped(html), html, "a file in src/ changed since index.html was stamped: run node scripts/stamp.mjs");
+});

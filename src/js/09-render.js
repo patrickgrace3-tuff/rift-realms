@@ -9,6 +9,9 @@ function smoothPos(id, x, y, dt){
   if(!p || Math.hypot(p.x - x, p.y - y) > 700 || G.role === "host"){ p = { x, y }; G.smooth.set(id, p); return p; }
   const k = Math.min(1, dt * 14); p.x += (x - p.x) * k; p.y += (y - p.y) * k; return p;
 }
+// Sound must never break the game: if anything goes wrong playing one (a missing file, an old
+// cached audio script, a browser quirk), skip it and carry on.
+function playSound(fn){ try{ fn(); }catch(e){ if(!playSound.warned){ playSound.warned = true; console.warn("Sound skipped:", e); } } }
 function render(dt){
   const s = G.snap; if(!s) return;
   const t = performance.now() / 1000;
@@ -24,7 +27,7 @@ function render(dt){
     const v = G.vis[c.side], p = smoothPos("c:" + c.side, c.x, c.y, dt), w = XF(p.x, p.y), y = hAt(w.x, w.z);
     v.pos = { x: w.x, y, z: w.z };
     if(c.castSeq !== v.castSeq){ if(v.castSeq >= 0) v.castUntil = t + .35; v.castSeq = c.castSeq; }
-    if(c.atkSeq !== v.atkSeq){ if(v.atkSeq >= 0){ v.atkUntil = t + .22; sfxAt(ATTACK_SFX[v.kit.cls], c.x, c.y); } v.atkSeq = c.atkSeq; }
+    if(c.atkSeq !== v.atkSeq){ const fresh = v.atkSeq >= 0; v.atkSeq = c.atkSeq; if(fresh){ v.atkUntil = t + .22; playSound(() => sfxAt(ATTACK_SFX[v.kit.cls], c.x, c.y)); } }
     const sx = Math.sin(c.face); if(sx < -.15) v.flip = true; else if(sx > .15) v.flip = false;
     const tier = c.wglow ? 1 : 0;
     applyLook(v.art, c.gear && c.gear.equip);
