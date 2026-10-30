@@ -198,7 +198,11 @@ function drawMapIcons(g, toS, me, o){
     else { g.beginPath(); g.arc(sx, sy, 2, 0, Math.PI * 2); g.fillStyle = (m[7] & 2) ? "#ff9a80" : "#f4f1ea"; g.fill(); }
   }
   for(const l of (G.snap.l || [])){ if(l[1] !== G.myTeam) continue; const [sx, sy] = toS(l[3], l[4]); const bag = l[2] === "bag"; g.fillStyle = bag ? (l[5] ? RARITY[l[5]].c : "#b08a5a") : "#ffe08a"; const z = bag ? 2.5 : 3; g.fillRect(sx - z, sy - z, z * 2, z * 2); }
-  for(const h of G.snap.h){ if(h.side === G.myTeam || h.dead) continue; const [sx, sy, edge] = clamp(...toS(h.x, h.y)); g.beginPath(); g.arc(sx, sy, edge ? 3 : 4, 0, Math.PI * 2); g.fillStyle = "#7fd3ff"; g.fill(); g.strokeStyle = "#1b1410"; g.lineWidth = 1.5; g.stroke(); }
+  for(const h of G.snap.h){
+    if(h.side === G.myTeam || h.dead) continue;
+    const ally = inMyParty(h.side), [sx, sy, edge] = clamp(...toS(h.x, h.y));
+    if(edge && !ally) continue; // only party members stick to the minimap's edge
+    g.beginPath(); g.arc(sx, sy, edge ? 3 : 4, 0, Math.PI * 2); g.fillStyle = ally ? "#7fd3ff" : "#d8d8d8"; g.fill(); g.strokeStyle = "#1b1410"; g.lineWidth = 1.5; g.stroke(); }
   const qh = me.quests;
   if(qh.herbs && qh.herbs.state === "active") for(const n of (G.snap.n || [])) if(n[3]){ const [sx, sy] = toS(n[1], n[2]); g.beginPath(); g.arc(sx, sy, o.big ? 3.2 : 2.3, 0, Math.PI * 2); g.fillStyle = "#ffe066"; g.fill(); g.strokeStyle = "#1b1410"; g.lineWidth = 1; g.stroke(); }
   if(qh.beacons) BEACONS.forEach((b, i) => { const lit = qh.beacons.state === "ready" || qh.beacons.state === "done" || (qh.beacons.flags && qh.beacons.flags[i]); const [sx, sy, edge] = clamp(...toS(b.x, b.y)); if(edge && lit) return; mapText(g, "▲", sx, sy, lit ? "#ff9a40" : "#d8d8d8", o.big ? 15 : 11); if(o.big) mapText(g, b.name, sx, sy + 14, "#ffe9a8", 12); });
@@ -289,17 +293,21 @@ function updateHud(){
   }
   const chn = $("#chan"); chn.hidden = !me.chan; if(me.chan){ $("#chanFill").style.width = Math.min(100, me.chan.p * 100) + "%"; $("#chanText").textContent = me.chan.n; }
   if(!$("#charWin").hidden) renderChar();
+  updateSocial(me);
   const wpn = $("#hudWeapon"); wpn.hidden = !me.weapon; if(me.weapon) wpn.textContent = `⚔ ${me.weapon}`;
+  const n = G.snap.h.length;
   let net = G.role === "host" ? (NET.code ? `World code ${NET.code}` : "") : "Co-op";
-  if(G.role === "host" && G.W && G.W.heroes.red) net += ` · ${G.W.heroes.red.name} is here`;
+  if(n > 1) net += `${net ? " · " : ""}${n} players`;
   if(G.role === "guest" && NET.ping != null) net += ` · ${NET.ping} ms`;
   $("#netinfo").textContent = net;
 }
 
 /* ---------- Effects ---------- */
 function handleFx(f){
+  if(f.to && !f.to.includes(G.myTeam)) return; // party chat, invites and rolls are only for some players
   const mine = f.side === G.myTeam;
   switch(f.k){
+    case "chat": case "sys": case "pinvite": case "rollstart": case "rollwin": socialFx(f, mine); break;
     case "num": G.nums.push({ x: f.x, y: f.y, v: f.v, t: .8, h: f.hero ? 2.9 : 1.4, hero: f.hero, mine: f.src === G.myTeam, color: f.hero ? "#ff6b62" : f.src === G.myTeam ? "#f0d58e" : "#ffffff" }); break;
     case "xp": if(mine) G.nums.push({ x: f.x, y: f.y, v: `+${f.v} XP`, t: 1.2, h: 3.4, color: "#c39bff", big: true }); break;
     case "lvl": G.fx.push(Object.assign({ t: 0, dur: 1 }, f)); if(mine) banner(`Level ${f.lvl}`, f.lvl === 3 ? "Ultimate (R) unlocked · skill point earned, press K" : "Skill point earned · press K to spend it", 2800); break;

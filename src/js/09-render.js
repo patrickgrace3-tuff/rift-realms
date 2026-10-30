@@ -250,9 +250,10 @@ function render(dt){
     const [sx, sy, sz] = worldToScreen(v.pos.x, v.pos.y + 2.85, v.pos.z); if(sz > 1) continue;
     const mine = c.side === G.myTeam, wdt = 80;
     octx.fillStyle = "rgba(5,8,14,.75)"; octx.fillRect(sx - wdt / 2 - 2, sy - 2, wdt + 4, 10);
-    octx.fillStyle = mine ? "#3fbf7f" : "#5fb0ff"; octx.fillRect(sx - wdt / 2, sy, wdt * Math.max(0, c.hp / c.maxHp), 6);
+    const ally = !mine && inMyParty(c.side);
+    octx.fillStyle = mine ? "#3fbf7f" : ally ? "#5fb0ff" : "#a8adb8"; octx.fillRect(sx - wdt / 2, sy, wdt * Math.max(0, c.hp / c.maxHp), 6);
     if(c.shield > 0){ octx.fillStyle = "rgba(230,240,255,.9)"; octx.fillRect(sx - wdt / 2, sy + 5, Math.min(wdt, wdt * c.shield / c.maxHp), 2); }
-    label(`${c.name}  ·  ${c.lvl}`, sx, sy - 6, mine ? "#f0d58e" : "#8fc7ff", 13);
+    label(`${c.name}  ·  ${c.lvl}`, sx, sy - 6, mine ? "#f0d58e" : ally ? "#8fc7ff" : "#e4e4e4", 13);
     if(c.cc) label({ stun: "STUNNED", root: "ROOTED", slow: "SLOWED" }[c.cc], sx, sy - 22, c.cc === "stun" ? "#f0d58e" : c.cc === "root" ? "#b98cff" : "#7fd3ff", 12, 700);
   }
   // objective arrow around your character
@@ -290,9 +291,8 @@ function frame(now){
     G.snap = SIM.snapshot(G.W);
     for(const f of G.W.fxLocal) G.fxQueue.push(f); G.W.fxLocal.length = 0;
     G.sendT -= dt;
-    if(!(NET.conn && NET.conn.open)) G.W.fxNet.length = 0;
-    else if(G.sendT <= 0){ G.sendT = .05; const hs = G.snap.h.map(h => { if(NET.sentGear[h.side] === h.gear.ver){ const o = Object.assign({}, h); delete o.gear; return o; } NET.sentGear[h.side] = h.gear.ver; return h; });
-      const snap = Object.assign({}, G.snap, { h: hs, fx: G.W.fxNet }); send({ t: "snap", s: snap }); G.W.fxNet = []; }
+    if(!NET.guests.size) G.W.fxNet.length = 0;
+    else if(G.sendT <= 0){ G.sendT = .05; netBroadcast(G.snap, G.W.fxNet); G.W.fxNet = []; }
   }else{
     pingTick -= dt;
     if(pingTick <= 0){ pingTick = 2; NET.pingId = Math.random(); NET.pingSent = performance.now(); send({ t: "ping", id: NET.pingId }); }

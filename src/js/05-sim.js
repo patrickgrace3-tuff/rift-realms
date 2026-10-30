@@ -6,7 +6,7 @@
    ===================================================================== */
 const SIM = {
   create(){
-    const W = { t: 0, heroes: {}, mobs: [], shots: [], zones: [], fields: [], pets: [], loot: [], respawnQ: [], fxNet: [], fxLocal: [], nid: 1 };
+    const W = { t: 0, heroes: {}, mobs: [], shots: [], zones: [], fields: [], pets: [], loot: [], respawnQ: [], fxNet: [], fxLocal: [], nid: 1, parties: {}, invites: [], rolls: [] };
     for(const kind in MOBS) for(let i = 0; i < MOBS[kind].count; i++) SIM.spawnMob(W, kind);
     W.nodes = [];
     for(let i = 0, tries = 0; W.nodes.length < 10 && tries < 400; tries++){
@@ -19,14 +19,14 @@ const SIM = {
   addHero(W, side, d){
     const st = d.stats;
     const c = { id: "c:" + side, side, team: "hero", champId: d.id, name: d.name, kit: buildKit(d),
-      x: SPAWN[0] + (side === "blue" ? -60 : 60), y: SPAWN[1], r: 55,
+      x: SPAWN[0] + (SIDES.indexOf(side) - 2) * 60, y: SPAWN[1], r: 55,
       base: { hp: st.hp, hpl: st.hpperlevel, ad: st.attackdamage, adl: st.attackdamageperlevel },
       as: Math.max(.5, Math.min(1.1, st.attackspeed || .65)), range: st.attackrange, ranged: st.attackrange > 300, ms: st.movespeed,
       lvl: 1, xp: 0, cds: { Q: 0, W: 0, E: 0, R: 0 }, move: null, target: null, talkTo: null, atkT: 0, dead: 0, castSeq: 0, castKey: "", atkSeq: 0,
       face: Math.PI, moving: false, dash: null, forced: null, spin: null, orbT: 0, orbA: 0, orbHits: {}, orbP: null,
       cc: { stun: 0, root: 0, slow: 0, slowAmt: 0 }, shield: 0, shieldT: 0, buffT: 0, buffAS: 0, buffOnHit: 0, boostT: 0, boost: 0, stealthT: 0,
       lastCombat: -99, quests: {}, weapon: null, lootTo: null, talents: newTalents(), orbN: 3, ambush: false,
-      inv: [], equip: {}, coins: 0, gearVer: 1, gatherTo: null, useTo: null, channel: null, ap: 0, armor: 0, hasteG: 0, msPct: 0 };
+      inv: [], equip: {}, coins: 0, gearVer: 1, party: null, chatT: -99, chatN: 0, gatherTo: null, useTo: null, channel: null, ap: 0, armor: 0, hasteG: 0, msPct: 0 };
     SIM.recalc(c); c.hp = c.maxHp;
     W.heroes[side] = c;
     return c;
@@ -59,17 +59,21 @@ const SIM = {
     it.n = WEAPON_REWARD[c.kit.cls]; it.st = { ad: WEAPON_REWARD.ad, ap: Math.round(WEAPON_REWARD.abil * 100), hp: 80 }; it.glow = true; it.v = 250;
     return it;
   },
-  dropBag(W, c, u){
+  dropBag(W, c, u, group){
     const L = LOOT[u.kind]; if(!L) return;
-    const items = [], coins = L.coins[0] + Math.floor(Math.random() * (L.coins[1] - L.coins[0] + 1));
+    let items = [];
+    const coins = L.coins[0] + Math.floor(Math.random() * (L.coins[1] - L.coins[0] + 1));
     if(L.mat && Math.random() < L.mat[1]) items.push(makeMat(L.mat[0], W.nid++));
     if(Math.random() < L.gear) items.push(genItem({ ilvl: L.ilvl + Math.floor(Math.random() * 2), rarity: rollRarity(L.minRarity || 0, L.epic || 0), cls: c.kit.cls, nid: W.nid++ }));
+    // in a party, Rare and better gear goes to a Need/Greed roll instead of the killer's bag
+    const rollers = (group || []).filter(h => !h.dead);
+    if(rollers.length > 1){ for(const it of items) if(it.s !== "mat" && it.r >= ROLL_MIN) SIM.startRoll(W, it, rollers, c); items = items.filter(it => it.s === "mat" || it.r < ROLL_MIN); }
     const a = Math.random() * Math.PI * 2;
     W.loot.push({ id: "l" + W.nid++, side: c.side, bag: true, item: "bag", coins, items, rar: items.reduce((m, it) => Math.max(m, it.r), 0), x: clampZ(u.x + Math.cos(a) * 40), y: clampZ(u.y + Math.sin(a) * 40), expires: W.t + 90 });
     const bags = W.loot.filter(l => l.bag);
     if(bags.length > 60) W.loot = W.loot.filter(l => l !== bags[0]);
   },
-  removeHero(W, side){ delete W.heroes[side]; for(const m of W.mobs) if(m.aggro === "c:" + side) m.aggro = null; },
+  removeHero(W, side){ if(W.heroes[side]) SIM.forgetHero(W, W.heroes[side]); delete W.heroes[side]; for(const m of W.mobs) if(m.aggro === "c:" + side) m.aggro = null; },
   spawnMob(W, kind, at){
     const T = MOBS[kind], a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * T.roam;
     const x = at ? at.x : T.home[0] + Math.cos(a) * r, y = at ? at.y : T.home[1] + Math.sin(a) * r;
@@ -147,11 +151,11 @@ const SIM = {
       SIM.fx(W, { k: "pop", x: u.x, y: u.y, id: u.id });
       const killer = W.heroes[(u.lastHit || "c:").slice(2)];
       const looter = killer || SIM.heroes(W).filter(h => !h.dead).sort((a, b) => Math.hypot(a.x - u.x, a.y - u.y) - Math.hypot(b.x - u.x, b.y - u.y))[0];
-      if(looter) SIM.dropBag(W, looter, u);
-      for(const c of SIM.heroes(W)){
+      // the killer and their nearby party members share XP, quest credit and quest drops
+      const group = looter ? SIM.creditGroup(W, looter, u) : [];
+      if(looter) SIM.dropBag(W, looter, u, group);
+      for(const c of group){
         if(c.dead) continue;
-        const near = Math.hypot(c.x - u.x, c.y - u.y) < 1600 || (killer && c === killer);
-        if(!near) continue;
         SIM.gainXp(W, c, MOBS[u.kind].xp);
         for(const qid in c.quests){
           const qs = c.quests[qid], Q = QUESTS[qid];
@@ -206,6 +210,11 @@ const SIM = {
     if(!qid){ SIM.fx(W, { k: "msg", side: c.side, text: "A pretty flower. Someone might have a use for it." }); return; }
     n.ready = false; n.respawnAt = W.t + 25;
     SIM.fx(W, { k: "pick", x: n.x, y: n.y }); SIM.progress(W, c, qid);
+    // party members gathering nearby get the flower too
+    for(const m of SIM.partyMembers(W, c)){
+      if(m === c || m.dead || Math.hypot(m.x - n.x, m.y - n.y) > SHARE_RANGE) continue;
+      const mq = SIM.activeQuest(m, "collect"); if(mq) SIM.progress(W, m, mq);
+    }
   },
   startUse(W, c, i){
     const qid = SIM.activeQuest(c, "interact");
@@ -249,7 +258,8 @@ const SIM = {
     return o;
   },
   input(W, side, cmd){
-    const c = W.heroes[side]; if(!c) return;
+    const c = SIM.hero(W, side); if(!c || !cmd || typeof cmd !== "object") return;
+    if(SIM.socialInput(W, c, cmd)) return;
     if(cmd.stop){ c.move = c.target = c.talkTo = null; return; }
     if(cmd.accept){
       const Q = QUESTS[cmd.accept]; if(!Q) return;
@@ -387,6 +397,7 @@ const SIM = {
     W.respawnQ = W.respawnQ.filter(r => { if(W.t >= r.at){ SIM.spawnMob(W, r.kind); return false; } return true; });
     for(const n of W.nodes) if(!n.ready && W.t >= n.respawnAt) n.ready = true;
     W.loot = W.loot.filter(l => !l.expires || l.expires > W.t);
+    SIM.socialTick(W);
     // heroes
     for(const c of SIM.heroes(W)){
       for(const k in c.cds) c.cds[k] = Math.max(0, c.cds[k] - dt);
@@ -573,7 +584,7 @@ const SIM = {
   },
   snapshot(W){
     const r = v => Math.round(v);
-    return {
+    return { ...SIM.socialSnapshot(W),
       t: Math.round(W.t * 100) / 100,
       h: SIM.heroes(W).map(c => ({
         side: c.side, champId: c.champId, name: c.name, x: r(c.x), y: r(c.y), hp: r(c.hp), maxHp: r(c.maxHp), lvl: c.lvl, xp: r(c.xp), xpNext: SIM.xpNext(c.lvl),
@@ -583,7 +594,7 @@ const SIM = {
         cc: c.cc.stun > 0 ? "stun" : c.cc.root > 0 ? "root" : c.cc.slow > 0 ? "slow" : "", quests: SIM.questView(W, c), weapon: c.weapon ? c.weapon.name : null,
         talents: c.talents, points: talentPoints(c.lvl, c.talents), orbN: c.orbN || 3, ad: Math.round(c.ad),
         wglow: c.weapon && c.weapon.glow ? 1 : 0, coins: c.coins, ap: Math.round(c.ap), armor: Math.round(c.armor), haste: Math.round(c.hasteG), msPct: Math.round(c.msPct),
-        chan: c.channel ? { n: c.channel.name, p: Math.round(c.channel.t / c.channel.dur * 100) / 100 } : null,
+        chan: c.channel ? { n: c.channel.name, p: Math.round(c.channel.t / c.channel.dur * 100) / 100 } : null, party: c.party || "",
         gear: { ver: c.gearVer, inv: c.inv, equip: c.equip } })),
       m: W.mobs.map(m => [m.id, m.kind, r(m.x), r(m.y), r(m.hp), r(m.maxHp), Math.round(m.face * 10) / 10, (m.moving ? 1 : 0) | (m.aggro ? 2 : 0) | (m.charging ? 4 : 0) | (m.windup > 0 ? 8 : 0)]),
       l: W.loot.map(l => [l.id, l.side, l.item, r(l.x), r(l.y), l.rar || 0]),

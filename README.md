@@ -1,12 +1,14 @@
 # Rift Realms
 
-League of Legends champions in a small World of Warcraft–style world. Pick any champion, step into Sunhollow Vale, and quest with a friend.
+League of Legends champions in a small World of Warcraft–style world. Pick any champion, step into Sunhollow Vale, and quest with up to four friends.
 
 - Every champion is playable. Abilities are matched from each champion's real kit (skillshots, hooks, leaps, shields, summons and more).
 - Pixel-art bodies with your champion's portrait as the head; armor changes the look.
 - Eight quests: hunting, a boss with a quest drop, a timed delivery, exploring, gathering, lighting beacons and defending a watchtower.
 - Loot from every creature, four armor rarities, a character window, a skill tree, a minimap and a world map.
-- Co-op for two players: share a 5-letter code, no server needed.
+- Co-op for up to five players: share a 5-letter code, no server needed.
+- Parties: invite players to your group to share XP, quest kills and quest items. Rare and Epic drops are rolled on with Need, Greed or Pass.
+- Chat with everyone in the world, or just your party.
 
 ## Play
 
@@ -28,6 +30,8 @@ npm start
 | C | Character window |
 | K | Skill tree |
 | M | World map |
+| P | Players and party |
+| Enter | Chat (Tab or `/p` for party chat) |
 | S | Stop |
 | Scroll | Zoom |
 
