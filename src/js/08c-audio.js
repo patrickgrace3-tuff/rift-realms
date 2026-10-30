@@ -18,9 +18,10 @@ const SFX = {
   "miss": "src/audio/sfx/miss.mp3",
   "player-death": "src/audio/sfx/player-death.mp3",
   "respawn": "src/audio/sfx/respawn.mp3",
+  "level-up": "src/audio/sfx/level-up.mp3",
 };
 // the shortest gap (seconds) between two plays of the same effect, so rapid hits don't buzz
-const SFX_GAP = { "hit-flesh": .07, "hit-player": .18, "miss": .1 };
+const SFX_GAP = { "hit-flesh": .07, "hit-player": .18, "miss": .1, "level-up": 3 };
 const sfxLast = {};
 // basic-attack sound for each champion class (a missing file just stays silent)
 const ATTACK_SFX = { melee: "attack-melee", ranged: "attack-ranged", caster: "attack-caster" };
@@ -59,6 +60,13 @@ function playMusic(zoneKey){
     a.play().then(() => fadeMusic(musicLevel(), 3)).catch(() => {}); // blocked until the player clicks; tryResumeMusic retries
   };
   if(SOUND.music) fadeMusic(0, 1.5, () => { SOUND.music.pause(); SOUND.music = null; start(); }); else start();
+}
+// dip the music for a big moment (the level-up fanfare), then bring it back
+function duckMusic(secs, level = .3){
+  const a = SOUND.music; if(!a || a.paused) return;
+  clearTimeout(SOUND.duckT);
+  fadeMusic(musicLevel() * level, .3);
+  SOUND.duckT = setTimeout(() => { if(SOUND.music === a) fadeMusic(musicLevel(), 1.2); }, secs * 1000);
 }
 function stopMusic(){ if(SOUND.music) fadeMusic(0, 1.2, () => { if(SOUND.music){ SOUND.music.pause(); SOUND.music = null; SOUND.src = ""; } }); }
 // if the browser blocked playback, start it on the next click or key press

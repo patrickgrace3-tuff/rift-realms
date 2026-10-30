@@ -439,7 +439,7 @@ function handleFx(f){
       playSound(() => { if(f.v === "Miss"){ if(f.src === G.myTeam) sfx("miss"); } else if(f.hero){ if(f.tgt === G.myTeam && typeof f.v === "number") sfx("hit-player", .8); } else if(f.src === G.myTeam) sfx("hit-flesh", .7); });
       break;
     case "xp": if(mine) G.nums.push({ x: f.x, y: f.y, v: `+${f.v} XP`, t: 1.2, h: 3.4, color: "#c39bff", big: true }); break;
-    case "lvl": G.fx.push(Object.assign({ t: 0, dur: 1 }, f)); if(mine) banner(`Level ${f.lvl}`, f.lvl === ULT_LEVEL ? "Ultimate (R) unlocked · skill point earned, press K" : "Skill point earned · press K to spend it", 2800); break;
+    case "lvl": G.fx.push(Object.assign({ t: 0, dur: 1 }, f)); if(mine) playSound(() => { if(performance.now() / 1000 - (sfxLast["level-up"] || -9) >= SFX_GAP["level-up"]) duckMusic(3.8); sfx("level-up"); }); if(mine) banner(`Level ${f.lvl}`, f.lvl === ULT_LEVEL ? "Ultimate (R) unlocked · skill point earned, press K" : "Skill point earned · press K to spend it", 2800); break;
     case "talent": if(mine && G.skillKey) G.skillKey = ""; break;
     case "dialog": if(mine) openDialog(f); break;
     case "qaccept": if(mine) banner("Quest accepted", QUESTS[f.quest].title, 2200); break;
