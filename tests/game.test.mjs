@@ -137,3 +137,124 @@ test("sprites and icons draw without errors", () => {
   for(let i = 0; i < 20; i++) G.itemIconURL(G.genItem({ ilvl: 4, rarity: i % 4, cls: "ranged", nid: i }));
 });
 function document_ctx(){ return new Proxy({}, { get: (t, k) => k in t ? t[k] : () => ({ addColorStop(){} }), set: (t, k, v) => { t[k] = v; return true; } }); }
+
+/* ---------- Parties, rolls and chat ---------- */
+function partyWorld(n = 3){
+  const W = SIM.create(), hs = G.SIDES.slice(0, n).map(s => { const h = SIM.addHero(W, s, GAREN_LIKE()); h.name = s; return h; });
+  const fx = [];
+  const step = secs => { for(let i = 0; i < secs * 60; i++){ SIM.step(W, 1 / 60); fx.push(...W.fxNet); W.fxNet.length = 0; W.fxLocal.length = 0; } };
+  const cmd = (h, c) => SIM.input(W, h.side, c);
+  const group = (...members) => { const [lead, ...rest] = members; for(const m of rest){ cmd(lead, { pinvite: m.side }); cmd(m, { paccept: lead.side }); } };
+  return { W, hs, fx, step, cmd, group };
+}
+
+test("party: invite, accept, decline and limits", () => {
+  const { W, hs: [a, b, c], cmd, fx } = partyWorld(3);
+  cmd(a, { pinvite: b.side });
+  assert.ok(fx.length === 0 && W.fxNet.some(f => f.k === "pinvite" && f.to.includes(b.side)), "invite reaches only the invited player");
+  cmd(b, { paccept: a.side });
+  const p = W.parties[a.party];
+  assert.ok(p && a.party === b.party && p.leader === a.side && p.members.length === 2);
+  cmd(b, { pinvite: c.side });
+  assert.ok(!W.invites.some(i => i.to === c.side), "only the leader can invite");
+  cmd(a, { pinvite: c.side }); cmd(c, { pdecline: a.side });
+  assert.ok(!c.party && !W.invites.length, "declining clears the invite");
+  cmd(c, { paccept: a.side });
+  assert.ok(!c.party, "can't accept an invite you don't have");
+  cmd(a, { pinvite: c.side }); cmd(c, { paccept: a.side });
+  assert.equal(W.parties[a.party].members.length, 3);
+});
+
+test("party: leaving, kicking, leader handover and disconnects", () => {
+  const { W, hs: [a, b, c, d], cmd, group } = partyWorld(4);
+  group(a, b, c, d);
+  cmd(b, { pkick: c.side });
+  assert.ok(c.party, "only the leader can remove members");
+  cmd(a, { pkick: c.side });
+  assert.ok(!c.party && W.parties[a.party].members.length === 3);
+  cmd(a, { pleave: 1 });
+  const p = W.parties[b.party];
+  assert.ok(!a.party && p.leader === b.side, "leadership passes on when the leader leaves");
+  SIM.removeHero(W, d.side);
+  assert.ok(!b.party && !Object.keys(W.parties).length, "a party of one disbands");
+});
+
+test("party: kills share XP, quest credit and quest drops; outsiders get nothing", () => {
+  const { W, hs: [a, b, c], cmd, group } = partyWorld(3);
+  const bram = G.NPCS.find(n => n.id === "bram");
+  for(const h of [a, b, c]){ h.x = bram.x; h.y = bram.y; cmd(h, { accept: "sheep" }); }
+  assert.ok(a.quests.sheep && b.quests.sheep && c.quests.sheep);
+  group(a, b);
+  const sheep = W.mobs.find(m => m.kind === "sheep");
+  for(const h of [a, b, c]){ h.x = sheep.x + 100; h.y = sheep.y; }
+  SIM.damage(W, sheep, 1e6, a);
+  assert.equal(b.quests.sheep.count, 1, "party member gets quest credit");
+  assert.ok(b.xp > 0 && a.xp === b.xp, "party member gets the same XP");
+  assert.ok(c.xp === 0 && c.quests.sheep.count === 0, "a nearby player outside the party gets nothing");
+  const far = W.mobs.find(m => m.kind === "sheep" && !m.dead);
+  b.x = far.x + 5000 > 8000 ? far.x - 3000 : far.x + 3000;
+  const bxp = b.xp; SIM.damage(W, far, 1e6, a);
+  assert.equal(b.xp, bxp, "party members far away don't share");
+});
+
+test("loot rolls: Need beats Greed, timeouts pass, everyone passing gives it to the killer", () => {
+  const { W, hs: [a, b, c], cmd, step, fx } = partyWorld(3);
+  const item = () => G.genItem({ ilvl: 5, rarity: 3, cls: "melee", slot: "chest", nid: W.nid++ });
+  let it = item(), r = SIM.startRoll(W, it, [a, b, c], a);
+  cmd(a, { roll: r.id, pick: "greed" }); cmd(b, { roll: r.id, pick: "need" }); cmd(c, { roll: r.id, pick: "pass" });
+  cmd(b, { roll: r.id, pick: "pass" });
+  step(.1);
+  assert.ok(b.inv.some(x => x.id === it.id), "Need wins over Greed");
+  assert.ok(fx.some(f => f.k === "rollwin" && f.side === b.side));
+  it = item(); r = SIM.startRoll(W, it, [a, b, c], c);
+  step(G.ROLL_TIME + 1);
+  assert.ok(c.inv.some(x => x.id === it.id) && !W.rolls.length, "no picks before the timer: the killer keeps it");
+  it = item(); r = SIM.startRoll(W, it, [a, b], a);
+  cmd(c, { roll: r.id, pick: "need" });
+  assert.ok(!r.choices[c.side], "players outside the roll can't pick");
+  cmd(a, { roll: r.id, pick: "nope" });
+  assert.ok(!r.choices[a.side], "bad picks are ignored");
+});
+
+test("loot rolls: a party kill puts Rare and Epic gear up for a roll", () => {
+  const { W, hs: [a, b], group } = partyWorld(2);
+  group(a, b);
+  const wolf = W.mobs.find(m => m.kind === "wolf");
+  for(const h of [a, b]){ h.x = wolf.x + 100; h.y = wolf.y; }
+  const rnd = Math.random; Math.random = () => .001; // force a gear drop at Epic quality
+  try{ SIM.damage(W, wolf, 1e6, a); } finally { Math.random = rnd; }
+  assert.equal(W.rolls.length, 1);
+  assert.ok(W.rolls[0].item.r >= 2 && W.rolls[0].members.length === 2);
+  const bag = W.loot.find(l => l.bag && l.side === a.side);
+  assert.ok(!bag || bag.items.every(i => i.r < 2 || i.s === "mat"), "the rolled item isn't also in the bag");
+});
+
+test("chat: world and party channels, cleaned up and rate-limited", () => {
+  const { W, hs: [a, b, c], cmd, group } = partyWorld(3);
+  group(a, b);
+  cmd(a, { chat: "  hello\u0000 world  ", ch: "world" });
+  const w = W.fxNet.find(f => f.k === "chat");
+  assert.ok(w && w.text === "hello  world" && !w.to, "world chat goes to everyone");
+  cmd(a, { chat: "x".repeat(500), ch: "party" });
+  const p = W.fxNet.filter(f => f.k === "chat")[1];
+  assert.ok(p.ch === "party" && p.to.length === 2 && !p.to.includes(c.side) && p.text.length === 160);
+  for(let i = 0; i < 10; i++) cmd(c, { chat: "spam " + i });
+  assert.equal(W.fxNet.filter(f => f.k === "chat" && f.from === c.side).length, 5, "at most 5 messages per 5 seconds");
+  cmd(c, { chat: "", ch: "world" }); cmd(c, { chat: { toString: null } });
+});
+
+test("social commands ignore bad input from guests", () => {
+  const { W, hs: [a, b], cmd } = partyWorld(2);
+  for(const bad of [{ pinvite: "__proto__" }, { pinvite: "constructor" }, { pinvite: a.side }, { paccept: "toString" }, { pkick: "__proto__" },
+    { roll: "__proto__", pick: "need" }, { pdecline: "x" }, { chat: null }, null, "x"]) cmd(a, bad);
+  SIM.input(W, "__proto__", { pinvite: b.side });
+  assert.ok(!W.invites.length && !a.party && !Object.keys(W.parties).length);
+});
+
+test("up to five players can share a world, each in their own slot", () => {
+  assert.equal(G.MAX_PLAYERS, 5);
+  const { W, hs } = partyWorld(5);
+  assert.equal(new Set(hs.map(h => h.x)).size, 5, "players don't spawn on top of each other");
+  const snap = SIM.snapshot(W);
+  assert.ok(snap.h.length === 5 && Array.isArray(snap.pt) && Array.isArray(snap.iv) && Array.isArray(snap.r));
+});

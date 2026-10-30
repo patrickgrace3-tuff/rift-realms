@@ -7,11 +7,11 @@
 let G = null, last = 0;
 function startWorld(opts){
   leaveWorld(true);
-  const myTeam = opts.role === "host" ? "blue" : "red";
+  const myTeam = opts.role === "host" ? "blue" : opts.me;
   const root = new THREE.Group(); scene.add(root);
   G = { role: opts.role, myTeam, details: Object.assign({}, opts.details), root, xf: XF,
     W: null, snap: null, fxQueue: [], vis: {}, mobVis: new Map(), lootVis: new Map(), nodeVis: new Map(), sel: null, charKey: "", focusQuest: null, trHtml: "", shotVis: new Map(), zoneVis: new Map(), fieldVis: new Map(), petVis: new Map(), npcVis: [],
-    fx: [], nums: [], sendT: 0, holdT: 0, mouse: { x: VW / 2, y: VH / 2 }, smooth: new Map(), dialog: null };
+    fx: [], nums: [], chatCh: "world", sendT: 0, holdT: 0, mouse: { x: VW / 2, y: VH / 2 }, smooth: new Map(), dialog: null };
   if(opts.role === "host"){ G.W = SIM.create(); SIM.addHero(G.W, "blue", opts.details.blue); G.snap = SIM.snapshot(G.W); }
   zone.visible = true;
   scene.fog = new THREE.Fog(0x9ccbe8, 40, 95);
@@ -19,7 +19,7 @@ function startWorld(opts){
   const me = G.details[myTeam];
   $("#hudHead").src = champIcon(me.id); $("#hudName").textContent = me.name;
   $("#inviteBtn").hidden = opts.role !== "host";
-  buildSlots();
+  buildSlots(); resetSocial();
   for(const s of ["#menu", "#notice"]) $(s).hidden = true;
   show("game"); last = performance.now();
   banner("Sunhollow Vale", opts.role === "host" ? "Starting zone" : "Joined your friend's world", 3500);
@@ -30,6 +30,7 @@ function leaveWorld(keepNet){
   scene.remove(G.root); zone.visible = false; scene.fog = null; G = null;
   $("#dialog").hidden = true; $("#hud").hidden = true; $("#cv").hidden = true; $("#ov").hidden = true;
   $("#skills").hidden = true; $("#bigmap").hidden = true; $("#charWin").hidden = true; $("#lootFeed").innerHTML = "";
+  $("#social").hidden = true;
 }
 function buildNpcs(){
   for(const n of NPCS){
@@ -51,14 +52,14 @@ function buildNpcs(){
 
 /* ---------- Hero visuals ---------- */
 function buildHeroVisual(d, side){
-  const kit = buildKit(d), ringCol = side === "blue" ? "#c9a55c" : "#7fd3ff";
+  const kit = buildKit(d), sideCol = SIDE_COLOR[side] || "#7fd3ff", ringCol = side === "blue" ? "#c9a55c" : sideCol;
   const art = new CharArt({ style: kit.cls, headUrl: champIcon(d.id), ring: ringCol, initial: d.name[0] });
   const tex = new THREE.CanvasTexture(art.canvas); tex.encoding = THREE.sRGBEncoding;
   art.onload = () => { tex.needsUpdate = true; };
   const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, alphaTest: .1 })); spr.center.set(.5, 0); spr.scale.set(1.7, 2.55, 1);
   const v = { side, d, kit, art, tex, spr, flip: false, castUntil: 0, atkUntil: 0, castSeq: -1, atkSeq: -1, pos: null };
   v.shadow = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: .32, depthWrite: false })); v.shadow.scale.setScalar(.65);
-  v.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: side === "blue" ? 0xf0d58e : 0x7fd3ff, transparent: true, opacity: .7, depthWrite: false })); v.ring.scale.setScalar(.75);
+  v.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: sideCol, transparent: true, opacity: .7, depthWrite: false })); v.ring.scale.setScalar(.75);
   v.mats = {}; ["Q", "W", "E", "R"].forEach((k, i) => { v.mats[k] = spriteMat(spellIcon(d.spells[i].image.full), "#f0d58e"); });
   const orbKey = ["Q", "W", "E", "R"].find(k => kit[k].type === "orbit") || "W";
   v.bubble = new THREE.Mesh(new THREE.SphereGeometry(1.25, 20, 14), new THREE.MeshBasicMaterial({ color: 0x9fe6ff, transparent: true, opacity: .22, depthWrite: false }));
@@ -123,12 +124,15 @@ addEventListener("keydown", e => {
   else if(k === "K"){ if($("#skills").hidden) openSkills(); else $("#skills").hidden = true; }
   else if(k === "M") toggleBigMap();
   else if(k === "C"){ if($("#charWin").hidden) openChar(); else $("#charWin").hidden = true; }
+  else if(k === "P") toggleSocial();
+  else if(e.key === "Enter"){ e.preventDefault(); $("#chatIn").focus(); }
   else if(k === "F"){
     const me = G.snap && G.snap.h.find(h => h.side === G.myTeam); if(!me) return;
     let best = null, bd = 900; for(const n of NPCS){ const d = Math.hypot(n.x - me.x, n.y - me.y); if(d < bd){ bd = d; best = n; } }
     if(best) command({ talk: best.id });
   }else if(e.key === "Escape"){
-    if(!$("#charWin").hidden) $("#charWin").hidden = true;
+    if(!$("#social").hidden) $("#social").hidden = true;
+    else if(!$("#charWin").hidden) $("#charWin").hidden = true;
     else if(!$("#skills").hidden) $("#skills").hidden = true;
     else if(!$("#bigmap").hidden) toggleBigMap(false);
     else if(!$("#dialog").hidden) closeDialog();
