@@ -307,3 +307,4 @@ function frame(now){
   if(G.dialog){ const me = G.snap.h.find(h => h.side === G.myTeam), npc = NPCS.find(n => n.id === G.dialog.npc); if(!me || Math.hypot(me.x - npc.x, me.y - npc.y) > 700) closeDialog(); }
 }
 requestAnimationFrame(frame);
+boot();
