@@ -6,7 +6,7 @@
    ===================================================================== */
 const SIM = {
   create(){
-    const W = { t: 0, heroes: {}, mobs: [], shots: [], zones: [], fields: [], pets: [], loot: [], respawnQ: [], fxNet: [], fxLocal: [], nid: 1, parties: {}, invites: [], rolls: [] };
+    const W = { t: 0, heroes: {}, mobs: [], shots: [], zones: [], fields: [], pets: [], loot: [], respawnQ: [], fxNet: [], fxLocal: [], nid: 1, parties: {}, invites: [], rolls: [], duels: [], duelReqs: [] };
     for(const kind in MOBS) for(let i = 0; i < MOBS[kind].count; i++) SIM.spawnMob(W, kind);
     W.nodes = [];
     let nid = 0;
@@ -105,7 +105,8 @@ const SIM = {
   isHero: u => u.team === "hero",
   heroes: W => Object.values(W.heroes),
   units(W){ const out = []; for(const c of SIM.heroes(W)) if(!c.dead) out.push(c); for(const m of W.mobs) if(!m.dead) out.push(m); return out; },
-  enemies(W, team){ return SIM.units(W).filter(u => u.team !== team); },
+  // everything `who` (a hero or creature) may damage; see SIM.hostile (duels let two heroes fight)
+  enemies(W, who){ return SIM.units(W).filter(u => SIM.hostile(who, u)); },
   visibleTo: (u, team) => !(u.team === "hero" && u.stealthT > 0 && team !== "hero"),
   find(W, id){ if(!id) return null; if(id[0] === "c"){ const c = W.heroes[id.slice(2)]; return c && !c.dead ? c : null; } return W.mobs.find(m => m.id === id && !m.dead) || null; },
   effMs(u){ let m = u.ms * (1 + (u.msPct || 0) / 100); if(u.cc.slow > 0) m *= 1 - u.cc.slowAmt; if(u.boostT > 0) m *= 1 + u.boost; return m; },
@@ -136,7 +137,7 @@ const SIM = {
     if(p.drain && dealt > 0) c.hp = Math.min(c.maxHp, c.hp + dealt * .35);
     return dealt;
   },
-  burst(W, c, x, y, radius, p){ for(const u of SIM.enemies(W, c.team)) if(Math.hypot(u.x - x, u.y - y) < radius + u.r) SIM.hitAbility(W, c, u, p); },
+  burst(W, c, x, y, radius, p){ for(const u of SIM.enemies(W, c)) if(Math.hypot(u.x - x, u.y - y) < radius + u.r) SIM.hitAbility(W, c, u, p); },
   gainXp(W, c, v){
     if(c.lvl >= MAX_LEVEL || v <= 0) return;
     c.xp += v; SIM.fx(W, { k: "xp", side: c.side, v, x: c.x, y: c.y });
@@ -157,6 +158,7 @@ const SIM = {
     else if(src && !SIM.isHero(src) && SIM.isHero(u)) amount *= levelGap(SIM.gapOf(u, src)).taken;
     if(u.shield > 0){ const ab = Math.min(u.shield, amount); u.shield -= ab; amount -= ab; if(amount <= 0){ SIM.fx(W, { k: "num", x: u.x, y: u.y, v: "absorbed", hero: 1, tgt: u.side || "" }); return 0; } }
     if(SIM.isHero(u) && u.armor) amount *= 300 / (300 + u.armor);
+    if(SIM.isHero(u) && src && SIM.isHero(src) && u.duel){ amount = SIM.duelHit(W, u, src, amount); if(!u.duel){ SIM.fx(W, { k: "num", x: u.x, y: u.y, v: Math.round(amount), hero: 1, src: src.side, tgt: u.side }); return amount; } }
     u.hp -= amount;
     SIM.fx(W, { k: "num", x: u.x, y: u.y, v: Math.round(amount), hero: SIM.isHero(u) ? 1 : 0, src: src && src.side ? src.side : "", tgt: SIM.isHero(u) ? u.side : "" });
     if(u.hp > 0) return amount;
@@ -287,7 +289,7 @@ const SIM = {
   },
   input(W, side, cmd){
     const c = SIM.hero(W, side); if(!c || !cmd || typeof cmd !== "object") return;
-    if(SIM.socialInput(W, c, cmd)) return;
+    if(SIM.socialInput(W, c, cmd) || SIM.duelInput(W, c, cmd)) return;
     if(cmd.stop){ c.move = c.target = c.talkTo = null; return; }
     if(cmd.accept){
       const Q = QUESTS[cmd.accept]; if(!Q) return;
@@ -374,7 +376,7 @@ const SIM = {
     if(cmd.use !== undefined){ const i = Math.floor(+cmd.use); if(USE_POINTS[i]){ c.useTo = i; c.move = c.target = c.talkTo = null; } return; }
     if(cmd.talk){ const npc = NPCS.find(n => n.id === cmd.talk); if(npc){ c.talkTo = npc.id; c.target = null; c.move = null; } return; }
     if(cmd.move){ c.move = [clampX(+cmd.move[0] || 0), clampY(+cmd.move[1] || 0)]; c.target = null; c.talkTo = null; }
-    else if(cmd.atk){ const t = SIM.find(W, String(cmd.atk)); if(t && t.team !== c.team){ c.target = t.id; c.move = null; c.talkTo = null; } }
+    else if(cmd.atk){ const t = SIM.find(W, String(cmd.atk)); if(t && SIM.hostile(c, t)){ c.target = t.id; c.move = null; c.talkTo = null; } }
     else if(cmd.cast && ["Q", "W", "E", "R"].includes(cmd.cast) && Array.isArray(cmd.at)) SIM.cast(W, c, cmd.cast, [+cmd.at[0] || 0, +cmd.at[1] || 0]);
   },
   // heals and shields go to the living player nearest the cursor (within ALLY_PICK of it and
@@ -384,7 +386,7 @@ const SIM = {
   supportTarget(W, c, at){
     let best = c, bd = Math.min(ALLY_PICK, Math.hypot(c.x - at[0], c.y - at[1]));
     for(const h of SIM.heroes(W)){
-      if(h === c || h.dead || Math.hypot(h.x - c.x, h.y - c.y) > ALLY_RANGE) continue;
+      if(h === c || h.dead || SIM.hostile(c, h) || Math.hypot(h.x - c.x, h.y - c.y) > ALLY_RANGE) continue; // never your duel opponent
       const d = Math.hypot(h.x - at[0], h.y - at[1]); if(d < bd){ bd = d; best = h; }
     }
     return best;
@@ -418,7 +420,7 @@ const SIM = {
       case "aoe": W.zones.push({ id: "z" + W.nid++, team: c.team, owner: c.id, slot: key, x: tx, y: ty, r: p.radius, t: p.delay, dur: p.delay, p }); break;
       case "cone": {
         const half = p.angle / 2 * Math.PI / 180;
-        for(const u of SIM.enemies(W, c.team)){
+        for(const u of SIM.enemies(W, c)){
           const ux = u.x - c.x, uy = u.y - c.y, ud = Math.hypot(ux, uy) || 1;
           if(ud < p.range + u.r && Math.acos(Math.max(-1, Math.min(1, (ux * nx + uy * ny) / ud))) <= half + Math.atan2(u.r, ud)) SIM.hitAbility(W, c, u, p);
         }
@@ -463,7 +465,7 @@ const SIM = {
     W.respawnQ = W.respawnQ.filter(r => { if(W.t >= r.at){ SIM.spawnMob(W, r.kind); return false; } return true; });
     for(const n of W.nodes) if(!n.ready && W.t >= n.respawnAt) n.ready = true;
     W.loot = W.loot.filter(l => !l.expires || l.expires > W.t);
-    SIM.socialTick(W);
+    SIM.socialTick(W); SIM.duelTick(W);
     // heroes
     for(const c of SIM.heroes(W)){
       for(const k in c.cds) c.cds[k] = Math.max(0, c.cds[k] - dt);
@@ -475,11 +477,11 @@ const SIM = {
       if(c.dash){
         const ds = c.dash; ds.t += dt; const k = Math.min(1, ds.t / ds.dur);
         c.x = ds.sx + (ds.tx - ds.sx) * k; c.y = ds.sy + (ds.ty - ds.sy) * k; c.moving = true;
-        if(ds.p.type === "dash") for(const u of SIM.enemies(W, c.team)) if(!ds.hits.has(u.id) && Math.hypot(u.x - c.x, u.y - c.y) < c.r + u.r + 40){ ds.hits.add(u.id); SIM.hitAbility(W, c, u, ds.p); }
+        if(ds.p.type === "dash") for(const u of SIM.enemies(W, c)) if(!ds.hits.has(u.id) && Math.hypot(u.x - c.x, u.y - c.y) < c.r + u.r + 40){ ds.hits.add(u.id); SIM.hitAbility(W, c, u, ds.p); }
         if(k >= 1){
           c.dash = null;
           if(ds.p.type === "leap"){
-            for(const u of SIM.enemies(W, c.team)){
+            for(const u of SIM.enemies(W, c)){
               const dd = Math.hypot(u.x - c.x, u.y - c.y) || 1;
               if(dd < ds.p.radius + u.r && SIM.hitAbility(W, c, u, ds.p) >= 0){ if(!ds.p.cc.stun && !ds.p.cc.root && !u.dead) SIM.force(u, u.x + (u.x - c.x) / dd * 180, u.y + (u.y - c.y) / dd * 180, .15); }
             }
@@ -542,7 +544,7 @@ const SIM = {
         const on = c.orbN || 3;
         for(let i = 0; i < on; i++){
           const a = c.orbA + i * Math.PI * 2 / on, ox = c.x + Math.cos(a) * 230, oy = c.y + Math.sin(a) * 230;
-          for(const u of SIM.enemies(W, c.team)) if(Math.hypot(u.x - ox, u.y - oy) < 70 + u.r && (c.orbHits[u.id + ":" + i] || 0) <= W.t){ SIM.hitAbility(W, c, u, op); c.orbHits[u.id + ":" + i] = W.t + .5; }
+          for(const u of SIM.enemies(W, c)) if(Math.hypot(u.x - ox, u.y - oy) < 70 + u.r && (c.orbHits[u.id + ":" + i] || 0) <= W.t){ SIM.hitAbility(W, c, u, op); c.orbHits[u.id + ":" + i] = W.t + .5; }
         }
       }
       // walking over your own quest loot picks it up; timed quests expire
@@ -624,7 +626,7 @@ const SIM = {
       if(sh.kind === "sk" || sh.kind === "hook"){
         sh.x += sh.vx * dt; sh.y += sh.vy * dt;
         for(const u of SIM.units(W)){
-          if(u.team === sh.team || sh.hits.has(u.id) || Math.hypot(u.x - sh.x, u.y - sh.y) >= sh.r + u.r) continue;
+          if(!SIM.hostile(owner, u) || sh.hits.has(u.id) || Math.hypot(u.x - sh.x, u.y - sh.y) >= sh.r + u.r) continue;
           sh.hits.add(u.id); const res = SIM.hitAbility(W, owner, u, sh.p); SIM.fx(W, { k: "hit", x: sh.x, y: sh.y });
           if(sh.kind === "hook" && !u.dead && res >= 0){ const dx = u.x - owner.x, dy = u.y - owner.y, d = Math.hypot(dx, dy) || 1, gap = owner.r + u.r + 30; SIM.force(u, owner.x + dx / d * gap, owner.y + dy / d * gap, .25); }
           if(!sh.p.pierce){ sh.life = 0; break; }
@@ -641,7 +643,7 @@ const SIM = {
     for(const f of W.fields){
       f.t -= dt; f.tick -= dt;
       const o = W.heroes[f.owner.slice(2)]; if(!o){ f.t = 0; continue; }
-      if(f.tick <= 0){ f.tick = .5; for(const u of SIM.enemies(W, f.team)) if(Math.hypot(u.x - f.x, u.y - f.y) < f.r + u.r){ if(SIM.damage(W, u, f.p.dmg * SIM.dmgScale(o), o) >= 0) SIM.applyCC(u, Object.assign({}, f.p.cc, { slow: Math.max(f.p.slow, f.p.cc.slow || 0) })); } }
+      if(f.tick <= 0){ f.tick = .5; for(const u of SIM.enemies(W, o)) if(Math.hypot(u.x - f.x, u.y - f.y) < f.r + u.r){ if(SIM.damage(W, u, f.p.dmg * SIM.dmgScale(o), o) >= 0) SIM.applyCC(u, Object.assign({}, f.p.cc, { slow: Math.max(f.p.slow, f.p.cc.slow || 0) })); } }
     }
     W.fields = W.fields.filter(f => f.t > 0);
     for(const pt of W.pets){
@@ -649,7 +651,7 @@ const SIM = {
       const o = W.heroes[pt.owner.slice(2)]; if(!o){ pt.t = 0; continue; }
       if(pt.atkT > 0) continue;
       let best = null, bd = pt.p.atkRange;
-      for(const u of SIM.enemies(W, pt.team)){ const d = Math.hypot(u.x - pt.x, u.y - pt.y); if(d < bd){ bd = d; best = u; } }
+      for(const u of SIM.enemies(W, o)){ const d = Math.hypot(u.x - pt.x, u.y - pt.y); if(d < bd){ bd = d; best = u; } }
       if(best){ pt.atkT = .8; W.shots.push({ id: "s" + W.nid++, kind: "aa", team: pt.team, owner: o.id, target: best.id, x: pt.x, y: pt.y, speed: 1600, dmg: pt.p.dmg * SIM.dmgScale(o), life: 2 }); }
     }
     W.pets = W.pets.filter(pt => pt.t > 0);
@@ -657,7 +659,7 @@ const SIM = {
   },
   snapshot(W){
     const r = v => Math.round(v);
-    return { ...SIM.socialSnapshot(W),
+    return { ...SIM.socialSnapshot(W), ...SIM.duelSnapshot(W),
       t: Math.round(W.t * 100) / 100,
       h: SIM.heroes(W).map(c => ({
         side: c.side, champId: c.champId, name: c.name, x: r(c.x), y: r(c.y), hp: r(c.hp), maxHp: r(c.maxHp), lvl: c.lvl, xp: r(c.xp), xpNext: SIM.xpNext(c.lvl),

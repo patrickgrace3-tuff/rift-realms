@@ -23,7 +23,7 @@ function updateSocial(me){
       $("#partyLead").textContent = p[1] === G.myTeam ? "You lead this party" : `Led by ${(heroBySide(p[1]) || {}).name || "…"}`;
       $("#pList").innerHTML = p[2].filter(s => s !== G.myTeam).map(s => {
         const h = heroBySide(s); if(!h) return "";
-        return `<div class="pm${h.dead ? " dead" : ""}"><img alt="" src="${champIcon(h.champId)}" style="border-color:${SIDE_COLOR[s]}">
+        return `<div class="pm${h.dead ? " dead" : ""}" data-side="${s}" title="Right-click for options"><img alt="" src="${champIcon(h.champId)}" style="border-color:${SIDE_COLOR[s]}">
           <div class="pmb"><div class="pmn">${s === p[1] ? '<span class="crown" title="Party leader">♛</span>' : ""}${esc(h.name)} <small>${h.lvl}</small></div>
           <div class="bar"><i style="width:${Math.max(0, h.hp / h.maxHp * 100)}%"></i></div></div></div>`;
       }).join("");
@@ -37,6 +37,7 @@ function updateSocial(me){
     if(from){ $("#pInvText").textContent = `${from.name} invites you to join their party.`; }
   }
   updateRolls(me);
+  updateDuelUi();
   if(!$("#social").hidden) renderSocial();
 }
 
@@ -149,3 +150,50 @@ function socialFx(f, mine){
     if(mine) lootLine(`+ ${f.item}`, RARITY[f.r].c);
   }
 }
+
+/* ---------- Duels ---------- */
+// my running or counting-down duel from the snapshot: [a, b, x, y, fighting, radius]
+function myDuel(){ return G && G.snap && G.snap.du ? G.snap.du.find(d => d[0] === G.myTeam || d[1] === G.myTeam) || null : null; }
+// can I hit this player right now? (only my opponent, once the duel has started)
+function duelFoe(side){ const d = myDuel(); return !!d && !!d[4] && side !== G.myTeam && (d[0] === side || d[1] === side); }
+function updateDuelUi(){
+  const q = (G.snap.dq || []).find(x => x[1] === G.myTeam), from = q && heroBySide(q[0]), key = from ? q[0] : "";
+  if(key !== G.duelAskKey){ G.duelAskKey = key; $("#dInvite").hidden = !from; if(from) $("#dInvText").textContent = `${from.name} challenges you to a duel!`; }
+  const d = myDuel(), foe = d && heroBySide(d[0] === G.myTeam ? d[1] : d[0]);
+  $("#duelBar").hidden = !foe;
+  if(foe){ const me = heroBySide(G.myTeam), out = me && Math.hypot(me.x - d[2], me.y - d[3]) > d[5]; $("#duelText").textContent = `Duel vs ${foe.name}${d[4] ? "" : " · get ready"}${out ? " · back to the flag!" : ""}`; $("#duelBar").classList.toggle("warn", !!out); }
+}
+$("#dInvYes").onclick = () => { if(G && G.duelAskKey) command({ duelaccept: G.duelAskKey }); $("#dInvite").hidden = true; };
+$("#dInvNo").onclick = () => { if(G && G.duelAskKey) command({ dueldecline: G.duelAskKey }); $("#dInvite").hidden = true; };
+$("#duelYield").onclick = () => command({ duelyield: 1 });
+function duelFx(f){
+  if(f.k === "duelreq"){ chatLine("sys", "", `${f.name} challenged you to a duel.`); toast(`${f.name} challenges you to a duel!`); }
+  else if(f.k === "duelcount"){
+    // a big number in the middle of the screen that pops in each second, then FIGHT!
+    const el = $("#duelCount"); el.textContent = f.n ? String(f.n) : "Fight!"; el.classList.toggle("go", !f.n);
+    el.hidden = false; el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
+    clearTimeout(G.duelCountT); G.duelCountT = setTimeout(() => { el.hidden = true; }, f.n ? 1100 : 1400);
+  }
+  else if(f.k === "duelend"){ const won = f.win === G.myTeam; banner(won ? "Victory!" : "Defeat", won ? `You defeated ${f.loseName}` : `${f.winName} wins the duel`, 3000); }
+}
+
+/* ---------- Right-click menu on party portraits ---------- */
+function closeCtx(){ $("#ctxMenu").hidden = true; }
+$("#pList").addEventListener("contextmenu", e => {
+  const pm = e.target.closest(".pm[data-side]"); if(!pm || !G) return;
+  e.preventDefault();
+  const side = pm.dataset.side, h = heroBySide(side), p = myParty(); if(!h) return;
+  const busy = !!myDuel();
+  const items = [`<button data-ctx="duel" ${busy || h.dead ? "disabled" : ""}>⚔ Challenge to a duel</button>`];
+  if(p && p[1] === G.myTeam) items.push(`<button data-ctx="kick">Remove from party</button>`);
+  const m = $("#ctxMenu"); m.innerHTML = `<div class="ctxh">${esc(h.name)}</div>${items.join("")}`; m.dataset.side = side; m.hidden = false;
+  m.style.left = Math.min(e.clientX, innerWidth - 220) + "px"; m.style.top = Math.min(e.clientY, innerHeight - 120) + "px";
+});
+$("#ctxMenu").addEventListener("click", e => {
+  const b = e.target.closest("[data-ctx]"); if(!b || b.disabled) return;
+  const side = $("#ctxMenu").dataset.side;
+  if(b.dataset.ctx === "duel") command({ duel: side }); else if(b.dataset.ctx === "kick") command({ pkick: side });
+  closeCtx();
+});
+addEventListener("pointerdown", e => { if(!$("#ctxMenu").hidden && !e.target.closest("#ctxMenu")) closeCtx(); });
+addEventListener("keydown", e => { if(e.key === "Escape") closeCtx(); });

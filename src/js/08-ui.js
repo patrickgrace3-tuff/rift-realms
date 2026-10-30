@@ -207,7 +207,7 @@ function drawMapIcons(g, toS, me, o){
     if(h.side === G.myTeam || h.dead) continue;
     const ally = inMyParty(h.side), [sx, sy, edge] = clamp(...toS(h.x, h.y));
     if(edge && !ally) continue; // only party members stick to the minimap's edge
-    g.beginPath(); g.arc(sx, sy, edge ? 3 : 4, 0, Math.PI * 2); g.fillStyle = ally ? "#7fd3ff" : "#d8d8d8"; g.fill(); g.strokeStyle = "#1b1410"; g.lineWidth = 1.5; g.stroke(); }
+    g.beginPath(); g.arc(sx, sy, edge ? 3 : 4, 0, Math.PI * 2); g.fillStyle = duelFoe(h.side) ? "#ff5040" : ally ? "#7fd3ff" : "#d8d8d8"; g.fill(); g.strokeStyle = "#1b1410"; g.lineWidth = 1.5; g.stroke(); }
   const qh = me.quests, want = wantedNodes(me);
   for(const n of (G.snap.n || [])) if(n[3] && want.has(n[4])){ const [sx, sy] = toS(n[1], n[2]); g.beginPath(); g.arc(sx, sy, o.big ? 3.2 : 2.3, 0, Math.PI * 2); g.fillStyle = n[4] === "ore" ? "#7fd3ff" : n[4] === "frostbloom" ? "#c9e8ff" : "#ffe066"; g.fill(); g.strokeStyle = "#1b1410"; g.lineWidth = 1; g.stroke(); }
   // places to use (▲, lit once done) and to explore (◉) for quests in your log
@@ -434,6 +434,7 @@ function handleFx(f){
   const mine = f.side === G.myTeam;
   switch(f.k){
     case "chat": case "sys": case "pinvite": case "rollstart": case "rollwin": socialFx(f, mine); break;
+    case "duelreq": case "duelcount": case "duelend": duelFx(f); break;
     case "num": G.nums.push({ x: f.x, y: f.y, v: f.v, t: .8, h: f.hero ? 2.9 : 1.4, hero: f.hero, mine: f.src === G.myTeam, color: f.hero ? "#ff6b62" : f.src === G.myTeam ? "#f0d58e" : "#ffffff" }); 
       // hit sounds: your hits on creatures, your misses, and you getting hurt
       playSound(() => { if(f.v === "Miss"){ if(f.src === G.myTeam) sfx("miss"); } else if(f.hero){ if(f.tgt === G.myTeam && typeof f.v === "number") sfx("hit-player", .8); } else if(f.src === G.myTeam) sfx("hit-flesh", .7); });

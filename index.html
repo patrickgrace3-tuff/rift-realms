@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=aa97d6a780">
+<link rel="stylesheet" href="src/styles.css?v=6160ae2ca2">
 </head>
 <body>
 
@@ -139,6 +139,13 @@
     <p id="pInvText"></p>
     <div class="row"><button class="btn" id="pInvNo">Decline</button><button class="btn primary" id="pInvYes">Join party</button></div>
   </div>
+  <div class="pinvite" id="dInvite" hidden role="alertdialog" aria-labelledby="dInvText">
+    <p id="dInvText"></p>
+    <div class="row"><button class="btn" id="dInvNo">Decline</button><button class="btn primary" id="dInvYes">Accept duel</button></div>
+  </div>
+  <div class="duelcount" id="duelCount" hidden aria-live="assertive"></div>
+  <div class="duelbar" id="duelBar" hidden><span id="duelText"></span><button class="hudbtn" id="duelYield">Yield</button></div>
+  <div class="ctxmenu" id="ctxMenu" hidden role="menu"></div>
   <div class="rolls" id="rolls"></div>
   <div class="chat" id="chat">
     <div class="chatlog" id="chatLog" aria-live="polite"></div>
@@ -281,14 +288,15 @@
 <script src="src/js/03-art.js?v=aba3926cda"></script>
 <script src="src/js/04-scene.js?v=33f9596db6"></script>
 <script src="src/js/04b-peaks.js?v=593936600f"></script>
-<script src="src/js/05-sim.js?v=bce8e24790"></script>
+<script src="src/js/05-sim.js?v=4ba847c698"></script>
 <script src="src/js/05b-party.js?v=9ced97f884"></script>
 <script src="src/js/05c-raid.js?v=d60faf8c1f"></script>
+<script src="src/js/05d-duel.js?v=2fb578e758"></script>
 <script src="src/js/06-net.js?v=9285f7d4b4"></script>
-<script src="src/js/07-world.js?v=9c2c94bd84"></script>
-<script src="src/js/08-ui.js?v=40a91992b3"></script>
-<script src="src/js/08b-social.js?v=383e74713d"></script>
+<script src="src/js/07-world.js?v=b047471b7c"></script>
+<script src="src/js/08-ui.js?v=b57b4058dc"></script>
+<script src="src/js/08b-social.js?v=03c0abbb85"></script>
 <script src="src/js/08c-audio.js?v=063a9050c9"></script>
-<script src="src/js/09-render.js?v=1548116fed"></script>
+<script src="src/js/09-render.js?v=d74b265248"></script>
 </body>
 </html>

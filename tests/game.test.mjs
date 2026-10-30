@@ -582,3 +582,70 @@ test("index.html links carry up-to-date version codes (run: node scripts/stamp.m
   assert.ok(/src="src\/js\/00-core\.js\?v=[0-9a-f]{10}"/.test(html), "links are stamped");
   assert.equal(stamped(html), html, "a file in src/ changed since index.html was stamped: run node scripts/stamp.mjs");
 });
+
+/* ---------- PvP duels ---------- */
+function duelWorld(){
+  const W = SIM.create(), a = SIM.addHero(W, "blue", GAREN_LIKE()), b = SIM.addHero(W, "red", GAREN_LIKE()), c = SIM.addHero(W, "green", GAREN_LIKE());
+  a.name = "Alice"; b.name = "Bob"; c.name = "Cat";
+  for(const [h, dx] of [[a, -200], [b, 200], [c, 0]]){ h.x = 2400 + dx; h.y = 2000; }  // an empty field south-west of the village
+  const fx = [], step = secs => { for(let i = 0; i < secs * 60; i++){ SIM.step(W, 1 / 60); fx.push(...W.fxNet); W.fxNet.length = W.fxLocal.length = 0; } };
+  return { W, a, b, c, fx, step };
+}
+
+test("duel: challenge, accept, a 5-second countdown, then the two can fight", () => {
+  const { W, a, b, c, fx, step } = duelWorld();
+  SIM.input(W, "blue", { duel: "red" });
+  assert.ok(W.duelReqs.length === 1 && fx.length === 0 && W.fxNet.some(f => f.k === "duelreq" && f.to[0] === "red"));
+  SIM.input(W, "red", { duelaccept: "blue" });
+  const d = W.duels[0];
+  assert.ok(d && a.duel === d && b.duel === d && d.state === "count", "a duel with a flag between them");
+  assert.ok(Math.abs(d.x - (a.x + b.x) / 2) < 1 && Math.abs(d.y - (a.y + b.y) / 2) < 1);
+  // during the countdown nobody can be hit
+  assert.ok(!SIM.hostile(a, b) && !SIM.enemies(W, a).includes(b));
+  step(2.5);
+  assert.deepEqual(fx.filter(f => f.k === "duelcount").map(f => f.n), [5, 4, 3], "counts down 5, 4, 3…");
+  step(3);
+  assert.deepEqual(fx.filter(f => f.k === "duelcount").map(f => f.n), [5, 4, 3, 2, 1, 0], "…2, 1, Fight!");
+  assert.ok(d.state === "fight" && SIM.hostile(a, b) && SIM.hostile(b, a));
+  assert.ok(!SIM.hostile(a, c) && !SIM.hostile(c, b), "players outside the duel stay safe");
+  // area abilities hit the opponent but never a bystander
+  const hpB = b.hp, hpC = c.hp; c.x = a.x + 100; b.x = a.x + 150; b.y = c.y = a.y;
+  SIM.burst(W, a, a.x, a.y, 400, { dmg: 50, cc: {} });
+  assert.ok(b.hp < hpB && c.hp === hpC);
+  // heals can't go to your opponent (with nobody else near the cursor, they come back to you)
+  c.x = a.x - 3000; assert.equal(SIM.supportTarget(W, a, [b.x, b.y]), a);
+});
+
+test("duel: the loser is left at 1 health, the winner is announced, and the fighting stops", () => {
+  const { W, a, b, fx, step } = duelWorld();
+  SIM.input(W, "blue", { duel: "red" }); SIM.input(W, "red", { duelaccept: "blue" }); step(5.2);
+  SIM.input(W, "blue", { atk: b.id }); assert.equal(a.target, b.id, "you can target your opponent");
+  SIM.damage(W, b, 1e6, a);
+  assert.ok(!b.dead && b.hp === 1, "nobody dies in a duel");
+  assert.ok(!W.duels.length && !a.duel && !b.duel && a.target === null);
+  assert.ok(fx.concat(W.fxNet).some(f => f.k === "duelend" && f.win === "blue"));
+  assert.ok(W.fxNet.some(f => f.k === "sys" && /Alice has defeated Bob in a duel/.test(f.text)));
+  assert.ok(!SIM.hostile(a, b), "after the duel they're allies again");
+  const hp = b.hp; SIM.burst(W, a, b.x, b.y, 300, { dmg: 50, cc: {} }); assert.equal(b.hp, hp);
+});
+
+test("duel: leaving the area forfeits; declines, timeouts and bad input are handled", () => {
+  const { W, a, b, c, step } = duelWorld();
+  SIM.input(W, "blue", { duel: "red" }); SIM.input(W, "red", { duelaccept: "blue" }); step(5.2);
+  const d = W.duels[0]; b.x = d.x + d.r + 300; b.move = null;
+  step(2); assert.ok(W.duels.length === 1, "a few seconds' grace outside the area");
+  step(G.DUEL.outGrace); assert.ok(!W.duels.length && !b.duel, "stayed out: forfeited");
+  // decline
+  SIM.input(W, "blue", { duel: "green" }); SIM.input(W, "green", { dueldecline: "blue" });
+  assert.ok(!W.duelReqs.length && !W.duels.length);
+  // a challenge times out
+  SIM.input(W, "blue", { duel: "green" }); step(G.DUEL.askTime + 1); assert.ok(!W.duelReqs.length);
+  // too far away, yourself, nonsense
+  c.x = a.x + 5000; SIM.input(W, "blue", { duel: "green" }); assert.ok(!W.duelReqs.length, "too far away");
+  for(const bad of [{ duel: "blue" }, { duel: "__proto__" }, { duelaccept: "constructor" }, { dueldecline: "x" }, { duel: null }]) SIM.input(W, "blue", bad);
+  SIM.input(W, "__proto__", { duel: "red" });
+  assert.ok(!W.duelReqs.length && !W.duels.length);
+  // a disconnect cancels a duel
+  SIM.input(W, "blue", { duel: "red" }); SIM.input(W, "red", { duelaccept: "blue" }); SIM.removeHero(W, "red"); step(.1);
+  assert.ok(!W.duels.length && !a.duel);
+});

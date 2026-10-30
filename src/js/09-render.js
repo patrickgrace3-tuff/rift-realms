@@ -58,6 +58,26 @@ function render(dt){
     });
   }
   for(const side of Object.keys(G.vis)) if(!present.has(side)){ removeHeroVisual(G.vis[side]); delete G.vis[side]; G.smooth.delete("c:" + side); }
+  // duel flags, with a red ring marking each duel's area
+  const seenD = new Set();
+  for(const d of (s.du || [])){
+    const key = d[0] + "|" + d[1]; seenD.add(key);
+    let dv = G.duelVis.get(key);
+    if(!dv){
+      dv = new THREE.Group();
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 3.2, 6), new THREE.MeshLambertMaterial({ color: 0x6a4428 })); pole.position.y = 1.6;
+      const fc = document.createElement("canvas"); fc.width = 64; fc.height = 40; const fg = fc.getContext("2d");
+      for(let i = 0; i < 4; i++) for(let j = 0; j < 2; j++){ fg.fillStyle = (i + j) % 2 ? "#f2ecdc" : "#c0392b"; fg.fillRect(i * 16, j * 20, 16, 20); }
+      const ft = new THREE.CanvasTexture(fc); ft.encoding = THREE.sRGBEncoding;
+      const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.3, .8), new THREE.MeshLambertMaterial({ map: ft, side: THREE.DoubleSide })); flag.position.set(.65, 2.8, 0);
+      const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xff5040, transparent: true, opacity: .55, depthWrite: false, depthTest: false })); ring.renderOrder = 2; // drawn over hills so the whole area always shows
+      dv.add(pole, flag); dv.flag = flag; dv.ring = ring; G.root.add(dv, ring); G.duelVis.set(key, dv);
+    }
+    const w = XF(d[2], d[3]), gy = hAt(w.x, w.z);
+    dv.position.set(w.x, gy, w.z); dv.flag.rotation.y = Math.sin(t * 2) * .25;
+    dv.ring.position.set(w.x, gy + .1, w.z); dv.ring.scale.setScalar(d[5] * ZSC); dv.ring.material.opacity = d[4] ? .55 : .3 + Math.abs(Math.sin(t * 4)) * .3;
+  }
+  for(const [key, dv] of G.duelVis) if(!seenD.has(key)){ G.root.remove(dv, dv.ring); dv.ring.material.dispose(); G.duelVis.delete(key); }
   // NPC markers follow your own quest state
   const meSnap = s.h.find(h => h.side === G.myTeam);
   for(const nv of G.npcVis){
@@ -273,10 +293,10 @@ function render(dt){
     const [sx, ty, sz] = spriteTop(v.pos, 2.55), sy = ty - 12; if(sz > 1) continue; // health bar just above the head
     const mine = c.side === G.myTeam, wdt = 80;
     octx.fillStyle = "rgba(5,8,14,.75)"; octx.fillRect(sx - wdt / 2 - 2, sy - 2, wdt + 4, 10);
-    const ally = !mine && inMyParty(c.side);
-    octx.fillStyle = mine ? "#3fbf7f" : ally ? "#5fb0ff" : "#a8adb8"; octx.fillRect(sx - wdt / 2, sy, wdt * Math.max(0, c.hp / c.maxHp), 6);
+    const ally = !mine && inMyParty(c.side), foe = !mine && duelFoe(c.side);
+    octx.fillStyle = mine ? "#3fbf7f" : foe ? "#d9545b" : ally ? "#5fb0ff" : "#a8adb8"; octx.fillRect(sx - wdt / 2, sy, wdt * Math.max(0, c.hp / c.maxHp), 6);
     if(c.shield > 0){ octx.fillStyle = "rgba(230,240,255,.9)"; octx.fillRect(sx - wdt / 2, sy + 5, Math.min(wdt, wdt * c.shield / c.maxHp), 2); }
-    label(`${c.name}  ·  ${c.lvl}`, sx, sy - 6, mine ? "#f0d58e" : ally ? "#8fc7ff" : "#e4e4e4", 13);
+    label(`${c.name}  ·  ${c.lvl}`, sx, sy - 6, mine ? "#f0d58e" : foe ? "#ff8a70" : ally ? "#8fc7ff" : "#e4e4e4", 13);
     if(c.cc) label({ stun: "STUNNED", root: "ROOTED", slow: "SLOWED" }[c.cc], sx, sy - 22, c.cc === "stun" ? "#f0d58e" : c.cc === "root" ? "#b98cff" : "#7fd3ff", 12, 700);
   }
   // objective arrow around your character

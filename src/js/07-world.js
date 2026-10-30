@@ -11,7 +11,7 @@ function startWorld(opts){
   const root = new THREE.Group(); scene.add(root);
   G = { role: opts.role, myTeam, details: Object.assign({}, opts.details), root, xf: XF,
     W: null, snap: null, fxQueue: [], vis: {}, mobVis: new Map(), lootVis: new Map(), nodeVis: new Map(), sel: null, charKey: "", focusQuest: null, trHtml: "", shotVis: new Map(), zoneVis: new Map(), fieldVis: new Map(), petVis: new Map(), npcVis: [],
-    fx: [], nums: [], chatCh: "world", sendT: 0, holdT: 0, mouse: { x: VW / 2, y: VH / 2 }, smooth: new Map(), dialog: null };
+    fx: [], nums: [], chatCh: "world", duelVis: new Map(), sendT: 0, holdT: 0, mouse: { x: VW / 2, y: VH / 2 }, smooth: new Map(), dialog: null };
   if(opts.role === "host"){ G.W = SIM.create(); SIM.addHero(G.W, "blue", opts.details.blue); G.snap = SIM.snapshot(G.W); }
   zone.visible = true;
   scene.fog = new THREE.Fog(0x9ccbe8, 40, 95);
@@ -90,6 +90,8 @@ function thingUnderCursor(cx, cy){
   for(const [id, nv] of G.nodeVis){ if(!nv.spr.visible) continue; const [sx, sy] = worldToScreen(nv.spr.position.x, nv.spr.position.y, nv.spr.position.z); if(Math.hypot(sx - cx, sy - cy) < 36) return { gather: id }; }
   for(const [, lv] of G.lootVis){ if(!lv.pos) continue; const [sx, sy] = worldToScreen(lv.pos.x, lv.pos.y + .7, lv.pos.z); if(Math.hypot(sx - cx, sy - cy) < 40) return { pickup: lv.pos.id }; }
   for(const nv of G.npcVis){ const [sx, sy] = worldToScreen(nv.pos.x, nv.pos.y + 1.4, nv.pos.z); if(Math.abs(sx - cx) < 40 && Math.abs(sy - cy) < 70) return { npc: nv.n.id }; }
+  // your duel opponent can be attacked like a creature
+  for(const h of G.snap.h){ if(!duelFoe(h.side) || h.dead) continue; const v = G.vis[h.side]; if(!v || !v.pos) continue; const [sx, sy] = worldToScreen(v.pos.x, v.pos.y + 1.2, v.pos.z); if(Math.abs(sx - cx) < 40 && Math.abs(sy - cy) < 70) return { atk: "c:" + h.side }; }
   let best = null, bd = 1e9;
   for(const m of G.snap.m){
     // click anywhere on the creature's body; big ones (the dragon) have a big target

@@ -234,6 +234,20 @@ h1{font:400 clamp(34px,6vw,58px)/1 var(--display);margin:8px 0 0;letter-spacing:
 .bossbar .bbb{height:16px;border-radius:8px;background:rgba(20,8,8,.85);border:1px solid #8a3a2a;overflow:hidden;position:relative}
 .bossbar .bbb i{display:block;height:100%;background:linear-gradient(90deg,#b8322a,#ff6a3a);transition:width .25s}
 .bossbar .bbb span{position:absolute;inset:0;display:grid;place-items:center;font:700 12px var(--num);color:#fff}
+.duelcount{position:absolute;top:26%;left:0;right:0;text-align:center;font:400 120px/1 var(--display);color:var(--gold-2);text-shadow:0 4px 18px #000, 0 0 3px #000;pointer-events:none}
+.duelcount.go{color:#ff5a40;letter-spacing:.04em;text-transform:uppercase;font-size:96px}
+.duelcount.pop{animation:duelpop 1s ease-out forwards}
+@keyframes duelpop{0%{transform:scale(1.8);opacity:0}15%{transform:scale(1);opacity:1}75%{opacity:1}100%{opacity:0;transform:scale(.9)}}
+@media (prefers-reduced-motion:reduce){ .duelcount.pop{animation:none} }
+.duelbar{position:absolute;top:calc(env(safe-area-inset-top,0px) + 120px);left:50%;transform:translateX(-50%);display:flex;gap:10px;align-items:center;background:rgba(40,10,10,.85);border:1px solid #c0392b;border-radius:8px;padding:6px 8px 6px 14px;font:600 15px var(--num);letter-spacing:.04em;color:#ffb0a0;pointer-events:auto;text-shadow:0 1px 3px #000}
+.duelbar.warn{animation:duelwarn .6s ease-in-out infinite alternate}
+@keyframes duelwarn{to{background:rgba(120,20,20,.92)}}
+.duelbar .hudbtn{padding:3px 10px}
+.ctxmenu{position:fixed;z-index:30;min-width:190px;background:var(--panel);border:1px solid var(--gold);border-radius:8px;padding:4px;box-shadow:0 10px 30px rgba(0,0,0,.5);pointer-events:auto;display:flex;flex-direction:column}
+.ctxmenu .ctxh{font:600 12px var(--num);letter-spacing:.12em;text-transform:uppercase;color:var(--gold);padding:6px 10px 4px}
+.ctxmenu button{background:none;border:0;border-radius:6px;padding:8px 10px;text-align:left;font:500 14px var(--body)}
+.ctxmenu button:hover:not(:disabled),.ctxmenu button:focus-visible{background:rgba(201,165,92,.15)}
+.ctxmenu button:disabled{opacity:.45;cursor:default}
 .pinvite{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);left:50%;transform:translateX(-50%);width:min(380px,calc(100vw - 32px));background:var(--panel);border:1px solid var(--gold);border-radius:10px;padding:12px 14px;pointer-events:auto;box-shadow:0 10px 30px rgba(0,0,0,.5);z-index:6}
 .pinvite p{margin:0 0 10px;font:500 15px var(--body);text-align:center}
 .pinvite .row{justify-content:center}
