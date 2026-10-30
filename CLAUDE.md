@@ -1,6 +1,6 @@
 # Rift Realms
 
-A browser MMO-style fan game: League of Legends champions questing in an original starting zone (Sunhollow Vale), with co-op for up to five players, parties and chat. Plain JavaScript, no build step. three.js and PeerJS load from CDNs; champion art and ability text load at runtime from Riot's Data Dragon.
+A browser MMO-style fan game: League of Legends champions questing in two original zones (Sunhollow Vale, and Frostspine Peaks to the north), with co-op for up to five players, parties and chat. Plain JavaScript, no build step. three.js and PeerJS load from CDNs; champion art and ability text load at runtime from Riot's Data Dragon.
 
 ## Run and test
 
@@ -17,7 +17,8 @@ Scripts are classic `<script>` files (not modules) loaded in order by `index.htm
 | `src/js/01-world-data.js` | Zone layout, NPCs, `QUESTS`, `MOBS`, skill-tree rules, items and `LOOT` tables |
 | `src/js/02-boot-select.js` | Boot and the champion select screen |
 | `src/js/03-art.js` | `CharArt` pixel bodies (portrait heads), NPC heads, creature sprites |
-| `src/js/04-scene.js` | three.js setup, procedural terrain, props, the map image |
+| `src/js/04-scene.js` | three.js setup, Sunhollow Vale's procedural terrain, props and map image |
+| `src/js/04b-peaks.js` | Frostspine Peaks' terrain, props and map image; snowfall and cold fog (`updateClimate`) |
 | `src/js/05-sim.js` | `SIM`: the authoritative simulation. No DOM, no three.js |
 | `src/js/05b-party.js` | Adds parties, Need/Greed loot rolls and chat to `SIM`; player slots (`SIDES`) |
 | `src/js/06-net.js` | PeerJS co-op (host shares a 5-letter code; up to 4 guests) |
@@ -32,10 +33,10 @@ Scripts are classic `<script>` files (not modules) loaded in order by `index.htm
 - **Host-authoritative.** Only the host runs `SIM.step`. Every player action is a command object passed to `SIM.input(W, side, cmd)` (the guest sends the same objects over PeerJS). Never change game state from UI code; add a command and handle it in `SIM.input`.
 - **Validate every command** in `SIM.input`: guest input is untrusted. Look items up by id, check slot names against fixed lists, check distances to NPCs.
 - **Snapshots.** `SIM.snapshot(W)` is the only thing clients render from. Keep it small: arrays for mobs, loot and shots. Gear is sent only when `c.gearVer` changes.
-- **Units.** The simulation uses zone units (0 to 8000, y is north). `XF(x, y)` converts to three.js world space.
+- **Units and zones.** The simulation uses world units: x 0 to 8000, y 0 to 16000 (y is north). Sunhollow Vale is y < 8000 and Frostspine Peaks is y ≥ 8000 (`ZONES`, `zoneAt`). A ridge of `OBSTACLES` along y = 8000 blocks the way except at Greywind Pass (`PASS`). Clamp positions with `clampX` and `clampY`. `XF(x, y)` converts to three.js world space; `ZH(x, y)` is the ground height in either zone.
 - **Effects.** The simulation reports events with `SIM.fx(W, { k: ..., side })`; `handleFx` in `08-ui.js` turns them into banners, numbers and visuals. Add `to: [sides]` to send an effect only to those players (party chat, invites, rolls); the host filters these per guest in `netBroadcast`.
 - **Parties.** `W.parties`, `W.invites` and `W.rolls` live in the simulation; commands are `pinvite`, `paccept`, `pdecline`, `pkick`, `pleave`, `roll` and `chat`, handled by `SIM.socialInput`. A kill's XP, quest credit and quest drops go to `SIM.creditGroup` (the killer plus party members within `SHARE_RANGE`). Rare and better gear from a party kill goes to a Need/Greed/Pass roll instead of the bag.
-- **Quests** are data in `QUESTS` plus `QUEST_ORDER`. Objective types: `kill`, `loot`, `deliver`, `explore`, `collect`, `interact`, `defend`. `questFor(quests, npcId)` decides what an NPC offers. A new quest of an existing type needs only data; a new type needs a branch in `SIM.questTick` or `SIM.damage`, a line in `questLine`, and a case in `objectiveTarget`.
+- **Quests** are data in `QUESTS` plus `QUEST_ORDER`. Objective types: `kill`, `loot`, `deliver`, `explore`, `collect`, `interact`, `defend`. `prereq` can be one quest id or a list (`prereqMet`). `questFor(quests, npcId)` decides what an NPC offers. A new quest of an existing type needs only data; a new type needs a branch in `SIM.questTick` or `SIM.damage`, a line in `questLine`, and a case in `objectiveTarget`.
 - **Abilities.** Each champion's Q/W/E/R is matched to one of 15 archetypes from its Data Dragon text (`buildKit`). Talents modify the base numbers through `applyTalents`, used by both the simulation and the HUD.
 
 ## Rules for this project

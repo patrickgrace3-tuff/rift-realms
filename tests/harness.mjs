@@ -44,9 +44,9 @@ export function loadGame(){
   vm.createContext(ctx);
   for(const f of files) vm.runInContext(fs.readFileSync(path.join(root, f), "utf8"), ctx, { filename: f });
   // Script-scope bindings (const/let/functions) are shared across scripts in one context.
-  const names = ["SIM", "SIDES", "MAX_PLAYERS", "PARTY_MAX", "ROLL_TIME", "QUESTS", "QUEST_ORDER", "NPCS", "MOBS", "LOOT", "ARCH", "SLOTS", "BEACONS", "LOOKOUTS", "DEN", "PINES", "TOWER", "RARITY",
+  const names = ["SIM", "SIDES", "MAX_PLAYERS", "PARTY_MAX", "ROLL_TIME", "QUESTS", "QUEST_ORDER", "NPCS", "MOBS", "LOOT", "ARCH", "SLOTS", "BEACONS", "LOOKOUTS", "DEN", "PINES", "TOWER", "RARITY", "ZS", "WH", "PASS", "OUTPOST", "LYNX_RIDGE", "zoneAt",
     "buildKit", "abilityParams", "applyTalents", "talentPoints", "talentsSpent", "questFor", "genItem", "rollRarity", "makeMat", "fmtCoins",
-    "CharArt", "drawSheep", "drawBoar", "drawWolf", "drawBag", "drawFlower", "drawTooth", "HEADS", "itemIconURL", "applyLook"];
+    "CharArt", "drawSheep", "drawBoar", "drawWolf", "drawRam", "drawLynx", "drawBag", "drawFlower", "drawTooth", "HEADS", "itemIconURL", "applyLook"];
   return vm.runInContext(`({ ${names.join(", ")} })`, ctx);
 }
 

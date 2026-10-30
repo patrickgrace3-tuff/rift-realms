@@ -54,6 +54,12 @@ test("full quest chain can be completed in order", () => {
   t.turnIn("merrin", "herbs");
   t.accept("rhea", "beacons"); G.BEACONS.forEach((b, i) => { SIM.input(W, "blue", { use: i }); t.step(30); }); t.turnIn("rhea", "beacons");
   t.accept("rhea", "defend"); t.walk(G.TOWER.x + 200, G.TOWER.y + 300, 12); t.step(70, t.fight("bandit")); t.turnIn("rhea", "defend");
+  // all of the Vale is done: Rhea sends you north through Greywind Pass
+  t.accept("rhea", "northpass");
+  t.walk(G.PASS.x, G.PASS.y - 700, 22); t.walk(G.PASS.x, G.PASS.y + 700, 8);
+  assert.ok(h.y > G.ZS, "walked through Greywind Pass into the Peaks");
+  t.turnIn("halvard", "northpass");
+  t.accept("halvard", "lynx"); t.walk(G.LYNX_RIDGE.x - 300, G.LYNX_RIDGE.y - 300, 16); t.fightUntil("lynx", "lynx", 480); t.turnIn("halvard", "lynx");
   for(const id of G.QUEST_ORDER) assert.equal(h.quests[id].state, "done", `${id} done`);
   assert.ok(h.coins > 0, "earned coins");
   assert.ok(Object.keys(h.equip).length >= 2, "has gear equipped");
@@ -128,10 +134,10 @@ test("item rarity distribution looks sane", () => {
 });
 
 test("sprites and icons draw without errors", () => {
-  for(const style of ["melee", "caster", "ranged", "farmer", "hunter", "fisher", "guard", "bandit"])
+  for(const style of ["melee", "caster", "ranged", "farmer", "hunter", "fisher", "guard", "bandit", "warden"])
     for(const pose of ["idle", "cast", "attack", "dead"]) new G.CharArt({ style, initial: "A", tier: 1 }).draw(1, true, pose, true);
   const g = document_ctx();
-  for(let f = 0; f < 4; f++){ G.drawSheep(g, f, f % 2, true); G.drawBoar(g, f, f % 2, true, true); G.drawWolf(g, f, f % 2, true); }
+  for(let f = 0; f < 4; f++){ G.drawSheep(g, f, f % 2, true); G.drawBoar(g, f, f % 2, true, true); G.drawWolf(g, f, f % 2, true); G.drawRam(g, f, f % 2, true, f > 1); G.drawLynx(g, f, f % 2, true); }
   G.drawBag(g, 2); G.drawFlower(g); G.drawTooth(g);
   for(const k in G.HEADS) G.HEADS[k](g, 32, 32, 46);
   for(let i = 0; i < 20; i++) G.itemIconURL(G.genItem({ ilvl: 4, rarity: i % 4, cls: "ranged", nid: i }));
@@ -257,4 +263,30 @@ test("up to five players can share a world, each in their own slot", () => {
   assert.equal(new Set(hs.map(h => h.x)).size, 5, "players don't spawn on top of each other");
   const snap = SIM.snapshot(W);
   assert.ok(snap.h.length === 5 && Array.isArray(snap.pt) && Array.isArray(snap.iv) && Array.isArray(snap.r));
+});
+
+/* ---------- Frostspine Peaks ---------- */
+test("Peaks: Rhea only sends you north once every Vale quest is done", () => {
+  const vale = G.QUESTS.northpass.prereq, done = Object.fromEntries(vale.map(id => [id, { state: "done" }]));
+  assert.equal(vale.length, 8);
+  assert.notEqual(G.questFor({ ...done, herbs: { state: "active" } }, "rhea").quest, "northpass");
+  const f = G.questFor(done, "rhea"); assert.ok(f.quest === "northpass" && f.state === "offer");
+  assert.equal(G.questFor({ ...done, northpass: { state: "done" } }, "halvard").state, "offer");
+});
+
+test("Peaks: the ridge can only be crossed at Greywind Pass", () => {
+  const t = newWorld(), { h } = t;
+  h.x = 1500; h.y = G.ZS - 900; t.walk(1500, G.ZS + 900, 12);
+  assert.ok(h.y < G.ZS, "the ridge blocks the way north away from the pass");
+  h.x = G.PASS.x; h.y = G.ZS - 900; t.walk(G.PASS.x, G.ZS + 900, 12);
+  assert.ok(h.y > G.ZS + 600, "the pass lets you through");
+  assert.equal(G.zoneAt(h.y).name, "Frostspine Peaks");
+  t.walk(G.PASS.x, G.WH, 40);
+  assert.ok(h.y <= G.WH - 600, "the north edge of the Peaks is closed");
+});
+
+test("Peaks: heroes who fall in the mountains return to Highwatch", () => {
+  const t = newWorld(), { W, h } = t;
+  h.x = G.LYNX_RIDGE.x; h.y = G.LYNX_RIDGE.y; G.SIM.damage(W, h, 1e6, null); t.step(7);
+  assert.ok(!h.dead && Math.hypot(h.x - G.OUTPOST.x, h.y - G.OUTPOST.y) < 600);
 });

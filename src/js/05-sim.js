@@ -10,7 +10,7 @@ const SIM = {
     for(const kind in MOBS) for(let i = 0; i < MOBS[kind].count; i++) SIM.spawnMob(W, kind);
     W.nodes = [];
     for(let i = 0, tries = 0; W.nodes.length < 10 && tries < 400; tries++){
-      const a = Math.random() * Math.PI * 2, r = 720 + Math.random() * 380, x = clampZ(HERB_AREA.x + Math.cos(a) * r), y = clampZ(HERB_AREA.y + Math.sin(a) * r);
+      const a = Math.random() * Math.PI * 2, r = 720 + Math.random() * 380, x = clampX(HERB_AREA.x + Math.cos(a) * r), y = clampY(HERB_AREA.y + Math.sin(a) * r);
       if(OBSTACLES.some(o => Math.hypot(o.x - x, o.y - y) < o.r + 140) || W.nodes.some(n => Math.hypot(n.x - x, n.y - y) < 260)) continue;
       W.nodes.push({ id: "n" + i++, x, y, ready: true, respawnAt: 0 });
     }
@@ -69,7 +69,7 @@ const SIM = {
     const rollers = (group || []).filter(h => !h.dead);
     if(rollers.length > 1){ for(const it of items) if(it.s !== "mat" && it.r >= ROLL_MIN) SIM.startRoll(W, it, rollers, c); items = items.filter(it => it.s === "mat" || it.r < ROLL_MIN); }
     const a = Math.random() * Math.PI * 2;
-    W.loot.push({ id: "l" + W.nid++, side: c.side, bag: true, item: "bag", coins, items, rar: items.reduce((m, it) => Math.max(m, it.r), 0), x: clampZ(u.x + Math.cos(a) * 40), y: clampZ(u.y + Math.sin(a) * 40), expires: W.t + 90 });
+    W.loot.push({ id: "l" + W.nid++, side: c.side, bag: true, item: "bag", coins, items, rar: items.reduce((m, it) => Math.max(m, it.r), 0), x: clampX(u.x + Math.cos(a) * 40), y: clampY(u.y + Math.sin(a) * 40), expires: W.t + 90 });
     const bags = W.loot.filter(l => l.bag);
     if(bags.length > 60) W.loot = W.loot.filter(l => l !== bags[0]);
   },
@@ -92,6 +92,8 @@ const SIM = {
     m.aggro = h.id; m.wp = null; SIM.fx(W, { k: "angry", id: m.id }); SIM.alertPack(W, m, h.id); return true;
   },
   xpNext: lvl => 80 + 45 * lvl,
+  // fallen heroes return to the village, or to Highwatch if they fell in the Peaks
+  respawnAt: c => c.y >= ZS ? [OUTPOST.x + 120, OUTPOST.y - 260] : SPAWN,
   dmgScale: c => (1 + .09 * ((c.lvl || 1) - 1)) * (1 + (c.ap || 0) / 100),
   fx(W, f){ W.fxNet.push(f); W.fxLocal.push(f); },
   isHero: u => u.team === "hero",
@@ -109,7 +111,7 @@ const SIM = {
     if(cc.root) u.cc.root = Math.max(u.cc.root, cc.root);
     if(cc.slow){ u.cc.slow = Math.max(u.cc.slow, 1.6); u.cc.slowAmt = Math.max(u.cc.slowAmt, cc.slow); }
   },
-  force(u, tx, ty, dur){ u.forced = { sx: u.x, sy: u.y, tx: clampZ(tx), ty: clampZ(ty), t: 0, dur }; u.dash = null; },
+  force(u, tx, ty, dur){ u.forced = { sx: u.x, sy: u.y, tx: clampX(tx), ty: clampY(ty), t: 0, dur }; u.dash = null; },
   hitAbility(W, c, u, p, mult = 1){
     let d = (p.dmg || 0) * SIM.dmgScale(c) * mult;
     if(p.execute) d *= 1 + (1 - u.hp / u.maxHp);
@@ -166,7 +168,7 @@ const SIM = {
             if(qs.count >= Q.obj.count){ qs.state = "ready"; SIM.fx(W, { k: "qready", side: c.side, quest: qid }); }
           }else if(Q.obj.type === "loot" && Q.obj.from === u.kind && !W.loot.some(l => l.side === c.side && l.quest === qid)){
             const a = Math.random() * Math.PI * 2;
-            W.loot.push({ id: "l" + W.nid++, side: c.side, quest: qid, item: Q.obj.item, x: clampZ(u.x + Math.cos(a) * 70), y: clampZ(u.y + Math.sin(a) * 70) });
+            W.loot.push({ id: "l" + W.nid++, side: c.side, quest: qid, item: Q.obj.item, x: clampX(u.x + Math.cos(a) * 70), y: clampY(u.y + Math.sin(a) * 70) });
             SIM.fx(W, { k: "drop", side: c.side, quest: qid });
           }
         }
@@ -244,7 +246,7 @@ const SIM = {
         else {
           if(qs.waveI < WAVES.length && W.t >= qs.nextWave){
             const n = WAVES[qs.waveI++];
-            for(let k = 0; k < n; k++){ const a = -Math.PI / 2 + (Math.random() - .5) * 2.4, rr = 850 + Math.random() * 150; const m = SIM.spawnMob(W, "bandit", { x: clampZ(o.at.x + Math.cos(a) * rr), y: clampZ(o.at.y + Math.sin(a) * rr) }); m.event = c.side; m.aggro = c.id; }
+            for(let k = 0; k < n; k++){ const a = -Math.PI / 2 + (Math.random() - .5) * 2.4, rr = 850 + Math.random() * 150; const m = SIM.spawnMob(W, "bandit", { x: clampX(o.at.x + Math.cos(a) * rr), y: clampY(o.at.y + Math.sin(a) * rr) }); m.event = c.side; m.aggro = c.id; }
             qs.nextWave = W.t + 14; SIM.fx(W, { k: "wave", side: c.side, n: qs.waveI, of: WAVES.length });
           }
           if(W.t >= qs.endAt){ qs.phase = 0; SIM.clearEvent(W, c.side); SIM.questReady(W, c, qid); SIM.fx(W, { k: "defwin", side: c.side }); }
@@ -264,7 +266,7 @@ const SIM = {
     if(cmd.accept){
       const Q = QUESTS[cmd.accept]; if(!Q) return;
       const npc = NPCS.find(n => n.id === Q.giver), qs = c.quests[Q.id];
-      const prereq = !Q.prereq || (c.quests[Q.prereq] && c.quests[Q.prereq].state === "done");
+      const prereq = prereqMet(c.quests, Q);
       if((!qs || qs.state === "failed") && prereq && Math.hypot(c.x - npc.x, c.y - npc.y) < 500){
         if(Q.obj.type === "defend") SIM.clearEvent(W, side);
         c.quests[Q.id] = { state: "active", count: 0, deadline: Q.timeLimit ? W.t + Q.timeLimit : 0, flags: [], phase: 0 };
@@ -324,7 +326,7 @@ const SIM = {
     if(cmd.gather){ const n = W.nodes.find(x => x.id === String(cmd.gather)); if(n){ c.gatherTo = n.id; c.move = c.target = c.talkTo = null; } return; }
     if(cmd.use !== undefined){ const i = +cmd.use; if(BEACONS[i]){ c.useTo = i; c.move = c.target = c.talkTo = null; } return; }
     if(cmd.talk){ const npc = NPCS.find(n => n.id === cmd.talk); if(npc){ c.talkTo = npc.id; c.target = null; c.move = null; } return; }
-    if(cmd.move){ c.move = [clampZ(+cmd.move[0] || 0), clampZ(+cmd.move[1] || 0)]; c.target = null; c.talkTo = null; }
+    if(cmd.move){ c.move = [clampX(+cmd.move[0] || 0), clampY(+cmd.move[1] || 0)]; c.target = null; c.talkTo = null; }
     else if(cmd.atk){ const t = SIM.find(W, String(cmd.atk)); if(t && t.team !== c.team){ c.target = t.id; c.move = null; c.talkTo = null; } }
     else if(cmd.cast && ["Q", "W", "E", "R"].includes(cmd.cast) && Array.isArray(cmd.at)) SIM.cast(W, c, cmd.cast, [+cmd.at[0] || 0, +cmd.at[1] || 0]);
   },
@@ -334,7 +336,7 @@ const SIM = {
     c.channel = null; c.useTo = null;
     const p = applyTalents(c.kit[key], c.talents[key]);
     const ax = at[0] - c.x, ay = at[1] - c.y, d = Math.hypot(ax, ay) || 1, nx = ax / d, ny = ay / d;
-    const reach = Math.min(p.range || 0, d), tx = clampZ(c.x + nx * reach), ty = clampZ(c.y + ny * reach);
+    const reach = Math.min(p.range || 0, d), tx = clampX(c.x + nx * reach), ty = clampY(c.y + ny * reach);
     switch(p.type){
       case "bolt": case "hook":
         W.shots.push({ id: "s" + W.nid++, kind: p.type === "hook" ? "hook" : "sk", slot: key, team: c.team, owner: c.id,
@@ -378,7 +380,7 @@ const SIM = {
       case "field": W.fields.push({ id: "f" + W.nid++, team: c.team, owner: c.id, slot: key, x: tx, y: ty, r: p.radius, t: p.dur, tick: 0, p }); break;
       case "summon": {
         const n = p.count || 1;
-        for(let i = 0; i < n; i++){ const off = n > 1 ? (i ? 130 : -130) : 0; W.pets.push({ id: "p" + W.nid++, team: c.team, owner: c.id, slot: key, x: clampZ(tx - ny * off), y: clampZ(ty + nx * off), t: p.dur, atkT: .3 + i * .2, p }); }
+        for(let i = 0; i < n; i++){ const off = n > 1 ? (i ? 130 : -130) : 0; W.pets.push({ id: "p" + W.nid++, team: c.team, owner: c.id, slot: key, x: clampX(tx - ny * off), y: clampY(ty + nx * off), t: p.dur, atkT: .3 + i * .2, p }); }
         break;
       }
       case "stealth": c.stealthT = p.dur; c.boostT = p.dur; c.boost = p.boost; c.ambush = !!p.ambush; break;
@@ -401,7 +403,7 @@ const SIM = {
     // heroes
     for(const c of SIM.heroes(W)){
       for(const k in c.cds) c.cds[k] = Math.max(0, c.cds[k] - dt);
-      if(c.dead){ if(W.t >= c.respawnAt){ c.dead = 0; c.hp = c.maxHp; c.x = SPAWN[0]; c.y = SPAWN[1]; SIM.fx(W, { k: "spawn", side: c.side }); } continue; }
+      if(c.dead){ if(W.t >= c.respawnAt){ const home = SIM.respawnAt(c); c.dead = 0; c.hp = c.maxHp; c.x = home[0]; c.y = home[1]; SIM.fx(W, { k: "spawn", side: c.side }); } continue; }
       SIM.tickTimers(c, dt);
       c.shieldT -= dt; if(c.shieldT <= 0) c.shield = 0;
       c.buffT = Math.max(0, c.buffT - dt); c.boostT = Math.max(0, c.boostT - dt); c.stealthT = Math.max(0, c.stealthT - dt);
@@ -484,7 +486,7 @@ const SIM = {
       SIM.questTick(W, c);
       for(const qid in c.quests){ const qs = c.quests[qid]; if(qs.state === "active" && qs.deadline && W.t > qs.deadline){ qs.state = "failed"; SIM.fx(W, { k: "qfail", side: c.side, quest: qid }); } }
       // resting: fast regen out of combat, faster by the campfire
-      const resting = W.t - c.lastCombat > 5, byFire = Math.hypot(c.x - CAMPFIRE[0], c.y - CAMPFIRE[1]) < 700;
+      const resting = W.t - c.lastCombat > 5, byFire = FIRES.some(f => Math.hypot(c.x - f[0], c.y - f[1]) < 700);
       c.hp = Math.min(c.maxHp, c.hp + c.maxHp * (byFire ? .12 : resting ? .04 : .005) * dt);
     }
     // mobs
@@ -498,7 +500,7 @@ const SIM = {
         m.windup -= dt;
         if(m.windup <= 0){
           const t = SIM.find(W, m.aggro);
-          if(t){ const dx = t.x - m.x, dy = t.y - m.y, d = Math.hypot(dx, dy) || 1, len = Math.min(d + 160, 950); m.charging = { sx: m.x, sy: m.y, tx: clampZ(m.x + dx / d * len), ty: clampZ(m.y + dy / d * len), t: 0, dur: len / 1400, hit: false }; m.face = Math.atan2(dx, dy); }
+          if(t){ const dx = t.x - m.x, dy = t.y - m.y, d = Math.hypot(dx, dy) || 1, len = Math.min(d + 160, 950); m.charging = { sx: m.x, sy: m.y, tx: clampX(m.x + dx / d * len), ty: clampY(m.y + dy / d * len), t: 0, dur: len / 1400, hit: false }; m.face = Math.atan2(dx, dy); }
         }
         continue;
       }
@@ -541,7 +543,7 @@ const SIM = {
     for(const u of all){
       for(const o of OBSTACLES){ const dx = u.x - o.x, dy = u.y - o.y, d = Math.hypot(dx, dy), min = o.r + u.r; if(d < min && d > .01){ u.x = o.x + dx / d * min; u.y = o.y + dy / d * min; } }
       if(Math.hypot(u.x - POND.x, u.y - POND.y) < POND.r * .62){ const dx = u.x - POND.x, dy = u.y - POND.y, d = Math.hypot(dx, dy) || 1; u.x = POND.x + dx / d * POND.r * .62; u.y = POND.y + dy / d * POND.r * .62; }
-      u.x = clampZ(u.x); u.y = clampZ(u.y);
+      u.x = clampX(u.x); u.y = clampY(u.y);
     }
     // projectiles
     for(const sh of W.shots){

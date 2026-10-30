@@ -19,6 +19,7 @@ const BODY = {
   fisher: { tunic: "#c9b98a", dark: "#8a7a52", trim: "#3f6a9a", pants: "#4a5a6a", boots: "#2a2a2a", weapon: "none", shirt: "#3f6a9a" },
   guard: { tunic: "#3f5f9a", dark: "#2a3f6a", trim: "#c9a55c", pants: "#5a6270", boots: "#2a2a30", weapon: "sword" },
   bandit: { tunic: "#5a4a3a", dark: "#3a2e24", trim: "#8a2a22", pants: "#2e2a26", boots: "#1e1a16", weapon: "sword" },
+  warden: { tunic: "#6a5040", dark: "#46342a", trim: "#e8e2d4", pants: "#3e3a44", boots: "#2a2220", weapon: "sword" },
 };
 class CharArt {
   constructor(o){
@@ -135,6 +136,16 @@ function drawGuardHead(g, x, y, r){
   g.fillStyle = "#c0392b"; g.beginPath(); g.moveTo(x - 4, y - r * .7); g.quadraticCurveTo(x + 22, y - r * 1.25, x + 34, y - r * .5); g.quadraticCurveTo(x + 14, y - r * .75, x + 4, y - r * .6); g.fill();
   g.lineWidth = 4; g.strokeStyle = "#1b1410"; g.beginPath(); g.arc(x, y + 8, r * .62, 0, Math.PI * 2); g.stroke();
 }
+function drawWardenHead(g, x, y, r){
+  g.fillStyle = "#e8e2d4"; g.beginPath(); g.arc(x, y, r * .98, 0, Math.PI * 2); g.fill();          // fur hood
+  g.fillStyle = "#d8cfbe"; for(let i = 0; i < 9; i++){ const a = Math.PI + i / 8 * Math.PI; g.fillRect(x + Math.cos(a) * r * .9 - 4, y + Math.sin(a) * r * .9 - 4, 8, 8); }
+  g.fillStyle = "#e2ad86"; g.beginPath(); g.arc(x, y + 6, r * .6, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#9a9a9e"; g.beginPath(); g.moveTo(x - r * .55, y + 10); g.quadraticCurveTo(x, y + r * 1.05, x + r * .55, y + 10); g.lineTo(x + r * .3, y + 16); g.lineTo(x - r * .3, y + 16); g.fill(); // grey beard
+  g.fillStyle = "#1b1410"; g.fillRect(x - 13, y - 2, 7, 6); g.fillRect(x + 6, y - 2, 7, 6);
+  g.fillStyle = "#6a6a70"; g.fillRect(x - 15, y - 9, 10, 3); g.fillRect(x + 5, y - 9, 10, 3);
+  g.fillStyle = "#c97a5a"; g.fillRect(x - 3, y + 4, 6, 7);
+  g.lineWidth = 4; g.strokeStyle = "#1b1410"; g.beginPath(); g.arc(x, y, r * .98, 0, Math.PI * 2); g.stroke();
+}
 function drawBanditHead(g, x, y, r){
   g.fillStyle = "#3a2e24"; g.beginPath(); g.arc(x, y, r * .92, 0, Math.PI * 2); g.fill();
   g.fillStyle = "#1e1813"; g.beginPath(); g.ellipse(x, y + 8, r * .58, r * .5, 0, 0, Math.PI * 2); g.fill();
@@ -174,13 +185,54 @@ function drawFlower(g){
   g.fillStyle = "#ffe066"; for(let i = 0; i < 6; i++){ const a = i / 6 * Math.PI * 2; g.beginPath(); g.ellipse(32 + Math.cos(a) * 9, 24 + Math.sin(a) * 9, 7, 5, a, 0, Math.PI * 2); g.fill(); }
   g.fillStyle = "#ff9a30"; g.beginPath(); g.arc(32, 24, 6, 0, Math.PI * 2); g.fill();
 }
-const HEADS = { farmer: drawFarmerHead, huntress: drawHuntressHead, fisher: drawFisherHead, guard: drawGuardHead };
+const HEADS = { farmer: drawFarmerHead, huntress: drawHuntressHead, fisher: drawFisherHead, guard: drawGuardHead, warden: drawWardenHead };
 const MOB_ART = {
   sheep: { cw: 96, ch: 80, sx: 1.35, sy: 1.12, sh: .6, plate: 1.35, draw: (g, f, fl, an) => drawSheep(g, f, fl, an, false) },
   boar: { cw: 128, ch: 96, sx: 2.8, sy: 2.1, sh: 1.15, plate: 2.4, draw: (g, f, fl, an, wu) => drawBoar(g, f, fl, an, wu) },
   wolf: { cw: 112, ch: 80, sx: 1.7, sy: 1.2, sh: .7, plate: 1.45, draw: (g, f, fl, an) => drawWolf(g, f, fl, an) },
   bandit: { char: true, style: "bandit", head: drawBanditHead, sx: 1.6, sy: 2.4, sh: .6, plate: 2.75 },
+  ram: { cw: 112, ch: 88, sx: 1.9, sy: 1.5, sh: .75, plate: 1.7, draw: (g, f, fl, an, wu) => drawRam(g, f, fl, an, wu) },
+  lynx: { cw: 112, ch: 80, sx: 1.75, sy: 1.25, sh: .7, plate: 1.5, draw: (g, f, fl, an) => drawLynx(g, f, fl, an) },
 };
+// Crag Ram: shaggy mountain sheep with heavy curled horns; shakes before it charges
+function drawRam(g, frame, flip, angry, windup){
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 112, 88);
+  if(flip){ g.translate(112, 0); g.scale(-1, 1); }
+  const step = [0, 1, 0, -1][frame % 4]; g.translate(windup ? Math.sin(performance.now() / 30) * 2 : 0, 0);
+  g.fillStyle = "#3a2e26";
+  [[26, step], [38, -step], [66, -step], [78, step]].forEach(([x, s]) => g.fillRect(x + s * 3, 58 - Math.max(0, s) * 3, 8, 22));
+  g.fillStyle = "#1e1814"; [[26, step], [38, -step], [66, -step], [78, step]].forEach(([x, s]) => g.fillRect(x + s * 3, 76 - Math.max(0, s) * 3, 8, 5));
+  g.fillStyle = "#8a7a66"; g.beginPath(); g.ellipse(52, 46, 34, 18, 0, 0, Math.PI * 2); g.fill();          // coat
+  g.fillStyle = "#a8987e"; for(const [x, y] of [[30, 38], [42, 34], [56, 33], [70, 36], [36, 52], [62, 54]]){ g.fillRect(x - 4, y - 4, 8, 8); }
+  g.fillStyle = "#d4c8b0"; g.beginPath(); g.ellipse(56, 58, 22, 7, 0, 0, Math.PI * 2); g.fill();         // pale belly
+  g.fillStyle = "#6e6050"; g.beginPath(); g.ellipse(90, 38, 12, 13, .3, 0, Math.PI * 2); g.fill();        // head
+  g.fillStyle = "#4e4438"; g.beginPath(); g.ellipse(100, 44, 7, 6, .2, 0, Math.PI * 2); g.fill();
+  g.lineWidth = 7; g.strokeStyle = "#d8ccb0"; g.beginPath(); g.arc(84, 34, 11, -2.6, 1.9); g.stroke();      // curled horn
+  g.lineWidth = 2; g.strokeStyle = "#9a8a6a"; for(let i = 0; i < 4; i++){ const a = -2.2 + i * .9; g.beginPath(); g.moveTo(84 + Math.cos(a) * 8, 34 + Math.sin(a) * 8); g.lineTo(84 + Math.cos(a) * 14, 34 + Math.sin(a) * 14); g.stroke(); }
+  g.fillStyle = angry ? "#ff4030" : "#e8c040"; g.fillRect(94, 34, 5, 4);
+  g.fillStyle = "#6e6050"; g.beginPath(); g.moveTo(18, 40); g.lineTo(10, 46); g.lineTo(20, 48); g.fill();  // tail
+}
+// Snowfang Lynx: pale spotted mountain cat with tufted ears and a short tail
+function drawLynx(g, frame, flip, angry){
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 112, 80);
+  if(flip){ g.translate(112, 0); g.scale(-1, 1); }
+  const step = [0, 1, 0, -1][frame % 4];
+  g.fillStyle = "#b8b4ac";
+  [[30, step], [40, -step], [68, -step], [78, step]].forEach(([x, s]) => g.fillRect(x + s * 3, 50 - Math.max(0, s) * 3, 8, 24));
+  g.fillStyle = "#e8e4dc"; [[30, step], [40, -step], [68, -step], [78, step]].forEach(([x, s]) => g.fillRect(x + s * 3 - 1, 70 - Math.max(0, s) * 3, 10, 5));
+  g.fillStyle = "#d8d4ca"; g.beginPath(); g.ellipse(54, 42, 31, 14, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#f2efe8"; g.beginPath(); g.ellipse(58, 50, 20, 6, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#6a665e"; for(const [x, y] of [[34, 36], [46, 32], [58, 34], [70, 38], [40, 46], [64, 44], [52, 40]]) g.fillRect(x - 2, y - 2, 4, 4);
+  g.fillStyle = "#d8d4ca"; g.beginPath(); g.moveTo(24, 36); g.lineTo(14, 30); g.lineTo(16, 38); g.lineTo(24, 42); g.fill();  // short tail
+  g.fillStyle = "#2a2622"; g.fillRect(12, 29, 5, 5);
+  g.fillStyle = "#d8d4ca"; g.beginPath(); g.ellipse(88, 34, 13, 12, 0, 0, Math.PI * 2); g.fill();             // head
+  g.fillStyle = "#e8e4dc"; g.beginPath(); g.ellipse(84, 42, 9, 6, 0, 0, Math.PI * 2); g.fill();               // ruff
+  g.fillStyle = "#c8c4ba"; g.beginPath(); g.moveTo(80, 26); g.lineTo(82, 12); g.lineTo(88, 24); g.fill(); g.beginPath(); g.moveTo(90, 24); g.lineTo(95, 11); g.lineTo(98, 26); g.fill();
+  g.fillStyle = "#1b1410"; g.fillRect(81, 9, 3, 5); g.fillRect(94, 8, 3, 5);                               // ear tufts
+  g.fillStyle = angry ? "#ff4030" : "#7fd0c0"; g.fillRect(92, 31, 5, 4);
+  g.fillStyle = "#3a3632"; g.fillRect(99, 37, 4, 3);
+  if(angry){ g.fillStyle = "#ffffff"; g.fillRect(94, 42, 3, 4); g.fillRect(99, 42, 3, 4); }
+}
 function drawBoar(g, frame, flip, angry, windup){
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 128, 96);
   if(flip){ g.translate(128, 0); g.scale(-1, 1); }

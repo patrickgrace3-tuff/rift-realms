@@ -4,7 +4,7 @@ League of Legends champions in a small World of Warcraft–style world. Pick any
 
 - Every champion is playable. Abilities are matched from each champion's real kit (skillshots, hooks, leaps, shields, summons and more).
 - Pixel-art bodies with your champion's portrait as the head; armor changes the look.
-- Eight quests: hunting, a boss with a quest drop, a timed delivery, exploring, gathering, lighting beacons and defending a watchtower.
+- Two zones. Sunhollow Vale has eight quests: hunting, a boss with a quest drop, a timed delivery, exploring, gathering, lighting beacons and defending a watchtower. Finish them all and Captain Rhea sends you north through Greywind Pass to Frostspine Peaks, a snowy mountain zone with Crag Rams, Snowfang Lynxes and Highwatch Outpost.
 - Loot from every creature, four armor rarities, a character window, a skill tree, a minimap and a world map.
 - Co-op for up to five players: share a 5-letter code, no server needed.
 - Parties: invite players to your group to share XP, quest kills and quest items. Rare and Epic drops are rolled on with Need, Greed or Pass.

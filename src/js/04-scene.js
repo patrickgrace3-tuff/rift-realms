@@ -1,5 +1,5 @@
 "use strict";
-// three.js setup and the procedural Sunhollow Vale terrain, props and map image.
+// three.js setup and the procedural Sunhollow Vale terrain, props and map image (the Peaks are in 04b-peaks.js).
 
 /* ---------- Three.js setup ---------- */
 let renderer, scene, camera, glowMat, ringGeo, discGeo, zone, fireLight, fireFlames = [];
@@ -55,8 +55,9 @@ function buildZone(){
     const dV = Math.hypot(x - VILLAGE.x, y - VILLAGE.y), dPa = Math.hypot(x - PASTURE.x, y - PASTURE.y), dPo = Math.hypot(x - POND.x, y - POND.y);
     const dDen = Math.hypot(x - DEN.x, y - DEN.y), dCamp = Math.min(Math.hypot(x - CAMP.x, y - CAMP.y), Math.hypot(x - CABIN.x, y - CABIN.y)), dTower = Math.hypot(x - TOWER.x, y - TOWER.y);
     const dE = Math.min(x, y, ZS - x, ZS - y);
+    const gap = (1 - ss(PASS.w, PASS.w + 600, Math.abs(x - PASS.x))) * ss(ZS - 1800, ZS - 700, y); // Greywind Pass cuts the north ridge
     return { dP, dV, dPa, dPo, dE, dDen, dCamp, den: 1 - ss(DEN.r * .6, DEN.r + 80, dDen), camp: 1 - ss(260, 460, dCamp), dTower, tow: 1 - ss(500, 760, dTower), path: 1 - ss(110, 230, dP), vil: 1 - ss(VILLAGE.r * .7, VILLAGE.r, dV), past: 1 - ss(PASTURE.r - 50, PASTURE.r + 150, dPa),
-      pond: 1 - ss(POND.r * .5, POND.r, dPo), edge: 1 - ss(250, 900, dE) };
+      pond: 1 - ss(POND.r * .5, POND.r, dPo), edge: (1 - ss(250, 900, dE)) * (1 - gap) };
   };
   const height = (x, y, f) => {
     let h = noise(x, y) * 1.1 + .4 * noise(x * 2.3 + 900, y * 2.1 - 400);
@@ -291,6 +292,7 @@ function buildZone(){
   mg.strokeStyle = "#3a2414"; mg.lineWidth = 1;
   for(const [x, y] of HOUSES){ const [a, b] = toM(x, y); mg.fillStyle = "#e8dcc0"; mg.fillRect(a - 3, b - 3, 6, 6); mg.strokeRect(a - 3, b - 3, 6, 6); }
   for(const [x, y, col] of [[TOWER.x, TOWER.y, "#a8a296"], [CABIN.x, CABIN.y, "#b08a5a"], [CAMP.x, CAMP.y, "#8a9a5a"], [WELL[0], WELL[1], "#b0aaa0"], [CAMPFIRE[0], CAMPFIRE[1], "#ff9a40"]]){ const [a, b] = toM(x, y); mg.fillStyle = col; mg.fillRect(a - 2.5, b - 2.5, 5, 5); mg.strokeRect(a - 2.5, b - 2.5, 5, 5); }
+  buildPeaks(g, ZH, { ss, noise, polyD, rnd, d, c, t2, stone, beamM });
   zone = g; zone.visible = false; scene.add(zone);
 }
 function hAt(x, z){ const [zx, zy] = XF.inv(x, z); return ZH ? ZH(zx, zy) : 0; }
