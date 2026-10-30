@@ -5,7 +5,8 @@
   "description": "League of Legends champions in a small co-op questing world. A free fan project.",
   "scripts": {
     "start": "npx --yes serve@14.2.4 .",
-    "test": "node --test tests/game.test.mjs"
+    "test": "node --test tests/game.test.mjs",
+    "build": "npm test && node scripts/build.mjs"
   },
   "engines": {
     "node": ">=20"

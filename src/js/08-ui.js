@@ -259,6 +259,7 @@ function buildSlots(){
   const el = $("#slots"); el.innerHTML = ""; const d = G.details[G.myTeam];
   G.slotEls = ["Q", "W", "E", "R"].map((k, i) => {
     const s = document.createElement("div"); s.className = "slot"; s.tabIndex = 0;
+    s.style.pointerEvents = "auto"; // the HUD ignores the mouse; the ability buttons need it for their tooltips
     s.setAttribute("aria-label", `${k}: ${d.spells[i].name}`); s.setAttribute("aria-describedby", "abTip");
     s.innerHTML = `<img alt="" src="${spellIcon(d.spells[i].image.full)}"><div class="cd"></div><span class="key">${k}</span>`;
     const show = () => { G.tipKey = k; renderAbilityTip(); }, hide = () => { if(G) G.tipKey = null; $("#abTip").hidden = true; };

@@ -45,6 +45,8 @@ The tests play through every quest headless. See `CLAUDE.md` for how the code is
 
 ## Deploy
 
+`npm run build` runs the tests and writes the site to `_site/`, with a version code on every script and stylesheet link so players always get fresh files after an update. On Render, set the build command to `npm run build` and the publish directory to `_site`.
+
 Every push to `main` runs the tests and publishes the game to GitHub Pages (`.github/workflows/pages.yml`). To turn it on: in the repository's Settings > Pages, set Source to **GitHub Actions**.
 
 ## Legal
