@@ -24,7 +24,7 @@ function render(dt){
     const v = G.vis[c.side], p = smoothPos("c:" + c.side, c.x, c.y, dt), w = XF(p.x, p.y), y = hAt(w.x, w.z);
     v.pos = { x: w.x, y, z: w.z };
     if(c.castSeq !== v.castSeq){ if(v.castSeq >= 0) v.castUntil = t + .35; v.castSeq = c.castSeq; }
-    if(c.atkSeq !== v.atkSeq){ if(v.atkSeq >= 0) v.atkUntil = t + .22; v.atkSeq = c.atkSeq; }
+    if(c.atkSeq !== v.atkSeq){ if(v.atkSeq >= 0){ v.atkUntil = t + .22; sfxAt(ATTACK_SFX[v.kit.cls], c.x, c.y); } v.atkSeq = c.atkSeq; }
     const sx = Math.sin(c.face); if(sx < -.15) v.flip = true; else if(sx > .15) v.flip = false;
     const tier = c.wglow ? 1 : 0;
     applyLook(v.art, c.gear && c.gear.equip);

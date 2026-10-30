@@ -8,8 +8,12 @@ const MUSIC = {
   vale: "src/audio/music/dreamscape.mp3",   // "Calm Ambient Dreamscape" by Morgan Ambient (Pixabay)
   peaks: "src/audio/music/dreamscape.mp3",
 };
-// Short sound effects by name, e.g. SFX.levelup = "src/audio/sfx/level-up.mp3"; play with sfx("levelup")
-const SFX = {};
+// Short sound effects by name; play with sfx("name") or sfxAt("name", x, y). Names match the checklist's file names.
+const SFX = {
+  "attack-melee": "src/audio/sfx/attack-melee.mp3",
+};
+// basic-attack sound for each champion class (a missing file just stays silent)
+const ATTACK_SFX = { melee: "attack-melee", ranged: "attack-ranged", caster: "attack-caster" };
 
 /* ---------- Settings (remembered in this browser) ---------- */
 const SOUND = { music: null, src: "", musicVol: .45, sfxVol: .7, muted: false, fade: null };
@@ -52,9 +56,20 @@ function tryResumeMusic(){ if(SOUND.music && SOUND.music.paused && G) SOUND.musi
 addEventListener("pointerdown", tryResumeMusic); addEventListener("keydown", tryResumeMusic);
 
 /* ---------- Sound effects ---------- */
+let sfxPlaying = 0; // cap overlapping effects so a big fight doesn't become noise
 function sfx(name, vol = 1){
-  const src = SFX[name]; if(!canPlay() || !src || SOUND.muted || !SOUND.sfxVol) return;
-  try{ const a = new Audio(src); a.volume = Math.min(1, SOUND.sfxVol * vol); a.play().catch(() => {}); }catch(e){}
+  const src = SFX[name]; if(!canPlay() || !src || SOUND.muted || !SOUND.sfxVol || vol <= 0 || sfxPlaying >= 12) return;
+  try{
+    const a = new Audio(src); a.volume = Math.min(1, SOUND.sfxVol * vol);
+    sfxPlaying++; const done = () => { sfxPlaying--; a.onended = a.onerror = null; }; a.onended = a.onerror = done;
+    a.play().catch(done);
+  }catch(e){}
+}
+// a sound from a spot in the world (zone units): full volume near you, fading out by 2000 units away
+function sfxAt(name, x, y){
+  const me = G && G.snap && G.snap.h.find(h => h.side === G.myTeam); if(!me) return;
+  const d = Math.hypot(x - me.x, y - me.y); if(d > 2000) return;
+  sfx(name, d < 400 ? 1 : 1 - (d - 400) / 1600);
 }
 
 /* ---------- Menu controls ---------- */
