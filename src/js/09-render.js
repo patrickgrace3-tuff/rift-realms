@@ -3,6 +3,7 @@
 
 /* ---------- Render ---------- */
 const projV = window.THREE ? new THREE.Vector3() : null;
+const MARK_UP = window.THREE ? new THREE.Vector3() : null;
 function smoothPos(id, x, y, dt){
   let p = G.smooth.get(id);
   if(!p || Math.hypot(p.x - x, p.y - y) > 700 || G.role === "host"){ p = { x, y }; G.smooth.set(id, p); return p; }
@@ -57,7 +58,8 @@ function render(dt){
     const qf = meSnap ? questFor(meSnap.quests, nv.n.id) : { state: "idle" };
     const mk = qf.state === "offer" ? "offer" : qf.state === "complete" ? "complete" : qf.state === "waiting" ? "progress" : null;
     nv.marker.visible = !!mk; if(mk) nv.marker.material = nv.marks[mk];
-    nv.marker.position.y = nv.pos.y + 3.1 + Math.sin(t * 3) * .1;
+    const up = MARK_UP.setFromMatrixColumn(camera.matrixWorld, 1), mh = 3.65 + Math.sin(t * 3) * .1; // above the name, along the camera's up
+    nv.marker.position.set(nv.pos.x + up.x * mh, nv.pos.y + up.y * mh, nv.pos.z + up.z * mh);
     if(meSnap){ const sx = Math.sign(XF(meSnap.x, meSnap.y).x - nv.pos.x); const fl = sx < 0; if(nv.art.draw(Math.floor(t * 1.2) % 2 ? 0 : 0, fl, "idle")) nv.tex.needsUpdate = true; }
   }
   // mobs
@@ -228,7 +230,10 @@ function render(dt){
   // overlay
   octx.setTransform(dpr, 0, 0, dpr, 0, 0); octx.clearRect(0, 0, VW, VH); octx.textAlign = "center";
   const label = (text, x, y, color, size = 13, weight = 600) => { octx.font = `${weight} ${size}px 'Barlow Condensed', sans-serif`; octx.lineWidth = 3; octx.strokeStyle = "rgba(0,0,0,.75)"; octx.strokeText(text, x, y); octx.fillStyle = color; octx.fillText(text, x, y); };
-  for(const nv of G.npcVis){ const [sx, sy, sz] = worldToScreen(nv.pos.x, nv.pos.y + 2.65, nv.pos.z); if(sz < 1) label(`<${nv.n.name}>`, sx, sy, "#ffd84a", 14); }
+  // sprites face the camera, so their top is along the camera's up direction, not straight up in the world
+  const camUp = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+  const spriteTop = (p, h) => worldToScreen(p.x + camUp.x * h, p.y + camUp.y * h, p.z + camUp.z * h);
+  for(const nv of G.npcVis){ const [sx, sy, sz] = spriteTop(nv.pos, 2.4); if(sz < 1) label(`<${nv.n.name}>`, sx, sy - 6, "#ffd84a", 14); }
   for(const [, mv] of G.mobVis){
     if(!mv.pos) continue;
     if(mv.kind === "boar"){
@@ -248,7 +253,7 @@ function render(dt){
   }
   for(const c of s.h){
     const v = G.vis[c.side]; if(!v || !v.pos || v.hidden || c.dead) continue;
-    const [sx, sy, sz] = worldToScreen(v.pos.x, v.pos.y + 2.85, v.pos.z); if(sz > 1) continue;
+    const [sx, ty, sz] = spriteTop(v.pos, 2.55), sy = ty - 12; if(sz > 1) continue; // health bar just above the head
     const mine = c.side === G.myTeam, wdt = 80;
     octx.fillStyle = "rgba(5,8,14,.75)"; octx.fillRect(sx - wdt / 2 - 2, sy - 2, wdt + 4, 10);
     const ally = !mine && inMyParty(c.side);
