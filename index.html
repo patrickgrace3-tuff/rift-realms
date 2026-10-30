@@ -131,6 +131,10 @@
     <div class="phead"><span id="partyLead"></span><button class="hudbtn" id="pLeave">Leave</button></div>
     <div id="pList"></div>
   </div>
+  <div class="bossbar" id="bossBar" hidden>
+    <div class="bbn"><span id="bossName"></span><small>Rare Raid Boss</small></div>
+    <div class="bbb"><i id="bossFill"></i><span id="bossPct"></span></div>
+  </div>
   <div class="pinvite" id="pInvite" hidden role="alertdialog" aria-labelledby="pInvText">
     <p id="pInvText"></p>
     <div class="row"><button class="btn" id="pInvNo">Decline</button><button class="btn primary" id="pInvYes">Join party</button></div>
@@ -177,7 +181,7 @@
     </div>
     <canvas id="bigmapCv" width="640" height="640" aria-describedby="bigHint"></canvas>
     <p class="maphint" id="bigHint">Right-click the map to see the whole world.</p>
-    <div class="maplegend"><span><b>!</b> New quest</span><span><b>?</b> Turn in</span><span><b style="color:#b8b8b8">?</b> In progress</span><span><b>◎</b> Objective</span><span><b style="color:#7fd3ff">●</b> Party member</span><span><b style="color:#d8d8d8">●</b> Other player</span><span><b style="color:#ff6a50">●</b> Elite</span><span><b style="color:#ff9a40">▲</b> Beacon</span><span><b>◉</b> Lookout</span></div>
+    <div class="maplegend"><span><b>!</b> New quest</span><span><b>?</b> Turn in</span><span><b style="color:#b8b8b8">?</b> In progress</span><span><b>◎</b> Objective</span><span><b style="color:#7fd3ff">●</b> Party member</span><span><b style="color:#d8d8d8">●</b> Other player</span><span><b style="color:#ff6a50">●</b> Elite</span><span><b style="color:#ff8a1e">◆</b> Raid boss</span><span><b style="color:#ff9a40">▲</b> Beacon</span><span><b>◉</b> Lookout</span></div>
   </div>
 </div>
 
@@ -273,6 +277,7 @@
 <script src="src/js/04b-peaks.js"></script>
 <script src="src/js/05-sim.js"></script>
 <script src="src/js/05b-party.js"></script>
+<script src="src/js/05c-raid.js"></script>
 <script src="src/js/06-net.js"></script>
 <script src="src/js/07-world.js"></script>
 <script src="src/js/08-ui.js"></script>

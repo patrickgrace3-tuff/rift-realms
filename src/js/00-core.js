@@ -78,7 +78,7 @@ function abilityParams(type, cls, isR, cc, text){
     case "cone": Object.assign(p, { dmg: 95 * m, range: (isR ? 1.6 : 1) * (caster ? 650 : 450), angle: isR ? 100 : 70 }); break;
     case "spin": Object.assign(p, { dmg: 38 * m, radius: isR ? 420 : 300, ticks: isR ? 5 : 3, dur: isR ? 1.6 : .9 }); break;
     case "shield": Object.assign(p, { amount: 120 * (isR ? 2.5 : 1), dur: isR ? 4 : 2.5, boost: .25, dmg: isR ? 120 : 0, radius: 350 }); break;
-    case "heal": Object.assign(p, { amount: 100 * (isR ? 2.5 : 1), dmg: isR ? 120 : 0, radius: 350 }); break;
+    case "heal": Object.assign(p, { amount: 150 * (isR ? 2.5 : 1), dmg: isR ? 120 : 0, radius: 350 }); break;
     case "steroid": Object.assign(p, { dur: isR ? 7 : 4, as: isR ? 1 : .6, onHit: isR ? 40 : 20 }); break;
     case "field": Object.assign(p, { dmg: 22 * (isR ? 2 : 1), range: isR ? 1100 : 800, radius: isR ? 420 : 260, dur: isR ? 4.5 : 3, slow: .3 }); break;
     case "summon": Object.assign(p, { dmg: 30 * (isR ? 2 : 1), range: 450, dur: isR ? 10 : 7, atkRange: 650 }); break;

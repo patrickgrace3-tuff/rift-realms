@@ -74,7 +74,8 @@ test("full quest chain can be completed in order", () => {
   t.turnIn("halvard", "northpass");
   t.accept("halvard", "lynx"); t.walk(G.LYNX_RIDGE.x - 300, G.LYNX_RIDGE.y - 300, 16); t.fightUntil("lynx", "lynx", 480);
   const halvard = G.NPCS.find(n => n.id === "halvard"); t.travel(halvard.x, halvard.y - 250); t.turnIn("halvard", "lynx");
-  for(const id of G.QUEST_ORDER) assert.equal(h.quests[id].state, "done", `${id} done`);
+  for(const id of G.QUEST_ORDER.slice(0, G.QUEST_ORDER.indexOf("lynx") + 1)) assert.equal(h.quests[id].state, "done", `${id} done`);
+  console.log(`# level at the end of the first Peaks quest: ${h.lvl}`);
   assert.ok(h.coins > 0, "earned coins");
   assert.ok(Object.keys(h.equip).length >= 2, "has gear equipped");
 });
@@ -148,10 +149,11 @@ test("item rarity distribution looks sane", () => {
 });
 
 test("sprites and icons draw without errors", () => {
-  for(const style of ["melee", "caster", "ranged", "farmer", "hunter", "fisher", "guard", "bandit", "warden"])
+  for(const style of ["melee", "caster", "ranged", "farmer", "hunter", "fisher", "guard", "bandit", "warden", "miner", "healer", "merchant"])
     for(const pose of ["idle", "cast", "attack", "dead"]) new G.CharArt({ style, initial: "A", tier: 1 }).draw(1, true, pose, true);
   const g = document_ctx();
-  for(let f = 0; f < 4; f++){ G.drawSheep(g, f, f % 2, true); G.drawBoar(g, f, f % 2, true, true); G.drawWolf(g, f, f % 2, true); G.drawRam(g, f, f % 2, true, f > 1); G.drawLynx(g, f, f % 2, true); }
+  for(let f = 0; f < 4; f++){ G.drawSheep(g, f, f % 2, true); G.drawBoar(g, f, f % 2, true, true); G.drawWolf(g, f, f % 2, true); G.drawRam(g, f, f % 2, true, f > 1); G.drawLynx(g, f, f % 2, true); G.drawCragling(g, f, f % 2, true); G.drawWisp(g, f, f % 2, true); G.drawYeti(g, f, f % 2, true, f > 1); G.drawDragon(g, f, f % 2, true, f > 1, 320, 220); G.drawDragon(g, f, f % 2, false, false, 160, 110); }
+  G.drawPick(g); G.drawOre(g); G.drawFrostbloom(g);
   G.drawBag(g, 2); G.drawFlower(g); G.drawTooth(g);
   for(const k in G.HEADS) G.HEADS[k](g, 32, 32, 46);
   for(let i = 0; i < 20; i++) G.itemIconURL(G.genItem({ ilvl: 4, rarity: i % 4, cls: "ranged", nid: i }));
@@ -418,4 +420,157 @@ test("vendor: buy potions near Peddler Osric, drink them with a cooldown", () =>
   assert.ok(h.hp === 100 && pots() === p0 - 1, "cooldown blocks a second potion");
   SIM.step(W, G.POTION.cd + 1); h.hp = 100; SIM.input(W, "blue", { potion: 1 });
   assert.ok(h.hp > 100 && pots() === p0 - 2, "usable again after the cooldown");
+});
+
+/* ---------- Frostspine Peaks quest line ---------- */
+test("Peaks: all ten quests after Claws on the Ridge can be completed", () => {
+  const t = newWorld(), { W, h } = t;
+  for(const id of G.QUEST_ORDER.slice(0, G.QUEST_ORDER.indexOf("lynx") + 1)) h.quests[id] = { state: "done", count: 0, flags: [] };
+  h.lvl = 10; SIM.recalc(h); h.hp = h.maxHp;
+  for(const [slot, r] of [["chest", 2], ["legs", 2], ["weapon", 2]]){ const it = G.genItem({ ilvl: 11, rarity: r, cls: "melee", slot, nid: 900 + r + slot.length }); h.equip[slot] = it; } SIM.recalc(h);
+  const npc = id => G.NPCS.find(n => n.id === id);
+  const goTalk = id => { const n = npc(id); t.travel(n.x, n.y - 200, 200); };
+  // like a player: walk over (fighting off anything on the way), and try again after a respawn
+  const acceptAt = (id, qid) => { for(let k = 0; k < 3 && !h.quests[qid]; k++){ goTalk(id); t.step(7); SIM.input(W, "blue", { accept: qid }); t.step(.2); } assert.ok(h.quests[qid], `${qid} accepted`); };
+  const turnInAt = (id, qid) => { for(let k = 0; k < 3 && h.quests[qid].state !== "done"; k++){ goTalk(id); t.step(7); SIM.input(W, "blue", { turnin: qid }); t.step(.2); } assert.equal(h.quests[qid].state, "done", `${qid} turned in`); };
+  const gatherAll = (qid, kind) => {
+    for(let k = 0; k < 30 && h.quests[qid].state === "active"; k++){
+      const n = W.nodes.filter(n => n.ready && n.kind === kind).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
+      if(!n){ t.step(5); continue; }
+      t.travel(n.x, n.y, 120); SIM.input(W, "blue", { gather: n.id }); t.step(2);
+    }
+  };
+  acceptAt("halvard", "rams"); t.travel(G.QUESTS.rams.where[0], G.QUESTS.rams.where[1]); t.fightUntil("rams", "ram", 400); turnInAt("halvard", "rams");
+  acceptAt("ketil", "delve"); G.QUESTS.delve.obj.points.forEach((p, i) => { for(let k = 0; k < 4 && !h.quests.delve.flags[i]; k++) t.travel(p.x, p.y, 200); }); turnInAt("ketil", "delve");
+  acceptAt("ketil", "craglings"); acceptAt("ketil", "pick");
+  t.travel(G.QUESTS.craglings.where[0], G.QUESTS.craglings.where[1]);
+  for(let s = 0; s < 500 && (h.quests.craglings.state === "active" || h.quests.pick.state === "active"); s += 5){
+    const pick = W.loot.find(l => l.quest === "pick" && l.side === "blue");
+    if(pick){ SIM.input(W, "blue", { pickup: pick.id }); t.step(5); } else t.step(5, t.fight("cragling"));
+  }
+  turnInAt("ketil", "craglings"); turnInAt("ketil", "pick");
+  acceptAt("ketil", "ore"); gatherAll("ore", "ore"); turnInAt("ketil", "ore");
+  acceptAt("maren", "frostbloom"); gatherAll("frostbloom", "frostbloom"); turnInAt("maren", "frostbloom");
+  acceptAt("maren", "wisps"); t.travel(G.QUESTS.wisps.where[0], G.QUESTS.wisps.where[1]); t.fightUntil("wisps", "wisp", 400); turnInAt("maren", "wisps");
+  acceptAt("halvard", "whitemane"); t.travel(G.QUESTS.whitemane.where[0], G.QUESTS.whitemane.where[1] - 600); t.fightUntil("whitemane", "yeti", 600); turnInAt("halvard", "whitemane");
+  acceptAt("yrsa", "wards");
+  G.QUESTS.wards.obj.points.forEach(p => { const i = G.USE_POINTS.indexOf(p); for(let k = 0; k < 4 && !h.quests.wards.flags[G.QUESTS.wards.obj.points.indexOf(p)]; k++){ t.travel(p.x, p.y - 160, 200); SIM.input(W, "blue", { use: i }); t.step(5); } });
+  turnInAt("yrsa", "wards");
+  for(let k = 0; k < 3 && (!h.quests.brood || h.quests.brood.state !== "ready"); k++){
+    goTalk("yrsa"); SIM.input(W, "blue", { accept: "brood" }); t.step(.2);   // (re-)accept, after a failed attempt too
+    t.travel(G.YRSA_CAMP.x, G.YRSA_CAMP.y - 100); t.step(75, t.fight("whelp"));
+  }
+  turnInAt("yrsa", "brood");
+  for(const id of ["rams", "delve", "craglings", "pick", "ore", "frostbloom", "wisps", "whitemane", "wards", "brood"]) assert.equal(h.quests[id].state, "done", `${id} done`);
+  assert.ok(h.inv.some(x => x.key === "yetifur") || h.quests.whitemane.state === "done");
+  console.log(`# level after the Peaks quests: ${h.lvl}`);
+  const f = G.questFor(h.quests, "yrsa"); assert.ok(f.quest === "rimewyrm" && f.state === "offer", "the raid quest is offered last");
+});
+
+test("obstacles never leave a gap narrower than a player (you'd get wedged in it)", () => {
+  const bad = [], O = G.OBSTACLES;
+  for(let i = 0; i < O.length; i++) for(let j = i + 1; j < O.length; j++){
+    const gap = Math.hypot(O[i].x - O[j].x, O[i].y - O[j].y) - O[i].r - O[j].r;
+    if(!(gap > 0 && gap < 120)) continue;
+    // a gap filled by a third obstacle (like the overlapping ridge circles) isn't a gap
+    const d = Math.hypot(O[j].x - O[i].x, O[j].y - O[i].y), k = (O[i].r + gap / 2) / d, mx = O[i].x + (O[j].x - O[i].x) * k, my = O[i].y + (O[j].y - O[i].y) * k;
+    if(O.some((o, n) => n !== i && n !== j && Math.hypot(o.x - mx, o.y - my) < o.r)) continue;
+    bad.push(`(${O[i].x},${O[i].y}) and (${O[j].x},${O[j].y}): gap ${Math.round(gap)}`);
+  }
+  assert.deepEqual(bad, []);
+});
+
+/* ---------- Raid boss: Skarnvir the Rimewyrm ---------- */
+const ARCHER = () => champ("Archer", 525, ["Marksman"], [["Volley", "Fires a bolt that deals damage."], ["Focus", "Gains attack speed."], ["Tumble", "Dashes forward, dealing damage."], ["Longshot", "Fires a long-range missile that deals damage."]]);
+function raidWorld(roster){
+  const W = SIM.create(), dragon = W.mobs.find(m => m.kind === "dragon");
+  const heroes = roster.map(([side, d], k) => {
+    const h = SIM.addHero(W, side, d()); h.lvl = 15;
+    for(const slot of ["head", "chest", "hands", "legs", "feet", "weapon"]) h.equip[slot] = G.genItem({ ilvl: 15, rarity: 3, cls: h.kit.cls, slot, nid: 5000 + k * 10 + slot.length });
+    SIM.recalc(h); h.hp = h.maxHp; h.x = G.LAIR.x + 300 * (k - 1); h.y = G.LAIR.y - 1250;
+    SIM.addItem(h, { id: "pot" + k, n: "Health Potion", s: "use", key: "hpot", r: 0, q: 10, v: 6, stack: true });
+    return h;
+  });
+  return { W, dragon, heroes };
+}
+// a scripted player: dodge telegraphs, drink potions, and play their role
+function raidBrain(W, dragon, heroes){
+  const [tank, healer, dps] = heroes, foe = h => W.mobs.filter(m => !m.dead && m.kind === "whelp").sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
+  const castAll = (h, t, skip = []) => { for(const k of ["Q", "W", "E", "R"]) if(!skip.includes(h.kit[k].type)) SIM.input(W, h.side, { cast: k, at: [t.x, t.y] }); };
+  return () => {
+    for(const h of heroes){
+      if(h.dead) continue;
+      if(h.hp < h.maxHp * .35) SIM.input(W, h.side, { potion: 1 });
+      const cs = dragon.cast;
+      if(cs && G.SIM.inCone(dragon, h, cs.dx, cs.dy, cs.kind === "breath" ? G.RAID.breath.range + 80 : dragon.r + G.RAID.tail.reach + 80, (cs.kind === "breath" ? G.RAID.breath.angle : G.RAID.tail.angle) + 30)){
+        const px = -cs.dy, py = cs.dx, side = (h.x - dragon.x) * px + (h.y - dragon.y) * py >= 0 ? 1 : -1;
+        SIM.input(W, h.side, { move: [h.x + px * side * 600, h.y + py * side * 600] }); continue;   // step out sideways
+      }
+      if(h === tank){ SIM.input(W, h.side, { atk: dragon.id }); castAll(h, dragon, ["shield", "heal"]); continue; }
+      if(h === healer){
+        const hurt = heroes.filter(x => !x.dead).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
+        const heal = ["Q", "W", "E", "R"].find(k => h.kit[k].type === "heal"), shield = ["Q", "W", "E", "R"].find(k => h.kit[k].type === "shield");
+        if(heal && hurt.hp < hurt.maxHp * .8) SIM.input(W, h.side, { cast: heal, at: [hurt.x, hurt.y] });
+        if(shield) SIM.input(W, h.side, { cast: shield, at: [tank.x, tank.y] });
+      }
+      // damage dealers (and the healer when nobody needs healing) attack from the side, whelps first
+      const w = foe(h), t = w && Math.hypot(w.x - h.x, w.y - h.y) < 1500 ? w : dragon;
+      if(t === dragon){
+        const fx = Math.sin(dragon.face), fy = Math.cos(dragon.face), sx = h === dps ? 1 : -1, want = [dragon.x - fy * sx * (dragon.r + 380), dragon.y + fx * sx * (dragon.r + 380)];
+        if(Math.hypot(h.x - want[0], h.y - want[1]) > 250){ SIM.input(W, h.side, { move: want }); continue; }
+      }
+      SIM.input(W, h.side, { atk: t.id }); castAll(h, t, ["shield", "heal"]);
+    }
+  };
+}
+
+test("raid: a party of three (tank, healer, damage) can kill Skarnvir and gets Legendary loot", () => {
+  const { W, dragon, heroes } = raidWorld([["blue", GAREN_LIKE], ["red", HEALER], ["green", ARCHER]]);
+  const [tank] = heroes;
+  for(const h of heroes.slice(1)){ SIM.input(W, "blue", { pinvite: h.side }); SIM.input(W, h.side, { paccept: "blue" }); }
+  assert.ok(heroes.every(h => h.party && h.party === tank.party));
+  for(const h of heroes){ h.quests.rimewyrm = { state: "active", count: 0, flags: [] }; }
+  const brain = raidBrain(W, dragon, heroes), fx = [];
+  // the tank pulls
+  tank.x = dragon.x; tank.y = dragon.y - 1000; SIM.input(W, "blue", { atk: dragon.id });
+  let t = 0, deaths = 0;
+  for(; t < 600 * 60 && !dragon.dead; t++){
+    if(t % 15 === 0) brain();
+    for(const r of W.rolls) for(const h of heroes) SIM.input(W, h.side, { roll: r.id, pick: "need" });
+    SIM.step(W, 1 / 60);
+    for(const f of W.fxNet){ fx.push(f.k); if(f.k === "died") deaths++; }
+    W.fxNet.length = W.fxLocal.length = 0;
+  }
+  console.log(`# raid: ${dragon.dead ? "killed" : "NOT killed"} in ${Math.round(t / 60)}s, ${deaths} deaths, dragon hp ${Math.round(dragon.hp)}`);
+  assert.ok(dragon.dead, "Skarnvir dies");
+  assert.ok(fx.includes("warn") && fx.includes("bossmsg"), "telegraphs and boss messages happened");
+  assert.ok(heroes.every(h => h.quests.rimewyrm.state === "ready"), "everyone in the party gets quest credit");
+  for(let k = 0; k < 120; k++){ for(const r of W.rolls) for(const h of heroes) SIM.input(W, h.side, { roll: r.id, pick: "need" }); SIM.step(W, 1 / 60); }
+  const legendaries = heroes.flatMap(h => [...h.inv, ...W.loot.filter(l => l.side === h.side).flatMap(l => l.items || [])]).filter(it => it.r === 4);
+  assert.equal(legendaries.length, 2, "two Legendary items were rolled for and handed out");
+  assert.ok(heroes.every(h => W.loot.some(l => l.side === h.side && l.items && l.items.some(it => it.r === 3))), "everyone gets their own Epic");
+});
+
+test("raid: Skarnvir can't be soloed", () => {
+  const { W, dragon, heroes } = raidWorld([["blue", GAREN_LIKE]]);
+  const [h] = heroes; h.x = dragon.x; h.y = dragon.y - 700;
+  for(let t = 0; t < 90 * 60; t++){
+    if(t % 15 === 0 && !h.dead){ SIM.input(W, "blue", { atk: dragon.id }); for(const k of ["Q", "W", "E", "R"]) SIM.input(W, "blue", { cast: k, at: [dragon.x, dragon.y] }); if(h.hp < h.maxHp * .35) SIM.input(W, "blue", { potion: 1 }); }
+    SIM.step(W, 1 / 60); W.fxNet.length = W.fxLocal.length = 0;
+  }
+  assert.ok(!dragon.dead && dragon.hp > dragon.maxHp * .9, `dragon at ${Math.round(dragon.hp / dragon.maxHp * 100)}% after 90s alone`);
+});
+
+test("raid: party members who died and respawned during the fight still share the kill", () => {
+  const { W, dragon, heroes } = raidWorld([["blue", GAREN_LIKE], ["red", HEALER], ["green", ARCHER]]);
+  const [a, b, c] = heroes;
+  for(const h of [b, c]){ SIM.input(W, "blue", { pinvite: h.side }); SIM.input(W, h.side, { paccept: "blue" }); }
+  for(const h of heroes) h.quests.rimewyrm = { state: "active", count: 0, flags: [] };
+  for(const h of heroes){ h.x = dragon.x; h.y = dragon.y - 700; }
+  SIM.damage(W, dragon, 100, a); SIM.damage(W, dragon, 100, c);   // c fought...
+  c.x = G.OUTPOST.x; c.y = G.OUTPOST.y;                             // ...then died and respawned far away
+  dragon.hp = 1; SIM.damage(W, dragon, 1e9, a);
+  assert.ok(dragon.dead);
+  for(const h of heroes) assert.equal(h.quests.rimewyrm.state, "ready", `${h.side} gets quest credit`);
+  assert.ok(W.loot.some(l => l.side === c.side && l.items.some(it => it.r === 3)), "the respawned member still gets their Epic");
 });

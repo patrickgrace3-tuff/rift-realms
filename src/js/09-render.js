@@ -99,7 +99,7 @@ function render(dt){
     const [id, side, item, x, y, rar] = l; if(side !== G.myTeam) continue; seenL.add(id);
     let lv = G.lootVis.get(id);
     if(!lv){
-      const c = document.createElement("canvas"); c.width = c.height = 64; if(item === "bag") drawBag(c.getContext("2d"), rar); else drawTooth(c.getContext("2d"));
+      const c = document.createElement("canvas"); c.width = c.height = 64; if(item === "bag") drawBag(c.getContext("2d"), rar); else (QUEST_ITEM_ART[item] || drawTooth)(c.getContext("2d"));
       const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding;
       lv = { spr: new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })), glow: new THREE.Sprite(glowMat), beam: new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, 6, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: .35, depthWrite: false, blending: THREE.AdditiveBlending })) };
       lv.spr.scale.set(.9, .9, 1); lv.glow.scale.set(2.2, 2.2, 1); G.root.add(lv.spr, lv.glow, lv.beam); G.lootVis.set(id, lv);
@@ -111,31 +111,35 @@ function render(dt){
     lv.beam.position.set(w.x, gy + 3, w.z); lv.pos = { x: w.x, y: gy, z: w.z, id };
   }
   for(const [id, lv] of G.lootVis) if(!seenL.has(id)){ G.root.remove(lv.spr, lv.glow, lv.beam); lv.spr.material.map.dispose(); lv.spr.material.dispose(); lv.beam.geometry.dispose(); lv.beam.material.dispose(); G.lootVis.delete(id); }
-  // sunpetals (only while you're gathering them)
-  const herbOn = !!(meSnap && meSnap.quests.herbs && meSnap.quests.herbs.state === "active");
+  // gathering nodes show while you have a collect quest that needs their kind
+  const want = wantedNodes(meSnap);
   for(const n of (s.n || [])){
-    const [id, x, y, ready] = n;
+    const [id, x, y, ready, kind] = n;
     let nv = G.nodeVis.get(id);
     if(!nv){
-      if(!HERB_TEX){ const hc = document.createElement("canvas"); hc.width = hc.height = 64; drawFlower(hc.getContext("2d")); HERB_TEX = new THREE.CanvasTexture(hc); HERB_TEX.encoding = THREE.sRGBEncoding; }
-      nv = { spr: new THREE.Sprite(new THREE.SpriteMaterial({ map: HERB_TEX, transparent: true, depthWrite: false })), glow: new THREE.Sprite(glowMat) };
+      nv = { spr: new THREE.Sprite(new THREE.SpriteMaterial({ map: nodeTexture(kind), transparent: true, depthWrite: false })), glow: new THREE.Sprite(glowMat) };
       nv.spr.scale.set(.8, .8, 1); nv.glow.scale.set(1.6, 1.6, 1); G.root.add(nv.spr, nv.glow); G.nodeVis.set(id, nv);
     }
-    const w = XF(x, y), gy = hAt(w.x, w.z), vis = herbOn && !!ready;
+    const w = XF(x, y), gy = hAt(w.x, w.z), vis = want.has(kind) && !!ready;
     nv.spr.visible = nv.glow.visible = vis;
     nv.spr.position.set(w.x, gy + .45, w.z); nv.glow.position.set(w.x, gy + .5, w.z); nv.glow.material.opacity = .5 + Math.sin(t * 4 + x) * .3;
   }
-  const bq = meSnap && meSnap.quests.beacons;
-  BEACON_FX.forEach((bf, i) => {
-    const lit = !!(bq && (bq.state === "ready" || bq.state === "done" || (bq.flags && bq.flags[i])));
-    bf.flame.visible = lit; bf.hint.visible = !!(bq && bq.state === "active" && !lit);
-    if(bf.hint.visible){ const sc = 2 + Math.sin(t * 4) * .5; bf.hint.scale.set(sc, sc, 1); }
+  // things to use (beacons, runes): lit once done, a glowing hint while the quest is active
+  USE_POINTS.forEach((pt, i) => {
+    const fxu = USE_FX[i]; if(!fxu) return;
+    const q = meSnap && meSnap.quests[pt.quest], li = QUESTS[pt.quest].obj.points.indexOf(pt);
+    const lit = !!(q && (q.state === "ready" || q.state === "done" || (q.flags && q.flags[li])));
+    fxu.flame.visible = lit; fxu.hint.visible = !!(q && q.state === "active" && !lit);
+    if(fxu.hint.visible){ const sc = 2 + Math.sin(t * 4) * .5; fxu.hint.scale.set(sc, sc, 1); }
   });
-  const sq = meSnap && meSnap.quests.scout;
-  LOOK_FX.forEach((lf, i) => { lf.beam.visible = !!(sq && sq.state === "active" && !(sq.flags && sq.flags[i])); });
-  const dq = meSnap && meSnap.quests.defend;
-  TOWER_FX.visible = !!(dq && dq.state === "active");
-  if(TOWER_FX.visible){ TOWER_FX.scale.setScalar((dq.phase ? 1150 : 550) * ZSC); TOWER_FX.material.color.set(dq.phase ? 0xff5040 : 0xffd84a); TOWER_FX.material.opacity = .55 + Math.sin(t * 4) * .2; }
+  // beams over places still to explore
+  for(const ef of EXPLORE_FX){ const q = meSnap && meSnap.quests[ef.quest]; ef.beam.visible = !!(q && q.state === "active" && !(q.flags && q.flags[ef.i])); }
+  // the ring around a place you're defending
+  for(const qid in DEFEND_FX){
+    const ring = DEFEND_FX[qid], q = meSnap && meSnap.quests[qid];
+    ring.visible = !!(q && q.state === "active");
+    if(ring.visible){ ring.scale.setScalar((q.phase ? 1150 : 550) * ZSC); ring.material.color.set(q.phase ? 0xff5040 : 0xffd84a); ring.material.opacity = .55 + Math.sin(t * 4) * .2; }
+  }
   // projectiles
   const seen = new Set();
   for(const sh of s.s){
@@ -211,6 +215,7 @@ function render(dt){
     else if(f.k === "ring"){ f.mesh.position.set(w.x, fy, w.z); f.mesh.scale.setScalar(R * (.55 + .45 * k)); f.mesh.material.opacity = 1 - k; }
     else if(f.k === "hit" || f.k === "pop"){ f.mesh.position.set(w.x, fy + .5, w.z); f.mesh.scale.setScalar(.3 + k * (f.k === "pop" ? 1.2 : .6)); f.mesh.material.opacity = 1 - k; }
     else if(f.k === "cone"){ f.mesh.position.set(w.x, fy + .02, w.z); f.mesh.scale.setScalar(R * (.7 + .3 * k)); f.mesh.material.opacity = .45 * (1 - k); }
+    else if(f.k === "warn"){ f.mesh.position.set(w.x, fy + .03, w.z); f.mesh.scale.setScalar(R); f.mesh.material.opacity = .22 + .2 * Math.abs(Math.sin(t * 9)) + .2 * k; }
     else if(f.k === "blink"){ const w2 = XF(f.x2, f.y2); f.mesh.position.set(w.x, fy, w.z); f.mesh.scale.setScalar(.4 + k * .8); f.mesh.material.opacity = 1 - k; f.edge.position.set(w2.x, hAt(w2.x, w2.z) + .05, w2.z); f.edge.scale.setScalar(1.2 - k * .8); f.edge.material.opacity = 1 - k; }
     else if(f.k === "nova"){ const rr = R * (.4 + .6 * k); f.mesh.position.set(w.x, fy, w.z); f.mesh.scale.setScalar(rr); f.mesh.material.opacity = .32 * (1 - k); f.edge.position.set(w.x, fy + .01, w.z); f.edge.scale.setScalar(rr); f.edge.material.opacity = 1 - k; }
   }
@@ -236,11 +241,12 @@ function render(dt){
   for(const nv of G.npcVis){ const [sx, sy, sz] = spriteTop(nv.pos, 2.4); if(sz < 1){ label(`<${nv.n.name}>`, sx, sy - (nv.n.title ? 20 : 6), "#ffd84a", 14); if(nv.n.title) label(nv.n.title, sx, sy - 5, "#e8e2d4", 12, 500); } }
   for(const [, mv] of G.mobVis){
     if(!mv.pos) continue;
-    if(mv.kind === "boar"){
-      const [bx, by, bz] = worldToScreen(mv.pos.x, mv.pos.y + 2.4, mv.pos.z); if(bz > 1) continue;
-      octx.fillStyle = "rgba(0,0,0,.65)"; octx.fillRect(bx - 45, by, 90, 7);
-      octx.fillStyle = "#d9545b"; octx.fillRect(bx - 45, by, 90 * Math.max(0, mv.hp / mv.maxHp), 7);
-      label("Old Tusker", bx, by - 6, "#ffb070", 15, 700); label("Elite", bx, by - 21, "#f0d58e", 11, 700);
+    const ET = MOBS[mv.kind];
+    if(ET.elite){
+      const [bx, ty, bz] = spriteTop(mv.pos, mv.A.sy), by = ty - 12, bw = ET.boss ? 160 : 90; if(bz > 1) continue;
+      octx.fillStyle = "rgba(0,0,0,.65)"; octx.fillRect(bx - bw / 2, by, bw, 7);
+      octx.fillStyle = "#d9545b"; octx.fillRect(bx - bw / 2, by, bw * Math.max(0, mv.hp / mv.maxHp), 7);
+      label(`${ET.name}  ·  ${ET.lvl}`, bx, by - 6, "#ffb070", ET.boss ? 18 : 15, 700); label(ET.boss ? "Rare Raid Boss" : "Elite", bx, by - (ET.boss ? 25 : 21), ET.boss ? "#ff8a1e" : "#f0d58e", ET.boss ? 13 : 11, 700);
       if(mv.windup) label("!", bx, by - 36, "#ff5040", 26, 700);
       continue;
     }

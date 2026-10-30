@@ -44,7 +44,14 @@ addEventListener("resize", resize);
 /* ---------- Building Sunhollow Vale ---------- */
 let ZH = null;  // height sampler
 let MAPIMG = null; // north-up picture of the zone for the minimap and world map
-let BEACON_FX = [], LOOK_FX = [], TOWER_FX = null, HERB_TEX = null;
+// quest visuals the render loop switches on and off: USE_FX lines up with USE_POINTS,
+// EXPLORE_FX holds { quest, i, beam } for places to explore, DEFEND_FX maps a defend quest to its ring
+let USE_FX = [], EXPLORE_FX = [], DEFEND_FX = {};
+const NODE_TEX = {};
+function nodeTexture(kind){
+  if(!NODE_TEX[kind]){ const c = document.createElement("canvas"); c.width = c.height = 64; (NODE_ART[kind] || drawFlower)(c.getContext("2d")); NODE_TEX[kind] = new THREE.CanvasTexture(c); NODE_TEX[kind].encoding = THREE.sRGBEncoding; }
+  return NODE_TEX[kind];
+}
 function buildZone(){
   const segD = (px, py, ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy))); return Math.hypot(px - ax - t * dx, py - ay - t * dy); };
   const polyD = (px, py, pl) => { let m = 1e9; for(let i = 0; i < pl.length - 1; i++) m = Math.min(m, segD(px, py, pl[i][0], pl[i][1], pl[i + 1][0], pl[i + 1][1])); return m; };
@@ -261,10 +268,10 @@ function buildZone(){
   tower.add(wall1, wall2, floor, pole, flag);
   for(let i = 0; i < 12; i++){ const a = rnd() * 6.28, rr = 3.2 + rnd() * 2.5, bl = new THREE.Mesh(new THREE.BoxGeometry(.6 + rnd() * .6, .4 + rnd() * .4, .5 + rnd() * .5), stoneM2); bl.position.set(Math.cos(a) * rr, .2, Math.sin(a) * rr); bl.rotation.set(rnd(), rnd() * 3, rnd()); tower.add(bl); }
   tower.position.set(tw.x, ZH(TOWER.x, TOWER.y), tw.z); g.add(tower);
-  TOWER_FX = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffd84a, transparent: true, opacity: .7, depthWrite: false }));
-  TOWER_FX.position.set(tw.x, ZH(TOWER.x, TOWER.y) + .08, tw.z); TOWER_FX.visible = false; g.add(TOWER_FX);
+  const towerRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffd84a, transparent: true, opacity: .7, depthWrite: false }));
+  towerRing.position.set(tw.x, ZH(TOWER.x, TOWER.y) + .08, tw.z); towerRing.visible = false; g.add(towerRing); DEFEND_FX.defend = towerRing;
   // signal beacons
-  BEACON_FX = BEACONS.map(b => {
+  BEACONS.forEach(b => { USE_FX[USE_POINTS.indexOf(b)] = (() => {
     const grp = new THREE.Group(), w = XF(b.x, b.y);
     const pillar = new THREE.Mesh(new THREE.CylinderGeometry(.45, .6, 1.6, 8), stone); pillar.position.y = .8;
     const bowl = new THREE.Mesh(new THREE.CylinderGeometry(.85, .5, .5, 10), new THREE.MeshLambertMaterial({ color: 0x3a3632 })); bowl.position.y = 1.85;
@@ -275,17 +282,17 @@ function buildZone(){
     const hint = new THREE.Sprite(glowMat); hint.scale.set(2.4, 2.4, 1); hint.position.y = 2.4; hint.visible = false;
     grp.add(pillar, bowl, flame, hint); grp.position.set(w.x, ZH(b.x, b.y), w.z); g.add(grp);
     return { flame, hint };
-  });
+  })(); });
   // lookout cairns with a beam while they're unexplored
-  LOOK_FX = LOOKOUTS.map(p => {
+  LOOKOUTS.forEach((p, li) => { EXPLORE_FX.push((() => {
     const grp = new THREE.Group(), w = XF(p.x, p.y);
     for(let i = 0; i < 3; i++){ const st = new THREE.Mesh(new THREE.IcosahedronGeometry(.45 - i * .1, 0), stone); st.position.y = .3 + i * .55; st.rotation.set(rnd(), rnd() * 3, rnd()); grp.add(st); }
     const lp = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 2.4, 5), beamM); lp.position.set(.5, 1.2, 0);
     const pen = new THREE.Mesh(new THREE.PlaneGeometry(.7, .4), new THREE.MeshLambertMaterial({ color: 0xe0b040, side: THREE.DoubleSide })); pen.position.set(.85, 2.2, 0);
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(.35, .35, 9, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: .22, depthWrite: false, blending: THREE.AdditiveBlending })); beam.position.y = 4.5; beam.visible = false;
     grp.add(lp, pen, beam); grp.position.set(w.x, ZH(p.x, p.y), w.z); g.add(grp);
-    return { beam };
-  });
+    return { quest: "scout", i: li, beam };
+  })()); });
   // picture of the zone for the maps
   const MS = 256; MAPIMG = document.createElement("canvas"); MAPIMG.width = MAPIMG.height = MS;
   const mg = MAPIMG.getContext("2d"), img = mg.createImageData(MS, MS);

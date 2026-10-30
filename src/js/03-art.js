@@ -19,6 +19,8 @@ const BODY = {
   fisher: { tunic: "#c9b98a", dark: "#8a7a52", trim: "#3f6a9a", pants: "#4a5a6a", boots: "#2a2a2a", weapon: "none", shirt: "#3f6a9a" },
   guard: { tunic: "#3f5f9a", dark: "#2a3f6a", trim: "#c9a55c", pants: "#5a6270", boots: "#2a2a30", weapon: "sword" },
   bandit: { tunic: "#5a4a3a", dark: "#3a2e24", trim: "#8a2a22", pants: "#2e2a26", boots: "#1e1a16", weapon: "sword" },
+  miner: { tunic: "#6a5a4a", dark: "#4a3e32", trim: "#c9a55c", pants: "#3e3a34", boots: "#2a2018", weapon: "none", shirt: "#8a3a2a" },
+  healer: { tunic: "#e8e2d4", dark: "#b8b0a0", trim: "#5fb0c8", pants: "#8a8478", boots: "#4a4038", weapon: "staff", robe: true },
   merchant: { tunic: "#8a3a5a", dark: "#5a2440", trim: "#e0c56e", pants: "#4a3a2a", boots: "#2a2018", weapon: "none", shirt: "#e0c56e" },
   warden: { tunic: "#6a5040", dark: "#46342a", trim: "#e8e2d4", pants: "#3e3a44", boots: "#2a2220", weapon: "sword" },
 };
@@ -137,6 +139,24 @@ function drawGuardHead(g, x, y, r){
   g.fillStyle = "#c0392b"; g.beginPath(); g.moveTo(x - 4, y - r * .7); g.quadraticCurveTo(x + 22, y - r * 1.25, x + 34, y - r * .5); g.quadraticCurveTo(x + 14, y - r * .75, x + 4, y - r * .6); g.fill();
   g.lineWidth = 4; g.strokeStyle = "#1b1410"; g.beginPath(); g.arc(x, y + 8, r * .62, 0, Math.PI * 2); g.stroke();
 }
+function drawMinerHead(g, x, y, r){
+  g.fillStyle = "#e0aa82"; g.beginPath(); g.arc(x, y + 8, r * .7, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#d8d4cc"; g.beginPath(); g.moveTo(x - r * .62, y + 10); g.quadraticCurveTo(x, y + r * 1.25, x + r * .62, y + 10); g.lineTo(x + r * .4, y + 18); g.lineTo(x - r * .4, y + 18); g.fill(); // white beard
+  g.fillStyle = "#1b1410"; g.fillRect(x - 14, y + 2, 7, 6); g.fillRect(x + 7, y + 2, 7, 6);
+  g.fillStyle = "#c97a5a"; g.beginPath(); g.arc(x, y + 12, 6, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#c9a55c"; g.beginPath(); g.arc(x, y - 4, r * .76, Math.PI, 0); g.fill(); g.fillRect(x - r * .9, y - 6, r * 1.8, 7); // brass helmet
+  g.fillStyle = "#fff3b0"; g.beginPath(); g.arc(x, y - 22, 7, 0, Math.PI * 2); g.fill(); g.fillStyle = "rgba(255,240,170,.35)"; g.beginPath(); g.arc(x, y - 22, 13, 0, Math.PI * 2); g.fill(); // lamp
+  g.lineWidth = 4; g.strokeStyle = "#1b1410"; g.beginPath(); g.arc(x, y + 8, r * .7, 0, Math.PI * 2); g.stroke();
+}
+function drawHealerHead(g, x, y, r){
+  g.fillStyle = "#e8e2d4"; g.beginPath(); g.arc(x, y, r * .96, 0, Math.PI * 2); g.fill();               // white hood
+  g.fillStyle = "#5fb0c8"; g.fillRect(x - r * .96, y - 6, r * 1.92, 5);                                    // blue band
+  g.fillStyle = "#f0c8a4"; g.beginPath(); g.arc(x, y + 8, r * .58, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#6a4a2a"; g.beginPath(); g.ellipse(x, y - 4, r * .55, 9, 0, Math.PI, 0); g.fill();       // hair
+  g.fillStyle = "#1b1410"; g.fillRect(x - 13, y + 4, 6, 6); g.fillRect(x + 7, y + 4, 6, 6);
+  g.fillStyle = "#d87a6a"; g.fillRect(x - 5, y + 20, 10, 3);
+  g.lineWidth = 4; g.strokeStyle = "#1b1410"; g.beginPath(); g.arc(x, y, r * .96, 0, Math.PI * 2); g.stroke();
+}
 function drawMerchantHead(g, x, y, r){
   g.fillStyle = "#e6b28a"; g.beginPath(); g.arc(x, y + 6, r * .72, 0, Math.PI * 2); g.fill();
   g.fillStyle = "#3a2618"; g.beginPath(); g.moveTo(x - 20, y + 16); g.quadraticCurveTo(x - 6, y + 10, x, y + 16); g.quadraticCurveTo(x + 6, y + 10, x + 20, y + 16); g.lineTo(x + 14, y + 20); g.quadraticCurveTo(x, y + 15, x - 14, y + 20); g.fill(); // curled moustache
@@ -196,7 +216,7 @@ function drawFlower(g){
   g.fillStyle = "#ffe066"; for(let i = 0; i < 6; i++){ const a = i / 6 * Math.PI * 2; g.beginPath(); g.ellipse(32 + Math.cos(a) * 9, 24 + Math.sin(a) * 9, 7, 5, a, 0, Math.PI * 2); g.fill(); }
   g.fillStyle = "#ff9a30"; g.beginPath(); g.arc(32, 24, 6, 0, Math.PI * 2); g.fill();
 }
-const HEADS = { farmer: drawFarmerHead, huntress: drawHuntressHead, fisher: drawFisherHead, guard: drawGuardHead, warden: drawWardenHead, merchant: drawMerchantHead };
+const HEADS = { farmer: drawFarmerHead, huntress: drawHuntressHead, fisher: drawFisherHead, guard: drawGuardHead, warden: drawWardenHead, merchant: drawMerchantHead, miner: drawMinerHead, healer: drawHealerHead };
 const MOB_ART = {
   sheep: { cw: 96, ch: 80, sx: 1.35, sy: 1.12, sh: .6, plate: 1.35, draw: (g, f, fl, an) => drawSheep(g, f, fl, an, false) },
   boar: { cw: 128, ch: 96, sx: 2.8, sy: 2.1, sh: 1.15, plate: 2.4, draw: (g, f, fl, an, wu) => drawBoar(g, f, fl, an, wu) },
@@ -204,7 +224,111 @@ const MOB_ART = {
   bandit: { char: true, style: "bandit", head: drawBanditHead, sx: 1.6, sy: 2.4, sh: .6, plate: 2.75 },
   ram: { cw: 112, ch: 88, sx: 1.9, sy: 1.5, sh: .75, plate: 1.7, draw: (g, f, fl, an, wu) => drawRam(g, f, fl, an, wu) },
   lynx: { cw: 112, ch: 80, sx: 1.75, sy: 1.25, sh: .7, plate: 1.5, draw: (g, f, fl, an) => drawLynx(g, f, fl, an) },
+  cragling: { cw: 96, ch: 80, sx: 1.5, sy: 1.25, sh: .65, plate: 1.45, draw: (g, f, fl, an) => drawCragling(g, f, fl, an) },
+  wisp: { cw: 80, ch: 80, sx: 1.3, sy: 1.3, sh: .4, plate: 1.6, draw: (g, f, fl, an) => drawWisp(g, f, fl, an) },
+  yeti: { cw: 128, ch: 128, sx: 3, sy: 3, sh: 1.2, plate: 3.2, draw: (g, f, fl, an, wu) => drawYeti(g, f, fl, an, wu) },
+  whelp: { cw: 160, ch: 110, sx: 2.2, sy: 1.5, sh: .8, plate: 1.7, draw: (g, f, fl, an) => drawDragon(g, f, fl, an, false, 160, 110) },
+  dragon: { cw: 320, ch: 220, sx: 14.5, sy: 10, sh: 5.4, plate: 10.2, draw: (g, f, fl, an, wu) => drawDragon(g, f, fl, an, wu, 320, 220) },
 };
+// Cragling: a hunched little creature of rock with a glowing crystal in its back
+function drawCragling(g, frame, flip, angry){
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 96, 80);
+  if(flip){ g.translate(96, 0); g.scale(-1, 1); }
+  const step = [0, 1, 0, -1][frame % 4];
+  g.fillStyle = "#4a4640"; [[30, step], [56, -step]].forEach(([x, s]) => g.fillRect(x + s * 3, 56 - Math.max(0, s) * 3, 10, 18));
+  g.fillStyle = "#6e6a62"; g.beginPath(); g.moveTo(20, 58); g.lineTo(16, 36); g.lineTo(30, 20); g.lineTo(56, 16); g.lineTo(74, 28); g.lineTo(78, 52); g.lineTo(64, 60); g.closePath(); g.fill();
+  g.fillStyle = "#8a857c"; g.beginPath(); g.moveTo(30, 22); g.lineTo(56, 18); g.lineTo(64, 30); g.lineTo(36, 34); g.closePath(); g.fill();
+  g.fillStyle = "#5a5650"; g.fillRect(70, 40, 14, 10); g.fillRect(12, 42, 12, 10);                           // stubby arms
+  g.fillStyle = "#7fd3ff"; g.beginPath(); g.moveTo(40, 22); g.lineTo(46, 4); g.lineTo(52, 20); g.closePath(); g.fill(); // crystal
+  g.fillStyle = "#c9f0ff"; g.fillRect(45, 10, 3, 8);
+  g.fillStyle = angry ? "#ff6a40" : "#9fe6ff"; g.fillRect(64, 32, 6, 5); g.fillRect(56, 33, 5, 4);
+}
+// Frost Wisp: a floating ball of cold light with a trailing tail
+function drawWisp(g, frame, flip, angry){
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 80, 80);
+  if(flip){ g.translate(80, 0); g.scale(-1, 1); }
+  const bob = [0, -2, -3, -2][frame % 4];
+  const grd = g.createRadialGradient(40, 34 + bob, 2, 40, 34 + bob, 30); grd.addColorStop(0, "rgba(220,250,255,.95)"); grd.addColorStop(.5, "rgba(127,211,255,.55)"); grd.addColorStop(1, "rgba(127,211,255,0)");
+  g.fillStyle = grd; g.fillRect(0, 0, 80, 80);
+  g.fillStyle = "rgba(160,230,255,.7)"; g.beginPath(); g.moveTo(26, 44 + bob); g.quadraticCurveTo(14, 64, 4, 70); g.quadraticCurveTo(22, 62, 34, 50 + bob); g.fill();
+  g.fillStyle = "#eaffff"; g.beginPath(); g.arc(40, 34 + bob, 12, 0, Math.PI * 2); g.fill();
+  g.fillStyle = angry ? "#2a5aa0" : "#3a7ab0"; g.fillRect(42, 30 + bob, 4, 5); g.fillRect(49, 30 + bob, 4, 5);
+}
+// Whitemane: an enormous white yeti with a blue-grey face and long arms
+function drawYeti(g, frame, flip, angry, windup){
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 128, 128);
+  if(flip){ g.translate(128, 0); g.scale(-1, 1); }
+  const step = [0, 1, 0, -1][frame % 4]; g.translate(windup ? Math.sin(performance.now() / 30) * 2 : 0, 0);
+  g.fillStyle = "#c8ccd4"; [[40, step], [72, -step]].forEach(([x, s]) => g.fillRect(x + s * 3, 92 - Math.max(0, s) * 3, 18, 30));
+  g.fillStyle = "#6a7a8a"; [[40, step], [72, -step]].forEach(([x, s]) => g.fillRect(x + s * 3 - 2, 116 - Math.max(0, s) * 3, 22, 8));
+  g.fillStyle = "#e8ecf2"; g.beginPath(); g.ellipse(62, 70, 36, 34, 0, 0, Math.PI * 2); g.fill();               // body
+  g.fillStyle = "#f6f8fc"; for(const [x, y] of [[40, 50], [56, 42], [74, 46], [86, 60], [44, 80], [80, 84]]) g.fillRect(x - 5, y - 5, 10, 10);
+  g.fillStyle = "#dde2ea"; g.save(); g.translate(96, 66); g.rotate(windup ? -.9 : -.2 + step * .1); g.fillRect(-8, 0, 16, 44); g.restore(); // arms
+  g.save(); g.translate(30, 66); g.rotate(.25 - step * .1); g.fillRect(-8, 0, 16, 42); g.restore();
+  g.fillStyle = "#e8ecf2"; g.beginPath(); g.arc(78, 34, 20, 0, Math.PI * 2); g.fill();                         // head
+  g.fillStyle = "#7a8ca0"; g.beginPath(); g.ellipse(86, 38, 12, 11, 0, 0, Math.PI * 2); g.fill();              // face
+  g.fillStyle = angry ? "#ff4030" : "#1b1410"; g.fillRect(84, 32, 5, 5); g.fillRect(92, 32, 5, 5);
+  g.fillStyle = "#2a2a34"; g.fillRect(86, 44, 12, 4); if(angry || windup){ g.fillStyle = "#ffffff"; g.fillRect(87, 44, 3, 4); g.fillRect(94, 44, 3, 4); }
+}
+// A frost dragon in profile, facing right. Drawn at 320x220 and scaled to the canvas
+// (the raid boss uses the full size; frost whelps reuse it small)
+function drawDragon(g, frame, flip, angry, windup, W, H){
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H);
+  if(flip){ g.translate(W, 0); g.scale(-1, 1); }
+  g.scale(W / 320, H / 220);
+  const step = [0, 1, 0, -1][frame % 4], flap = [0, -10, -16, -8][frame % 4], scale = "#bcd8ea", belly = "#e8f4fa", dark = "#5a8ab0", spine = "#2f5a80";
+  if(windup) g.translate(Math.sin(performance.now() / 25) * 2, 0);
+  // far wing
+  g.fillStyle = "#7aa6c8"; g.beginPath(); g.moveTo(150, 92); g.lineTo(118, 18 + flap); g.lineTo(96, 30 + flap); g.lineTo(80, 70); g.closePath(); g.fill();
+  // tail
+  g.fillStyle = scale; g.beginPath(); g.moveTo(96, 128); g.quadraticCurveTo(40, 120, 14, 150); g.quadraticCurveTo(30, 132, 98, 146); g.closePath(); g.fill();
+  g.fillStyle = spine; for(let i = 0; i < 5; i++){ const x = 24 + i * 16, y = 142 - i * 4; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 5, y - 12); g.lineTo(x + 10, y); g.fill(); }
+  g.fillStyle = "#e8f6ff"; g.beginPath(); g.moveTo(14, 150); g.lineTo(2, 158); g.lineTo(18, 146); g.fill();
+  // legs (back pair darker)
+  g.fillStyle = dark; [[104, -step], [182, step]].forEach(([x, s]) => { g.fillRect(x + s * 4, 150, 20, 44); g.fillRect(x + s * 4 - 4, 190, 28, 10); });
+  g.fillStyle = scale; [[124, step], [200, -step]].forEach(([x, s]) => { g.fillRect(x + s * 4, 150, 22, 48); g.fillStyle = "#e8f6ff"; for(let c = 0; c < 3; c++) g.fillRect(x + s * 4 + c * 8, 196, 5, 8); g.fillStyle = scale; });
+  // body and belly
+  g.fillStyle = scale; g.beginPath(); g.ellipse(160, 130, 78, 40, -.05, 0, Math.PI * 2); g.fill();
+  g.fillStyle = belly; g.beginPath(); g.ellipse(168, 148, 60, 20, -.05, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#a6c6dc"; for(let i = 0; i < 6; i++) g.fillRect(118 + i * 16, 112 + (i % 2) * 6, 10, 8);
+  // back spines
+  g.fillStyle = spine; for(let i = 0; i < 7; i++){ const x = 100 + i * 18, y = 96 - Math.sin(i / 6 * Math.PI) * 6; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 6, y - 18); g.lineTo(x + 12, y); g.fill(); }
+  // neck and head
+  g.fillStyle = scale; g.beginPath(); g.moveTo(210, 120); g.quadraticCurveTo(236, 70, 252, 58); g.lineTo(272, 70); g.quadraticCurveTo(250, 96, 236, 136); g.closePath(); g.fill();
+  g.fillStyle = belly; g.beginPath(); g.moveTo(232, 128); g.quadraticCurveTo(246, 96, 266, 74); g.lineTo(272, 80); g.quadraticCurveTo(254, 104, 240, 136); g.closePath(); g.fill();
+  g.fillStyle = scale; g.beginPath(); g.moveTo(246, 46); g.lineTo(300, 54); g.lineTo(314, 66); g.lineTo(300, 72); g.lineTo(266, 76); g.lineTo(244, 66); g.closePath(); g.fill(); // head
+  g.fillStyle = belly; g.beginPath(); g.moveTo(264, 70); g.lineTo(312, 68); g.lineTo(300, 80 + (angry || windup ? 8 : 0)); g.lineTo(266, 80); g.closePath(); g.fill(); // jaw
+  if(angry || windup){ g.fillStyle = "#ffffff"; for(let i = 0; i < 4; i++) g.fillRect(274 + i * 9, 70, 3, 6); }
+  if(windup){ const grd = g.createRadialGradient(316, 72, 2, 316, 72, 26); grd.addColorStop(0, "rgba(230,255,255,.95)"); grd.addColorStop(1, "rgba(127,211,255,0)"); g.fillStyle = grd; g.fillRect(286, 44, 34, 56); }
+  g.fillStyle = "#e8f6ff"; g.beginPath(); g.moveTo(252, 50); g.lineTo(226, 22); g.lineTo(258, 44); g.fill(); g.beginPath(); g.moveTo(262, 48); g.lineTo(246, 18); g.lineTo(270, 46); g.fill(); // horns
+  g.fillStyle = angry ? "#ff5a40" : "#5ff0ff"; g.fillRect(278, 56, 9, 6);
+  g.fillStyle = spine; for(let i = 0; i < 4; i++){ const x = 228 + i * 6, y = 108 - i * 14; g.beginPath(); g.moveTo(x - 6, y); g.lineTo(x - 14, y - 8); g.lineTo(x - 2, y - 6); g.fill(); }
+  // near wing (in front)
+  g.fillStyle = "#9cc4e0"; g.beginPath(); g.moveTo(178, 100); g.lineTo(150, 6 + flap); g.lineTo(122, 10 + flap); g.lineTo(98, 40 + flap / 2); g.lineTo(110, 96); g.closePath(); g.fill();
+  g.strokeStyle = dark; g.lineWidth = 3; g.beginPath(); g.moveTo(178, 100); g.lineTo(150, 6 + flap); g.moveTo(150, 6 + flap); g.lineTo(134, 98); g.moveTo(150, 6 + flap); g.lineTo(112, 92); g.stroke();
+  g.fillStyle = "#e8f6ff"; for(let i = 0; i < 4; i++) g.fillRect(112 + i * 16, 96, 4, 10 + (i % 2) * 6); // icicles
+}
+// quest items and gathering nodes
+function drawPick(g){
+  g.clearRect(0, 0, 64, 64);
+  g.save(); g.translate(32, 34); g.rotate(-.6);
+  g.fillStyle = "#8a6440"; g.fillRect(-3, -6, 6, 30); g.strokeStyle = "#2a1a0e"; g.lineWidth = 2; g.strokeRect(-3, -6, 6, 30);
+  g.fillStyle = "#9aa6b8"; g.beginPath(); g.moveTo(-22, -4); g.quadraticCurveTo(0, -18, 22, -4); g.lineTo(18, -1); g.quadraticCurveTo(0, -12, -18, -1); g.closePath(); g.fill(); g.stroke();
+  g.restore();
+}
+function drawOre(g){
+  g.clearRect(0, 0, 64, 64);
+  g.fillStyle = "#6e6a62"; g.beginPath(); g.moveTo(8, 56); g.lineTo(12, 34); g.lineTo(30, 24); g.lineTo(52, 30); g.lineTo(58, 56); g.closePath(); g.fill();
+  for(const [x, h] of [[22, 22], [34, 30], [46, 18]]){ g.fillStyle = "#7fd3ff"; g.beginPath(); g.moveTo(x - 6, 44); g.lineTo(x, 44 - h); g.lineTo(x + 6, 44); g.closePath(); g.fill(); g.fillStyle = "#e0f8ff"; g.fillRect(x - 1, 44 - h + 6, 2, h - 10); }
+}
+function drawFrostbloom(g){
+  g.clearRect(0, 0, 64, 64);
+  g.strokeStyle = "#5a8aa0"; g.lineWidth = 4; g.beginPath(); g.moveTo(32, 62); g.quadraticCurveTo(28, 44, 32, 30); g.stroke();
+  g.fillStyle = "#c9e8ff"; for(let i = 0; i < 6; i++){ const a = i / 6 * Math.PI * 2; g.beginPath(); g.ellipse(32 + Math.cos(a) * 9, 24 + Math.sin(a) * 9, 8, 4, a, 0, Math.PI * 2); g.fill(); }
+  g.fillStyle = "#5fb0e8"; g.beginPath(); g.arc(32, 24, 6, 0, Math.PI * 2); g.fill();
+}
+const NODE_ART = { herb: drawFlower, ore: drawOre, frostbloom: drawFrostbloom };
+const QUEST_ITEM_ART = { tooth: (g) => drawTooth(g), pick: drawPick };
 // Crag Ram: shaggy mountain sheep with heavy curled horns; shakes before it charges
 function drawRam(g, frame, flip, angry, windup){
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 112, 88);

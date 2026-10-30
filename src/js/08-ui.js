@@ -9,7 +9,7 @@ function questLine(id, me){
   const clock = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   if(o.type === "deliver"){ if(!Q.timeLimit) return [o.label, ""]; const left = qs.left || 0; return [`${o.label} · ${clock(left)} left`, left < 60 ? "warn" : ""]; }
   if(o.type === "loot") return [G.snap.l.some(l => l[1] === G.myTeam && l[2] === o.item) ? `Pick up ${o.itemName}` : `${o.label}: ${qs.count}/${o.count}`, ""];
-  if(o.type === "defend") return qs.phase ? [`Survive ${clock(qs.left || 0)} · stay near the tower`, "warn"] : ["Go to the Old Watchtower", ""];
+  if(o.type === "defend") return qs.phase ? [`Survive ${clock(qs.left || 0)} · stay near ${o.place}`, "warn"] : [`Go to ${o.place}`, ""];
   return [`${o.label}: ${qs.count}/${o.count}`, ""];
 }
 $("#trList").addEventListener("click", e => { const q = e.target.closest("[data-q]"); if(q && G){ G.focusQuest = q.dataset.q; G.trHtml = ""; } });
@@ -193,9 +193,11 @@ function drawMapIcons(g, toS, me, o){
     if(edge || !obj.r){ g.beginPath(); g.arc(cx, cy, 6, 0, Math.PI * 2); g.strokeStyle = "#ffd84a"; g.lineWidth = 2.5; g.stroke(); g.beginPath(); g.arc(cx, cy, 2, 0, Math.PI * 2); g.fillStyle = "#ffd84a"; g.fill(); }
   }
   for(const m of G.snap.m){
-    if(o.world && m[1] !== "boar") continue; // the world map only marks elites
+    const MT = MOBS[m[1]];
+    if(o.world && !MT.elite) continue; // the world map only marks elites
     const [sx, sy] = toS(m[2], m[3]);
-    if(m[1] === "boar"){ g.beginPath(); g.arc(sx, sy, 5, 0, Math.PI * 2); g.fillStyle = "#ff6a50"; g.fill(); g.strokeStyle = "#1b1410"; g.lineWidth = 1.5; g.stroke(); }
+    if(MT.boss) mapText(g, "◆", sx, sy, "#ff8a1e", o.big ? 24 : 18);
+    else if(MT.elite){ g.beginPath(); g.arc(sx, sy, 5, 0, Math.PI * 2); g.fillStyle = "#ff6a50"; g.fill(); g.strokeStyle = "#1b1410"; g.lineWidth = 1.5; g.stroke(); }
     else if(m[1] === "bandit"){ g.beginPath(); g.arc(sx, sy, 3, 0, Math.PI * 2); g.fillStyle = "#ff5040"; g.fill(); }
     else if(m[1] === "wolf"){ g.beginPath(); g.arc(sx, sy, 2.4, 0, Math.PI * 2); g.fillStyle = (m[7] & 2) ? "#ff9a80" : "#c8b8a0"; g.fill(); }
     else { g.beginPath(); g.arc(sx, sy, 2, 0, Math.PI * 2); g.fillStyle = (m[7] & 2) ? "#ff9a80" : "#f4f1ea"; g.fill(); }
@@ -206,10 +208,14 @@ function drawMapIcons(g, toS, me, o){
     const ally = inMyParty(h.side), [sx, sy, edge] = clamp(...toS(h.x, h.y));
     if(edge && !ally) continue; // only party members stick to the minimap's edge
     g.beginPath(); g.arc(sx, sy, edge ? 3 : 4, 0, Math.PI * 2); g.fillStyle = ally ? "#7fd3ff" : "#d8d8d8"; g.fill(); g.strokeStyle = "#1b1410"; g.lineWidth = 1.5; g.stroke(); }
-  const qh = me.quests;
-  if(qh.herbs && qh.herbs.state === "active") for(const n of (G.snap.n || [])) if(n[3]){ const [sx, sy] = toS(n[1], n[2]); g.beginPath(); g.arc(sx, sy, o.big ? 3.2 : 2.3, 0, Math.PI * 2); g.fillStyle = "#ffe066"; g.fill(); g.strokeStyle = "#1b1410"; g.lineWidth = 1; g.stroke(); }
-  if(qh.beacons) BEACONS.forEach((b, i) => { const lit = qh.beacons.state === "ready" || qh.beacons.state === "done" || (qh.beacons.flags && qh.beacons.flags[i]); const [sx, sy, edge] = clamp(...toS(b.x, b.y)); if(edge && lit) return; mapText(g, "▲", sx, sy, lit ? "#ff9a40" : "#d8d8d8", o.big ? 15 : 11); if(o.big) mapText(g, b.name, sx, sy + 14, "#ffe9a8", 12); });
-  if(qh.scout && qh.scout.state === "active") LOOKOUTS.forEach((p, i) => { if(qh.scout.flags && qh.scout.flags[i]) return; const [sx, sy] = clamp(...toS(p.x, p.y)); mapText(g, "◉", sx, sy, "#ffd84a", o.big ? 15 : 11); if(o.big) mapText(g, p.name, sx, sy + 14, "#ffe9a8", 12); });
+  const qh = me.quests, want = wantedNodes(me);
+  for(const n of (G.snap.n || [])) if(n[3] && want.has(n[4])){ const [sx, sy] = toS(n[1], n[2]); g.beginPath(); g.arc(sx, sy, o.big ? 3.2 : 2.3, 0, Math.PI * 2); g.fillStyle = n[4] === "ore" ? "#7fd3ff" : n[4] === "frostbloom" ? "#c9e8ff" : "#ffe066"; g.fill(); g.strokeStyle = "#1b1410"; g.lineWidth = 1; g.stroke(); }
+  // places to use (▲, lit once done) and to explore (◉) for quests in your log
+  for(const qid in qh){
+    const Q = QUESTS[qid], q = qh[qid];
+    if(Q.obj.type === "interact") Q.obj.points.forEach((b, i) => { const lit = q.state === "ready" || q.state === "done" || (q.flags && q.flags[i]); const [sx, sy, edge] = clamp(...toS(b.x, b.y)); if(edge && lit) return; mapText(g, "▲", sx, sy, lit ? (qid === "beacons" ? "#ff9a40" : "#7fd3ff") : "#d8d8d8", o.big ? 15 : 11); if(o.big) mapText(g, b.name, sx, sy + 14, "#ffe9a8", 12); });
+    else if(Q.obj.type === "explore" && q.state === "active") Q.obj.points.forEach((p, i) => { if(q.flags && q.flags[i]) return; const [sx, sy] = clamp(...toS(p.x, p.y)); mapText(g, "◉", sx, sy, "#ffd84a", o.big ? 15 : 11); if(o.big) mapText(g, p.name, sx, sy + 14, "#ffe9a8", 12); });
+  }
   for(const n of NPCS){
     const mk = markerFor(me, n.id), [rx, ry] = toS(n.x, n.y);
     if(mk){ const [sx, sy] = clamp(rx, ry); mapText(g, mk[0], sx, sy, mk[1], o.big ? 22 : 17); }
@@ -338,6 +344,8 @@ function buildSlots(){
   el.appendChild(pot); G.potEl = pot;
   G.myKit = buildKit(d); G.tipKey = null; $("#abTip").hidden = true;
 }
+// node kinds the player has an active collect quest for
+function wantedNodes(me){ const s = new Set(); if(me) for(const id in me.quests){ const Q = QUESTS[id]; if(Q.obj.type === "collect" && me.quests[id].state === "active") s.add(Q.obj.node); } return s; }
 const potCount = me => ((me.gear && me.gear.inv) || []).filter(x => x.key === "hpot").reduce((a, x) => a + (x.q || 1), 0);
 // Tooltip for an ability button: what it does, with numbers at your current level, gear and talents
 function renderAbilityTip(){
@@ -351,7 +359,7 @@ function renderAbilityTip(){
   const i = SLOTS.indexOf(k), sp = G.details[G.myTeam].spells[i], base = G.myKit[k], p = applyTalents(base, me.talents && me.talents[k]);
   const lvlScale = 1 + .1 * (me.lvl - 1), cdNow = Math.round(p.cd * (1 - (me.haste || 0) / 100) * 10) / 10, bits = [];
   if(p.dmg) bits.push(`${Math.round(p.dmg * SIM.dmgScale({ lvl: me.lvl, ap: me.ap }))} damage`);
-  if(p.amount) bits.push(`${p.type === "heal" ? "Heals" : "Shields for"} ${Math.round(p.amount * lvlScale)}`);
+  if(p.amount) bits.push(`${p.type === "heal" ? "Heals" : "Shields for"} ${Math.round(SIM.supportAmount({ lvl: me.lvl, ap: me.ap }, p))}`);
   if(p.type === "steroid") bits.push(`+${Math.round(p.as * 100)}% attack speed`);
   if(p.dur && ["stealth", "steroid", "field", "summon", "orbit", "shield"].includes(p.type)) bits.push(`lasts ${Math.round(p.dur * 10) / 10}s`);
   if(p.range && !["shield", "heal", "steroid", "stealth", "spin", "orbit"].includes(p.type)) bits.push(`range ${Math.round(p.range)}`);
@@ -389,6 +397,11 @@ function updateHud(){
     const pcd = G.potEl.querySelector(".cd"); pcd.textContent = me.pot ? me.pot : ""; pcd.style.background = me.pot ? `conic-gradient(rgba(5,8,14,.72) ${me.pot / POTION.cd * 360}deg, transparent 0)` : "none"; }
   if(G.shop) renderShop();
   if(G.tipKey) renderAbilityTip();
+  // raid boss health bar while one is nearby
+  // (when you're close, or while he's fighting someone nearby)
+  const boss = G.snap.m.find(m => { const d = Math.hypot(m[2] - me.x, m[3] - me.y); return MOBS[m[1]].boss && (d < 1700 || ((m[7] & 2) && d < 3000)); });
+  $("#bossBar").hidden = !boss;
+  if(boss){ const T = MOBS[boss[1]], pct = Math.max(0, boss[4] / boss[5] * 100); $("#bossName").textContent = T.name; $("#bossFill").style.width = pct + "%"; $("#bossPct").textContent = `${Math.ceil(pct)}%`; }
   const badge = $("#skillBadge"); badge.hidden = !(me.points > 0); badge.textContent = me.points;
   const tkey = JSON.stringify(me.talents) + me.points + me.lvl;
   if(!$("#skills").hidden && tkey !== G.skillKey) renderSkills(me);
@@ -436,9 +449,11 @@ function handleFx(f){
     case "salvage": if(mine) lootLine(`Salvaged ${f.n} for ${fmtCoins(f.coins)}`, "#f0d58e"); break;
     case "explored": if(mine) banner(`Discovered: ${f.name}`, `${QUESTS[f.quest].obj.label}: ${f.count}/${QUESTS[f.quest].obj.count}`, 2600); break;
     case "msg": if(mine) toast(f.text); break;
-    case "defstart": if(mine) banner("Bandits approach!", "Hold the Old Watchtower for 60 seconds", 3000); break;
-    case "wave": if(mine) toast(`Wave ${f.n} of ${f.of}: bandits coming up the road`); break;
-    case "defwin": if(mine) banner("The watchtower holds!", "Return to Captain Rhea", 3200); break;
+    case "defstart": if(mine){ const o = QUESTS[f.quest || "defend"].obj; banner(o.start[0], o.start[1], 3000); } break;
+    case "wave": if(mine) toast(`Wave ${f.n} of ${f.of}: ${QUESTS[f.quest || "defend"].obj.waveText}`); break;
+    case "defwin": if(mine){ const o = QUESTS[f.quest || "defend"].obj; banner(o.win[0], o.win[1], 3200); } break;
+    case "bossmsg": if(f.big) banner(f.big, f.small, 3000); else toast(f.small); chatLine("sys", "", [f.big, f.small].filter(Boolean).join(" · ")); break;
+    case "warn": G.fx.push(Object.assign({ t: 0 }, f)); break;
     case "pick": G.fx.push({ k: "pop", x: f.x, y: f.y, t: 0, dur: .45 }); break;
     case "drop": if(mine) toast(`${QUESTS[f.quest].obj.itemName} dropped. Walk over it or right-click to pick it up`); break;
     case "looted": if(mine) toast(`Picked up ${QUESTS[f.quest].obj.itemName}`); break;
@@ -447,7 +462,7 @@ function handleFx(f){
     case "angry": { const mv = G.mobVis.get(f.id); if(mv) mv.angryT = 1.2; break; }
     case "butt": { const mv = G.mobVis.get(f.id); if(mv) mv.buttT = .25; break; }
     case "pop": G.fx.push(Object.assign({ t: 0, dur: .45 }, f)); break;
-    case "ring": case "nova": case "hit": case "cone": case "blink": G.fx.push(Object.assign({ t: 0, dur: f.k === "nova" ? .75 : .4 }, f)); break;
+    case "ring": case "nova": case "hit": case "cone": case "blink": G.fx.push(Object.assign({ t: 0, dur: f.k === "nova" ? .75 : f.frost ? .7 : .4 }, f)); break;
     case "heal": case "shielded": {
       if(f.k === "heal") G.fx.push(Object.assign({ t: 0, dur: .4 }, f));
       const hs = G.snap && G.snap.h.find(h => h.side === f.side);
@@ -460,13 +475,14 @@ function handleFx(f){
   }
 }
 function fxMesh(f){
-  if(f.k === "cone"){
+  if(f.k === "cone" || f.k === "warn"){
     const a = XF(f.x, f.y), b = XF(f.x + f.dx * 100, f.y + f.dy * 100), dirW = Math.atan2(-(b.z - a.z), b.x - a.x), half = f.ang / 2 * Math.PI / 180;
-    const geo = new THREE.CircleGeometry(1, 24, dirW - half, half * 2); geo.rotateX(-Math.PI / 2);
-    f.mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, depthWrite: false, side: THREE.DoubleSide })); f.ownGeo = true;
+    const geo = new THREE.CircleGeometry(1, 32, dirW - half, half * 2); geo.rotateX(-Math.PI / 2);
+    // warn: a red marker on the ground before a boss attack lands; frost: the dragon's breath and tail
+    f.mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: f.k === "warn" ? 0xff3020 : f.frost ? 0x9fe6ff : 0xffe08a, transparent: true, depthWrite: false, side: THREE.DoubleSide })); f.ownGeo = true;
   }else if(f.k === "nova"){
-    f.mesh = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: 0xf0d58e, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-    f.edge = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, depthWrite: false })); G.root.add(f.edge);
+    f.mesh = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: f.frost ? 0xbfefff : 0xf0d58e, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    f.edge = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: f.frost ? 0x7fd3ff : 0xffb347, transparent: true, depthWrite: false })); G.root.add(f.edge);
   }else{
     const color = { click: 0x7fe0a0, hit: 0xf0d58e, lvl: 0xf0d58e, pop: 0xffffff, heal: 0x6be08f, blink: 0xb98cff, ring: 0xffe08a }[f.k] || 0xffffff;
     f.mesh = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false }));

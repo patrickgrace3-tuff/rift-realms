@@ -9,10 +9,15 @@ const SIM = {
     const W = { t: 0, heroes: {}, mobs: [], shots: [], zones: [], fields: [], pets: [], loot: [], respawnQ: [], fxNet: [], fxLocal: [], nid: 1, parties: {}, invites: [], rolls: [] };
     for(const kind in MOBS) for(let i = 0; i < MOBS[kind].count; i++) SIM.spawnMob(W, kind);
     W.nodes = [];
-    for(let i = 0, tries = 0; W.nodes.length < 10 && tries < 400; tries++){
-      const a = Math.random() * Math.PI * 2, r = 720 + Math.random() * 380, x = clampX(HERB_AREA.x + Math.cos(a) * r), y = clampY(HERB_AREA.y + Math.sin(a) * r);
-      if(OBSTACLES.some(o => Math.hypot(o.x - x, o.y - y) < o.r + 140) || W.nodes.some(n => Math.hypot(n.x - x, n.y - y) < 260)) continue;
-      W.nodes.push({ id: "n" + i++, x, y, ready: true, respawnAt: 0 });
+    let nid = 0;
+    for(const sp of NODE_SPOTS){
+      const mine = [];
+      for(let tries = 0; mine.length < sp.n && tries < 600; tries++){
+        const a = Math.random() * Math.PI * 2, r = sp.rmin + Math.random() * (sp.rmax - sp.rmin), x = clampX(sp.x + Math.cos(a) * r), y = clampY(sp.y + Math.sin(a) * r);
+        if(OBSTACLES.some(o => Math.hypot(o.x - x, o.y - y) < o.r + 140) || mine.some(n => Math.hypot(n.x - x, n.y - y) < 220)) continue;
+        mine.push({ id: "n" + nid++, kind: sp.kind, x, y, ready: true, respawnAt: 0 });
+      }
+      W.nodes.push(...mine);
     }
     return W;
   },
@@ -61,6 +66,7 @@ const SIM = {
   },
   dropBag(W, c, u, group){
     const L = LOOT[u.kind]; if(!L) return;
+    if(L.raid){ SIM.raidLoot(W, c, u, group || [c]); return; }
     let items = [];
     const coins = L.coins[0] + Math.floor(Math.random() * (L.coins[1] - L.coins[0] + 1));
     if(L.mat && Math.random() < L.mat[1]) items.push(makeMat(L.mat[0], W.nid++));
@@ -77,7 +83,7 @@ const SIM = {
   spawnMob(W, kind, at){
     const T = MOBS[kind], a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * T.roam;
     const x = at ? at.x : T.home[0] + Math.cos(a) * r, y = at ? at.y : T.home[1] + Math.sin(a) * r;
-    const m = { id: "m" + W.nid++, kind, team: "mob", name: T.name, x, y, home: T.home, r: T.r, hp: T.hp, maxHp: T.hp, dmg: T.dmg, ms: T.ms,
+    const m = { id: "m" + W.nid++, kind, team: "mob", name: T.name, boss: !!T.boss, x, y, home: T.home, r: T.r, hp: T.hp, maxHp: T.hp, dmg: T.dmg, ms: T.ms,
       atkT: 0, aggro: null, returning: false, wp: null, wait: Math.random() * 3, face: Math.random() < .5 ? Math.PI / 2 : -Math.PI / 2, moving: false,
       cc: { stun: 0, root: 0, slow: 0, slowAmt: 0 }, forced: null, boostT: 0, boost: 0, shield: 0, dead: false, lastHit: null, windup: 0, charging: null, chargeCd: 0, event: null };
     W.mobs.push(m); return m;
@@ -106,12 +112,12 @@ const SIM = {
   canMove: u => !(u.cc.stun > 0 || u.cc.root > 0 || u.forced),
   canAct: u => !(u.cc.stun > 0 || u.forced),
   applyCC(u, cc){
-    if(!cc || u.dead) return;
+    if(!cc || u.dead || u.boss) return; // raid bosses can't be stunned, rooted or slowed
     if(cc.stun) u.cc.stun = Math.max(u.cc.stun, cc.stun);
     if(cc.root) u.cc.root = Math.max(u.cc.root, cc.root);
     if(cc.slow){ u.cc.slow = Math.max(u.cc.slow, 1.6); u.cc.slowAmt = Math.max(u.cc.slowAmt, cc.slow); }
   },
-  force(u, tx, ty, dur){ u.forced = { sx: u.x, sy: u.y, tx: clampX(tx), ty: clampY(ty), t: 0, dur }; u.dash = null; },
+  force(u, tx, ty, dur){ if(u.boss) return; u.forced = { sx: u.x, sy: u.y, tx: clampX(tx), ty: clampY(ty), t: 0, dur }; u.dash = null; },
   // level gap between a hero and a creature (positive when the creature is higher)
   gapOf(hero, mob){ return mob && mob.kind && MOBS[mob.kind] ? MOBS[mob.kind].lvl - hero.lvl : 0; },
   // a hero attacking a creature 2+ levels above them can miss; shows "Miss" and returns true
@@ -144,9 +150,10 @@ const SIM = {
     if(u.dead || amount <= 0) return 0;
     if(src && SIM.isHero(src)) src.lastCombat = W.t;
     if(SIM.isHero(u)) u.lastCombat = W.t;
-    if(!SIM.isHero(u) && src && SIM.isHero(src)){ u.lastHit = src.id; if(!u.aggro && !u.returning){ u.aggro = src.id; SIM.fx(W, { k: "angry", id: u.id }); SIM.alertPack(W, u, src.id); } }
+    // a hero hit a creature: it turns on them (raid bosses are pulled by SIM.bossHit instead)
+    if(!SIM.isHero(u) && src && SIM.isHero(src)){ u.lastHit = src.id; if(!u.aggro && !u.returning && !u.boss){ u.aggro = src.id; SIM.fx(W, { k: "angry", id: u.id }); SIM.alertPack(W, u, src.id); } }
     // level gap: heroes miss and hit softer against higher creatures, and those creatures hit harder
-    if(src && SIM.isHero(src) && !SIM.isHero(u)){ if(SIM.rollMiss(W, src, u)) return -1; amount *= levelGap(SIM.gapOf(src, u)).dealt; }
+    if(src && SIM.isHero(src) && !SIM.isHero(u)){ if(SIM.rollMiss(W, src, u)) return -1; amount *= levelGap(SIM.gapOf(src, u)).dealt; if(u.boss) amount = SIM.bossHit(W, u, src, amount); }
     else if(src && !SIM.isHero(src) && SIM.isHero(u)) amount *= levelGap(SIM.gapOf(u, src)).taken;
     if(u.shield > 0){ const ab = Math.min(u.shield, amount); u.shield -= ab; amount -= ab; if(amount <= 0){ SIM.fx(W, { k: "num", x: u.x, y: u.y, v: "absorbed", hero: 1 }); return 0; } }
     if(SIM.isHero(u) && u.armor) amount *= 300 / (300 + u.armor);
@@ -167,10 +174,12 @@ const SIM = {
       const killer = W.heroes[(u.lastHit || "c:").slice(2)];
       const looter = killer || SIM.heroes(W).filter(h => !h.dead).sort((a, b) => Math.hypot(a.x - u.x, a.y - u.y) - Math.hypot(b.x - u.x, b.y - u.y))[0];
       // the killer and their nearby party members share XP, quest credit and quest drops
-      const group = looter ? SIM.creditGroup(W, looter, u) : [];
+      // a raid boss credits every party member who fought him (or is in the lair), even if they died and respawned
+      const fought = h => (u.threat && u.threat[h.id] > 0) || h.dead || Math.hypot(h.x - MOBS[u.kind].home[0], h.y - MOBS[u.kind].home[1]) < MOBS[u.kind].leash;
+      const group = !looter ? [] : u.boss ? SIM.partyMembers(W, looter).filter(fought) : SIM.creditGroup(W, looter, u);
       if(looter) SIM.dropBag(W, looter, u, group);
       for(const c of group){
-        if(c.dead) continue;
+        if(c.dead && !u.boss) continue;
         SIM.gainXp(W, c, mobXp(MOBS[u.kind].xp, MOBS[u.kind].lvl, c.lvl));
         for(const qid in c.quests){
           const qs = c.quests[qid], Q = QUESTS[qid];
@@ -221,33 +230,36 @@ const SIM = {
     SIM.clearEvent(W, c.side); SIM.fx(W, { k: "qfail", side: c.side, quest: qid });
   },
   clearEvent(W, side){ for(const m of W.mobs) if(m.event === side && !m.dead){ m.dead = true; SIM.fx(W, { k: "pop", x: m.x, y: m.y, id: m.id }); } },
+  // the active collect quest that wants this kind of node
+  collectQuest(c, kind){ return Object.keys(c.quests).find(id => QUESTS[id].obj.type === "collect" && QUESTS[id].obj.node === kind && c.quests[id].state === "active"); },
   gather(W, c, n){
-    const qid = SIM.activeQuest(c, "collect");
-    if(!qid){ SIM.fx(W, { k: "msg", side: c.side, text: "A pretty flower. Someone might have a use for it." }); return; }
+    const qid = SIM.collectQuest(c, n.kind);
+    if(!qid){ SIM.fx(W, { k: "msg", side: c.side, text: NODE_INFO[n.kind].idle }); return; }
     n.ready = false; n.respawnAt = W.t + 25;
     SIM.fx(W, { k: "pick", x: n.x, y: n.y }); SIM.progress(W, c, qid);
-    // party members gathering nearby get the flower too
+    // party members gathering nearby get one too
     for(const m of SIM.partyMembers(W, c)){
       if(m === c || m.dead || Math.hypot(m.x - n.x, m.y - n.y) > SHARE_RANGE) continue;
-      const mq = SIM.activeQuest(m, "collect"); if(mq) SIM.progress(W, m, mq);
+      const mq = SIM.collectQuest(m, n.kind); if(mq) SIM.progress(W, m, mq);
     }
   },
+  // i indexes USE_POINTS; each point belongs to one interact quest
   startUse(W, c, i){
-    const qid = SIM.activeQuest(c, "interact");
-    if(!qid){ SIM.fx(W, { k: "msg", side: c.side, text: c.quests.beacons && c.quests.beacons.state !== "active" ? "The beacon is already burning." : "A cold signal beacon. Captain Rhea might know what it's for." }); return; }
-    if(c.quests[qid].flags[i]){ SIM.fx(W, { k: "msg", side: c.side, text: "This beacon is already burning." }); return; }
-    c.channel = { i, t: 0, dur: 2.5, name: `Lighting the ${BEACONS[i].name}` }; c.move = c.target = null;
+    const pt = USE_POINTS[i], qs = c.quests[pt.quest];
+    if(!qs || qs.state !== "active"){ SIM.fx(W, { k: "msg", side: c.side, text: qs ? pt.done : pt.idle }); return; }
+    if(qs.flags[QUESTS[pt.quest].obj.points.indexOf(pt)]){ SIM.fx(W, { k: "msg", side: c.side, text: pt.done }); return; }
+    c.channel = { i, t: 0, dur: 2.5, name: `${pt.verb} the ${pt.name}` }; c.move = c.target = null;
   },
   finishUse(W, c, i){
-    const qid = SIM.activeQuest(c, "interact"); if(!qid) return;
-    const qs = c.quests[qid]; if(qs.flags[i]) return;
-    qs.flags[i] = 1; SIM.fx(W, { k: "lit", side: c.side, i }); SIM.progress(W, c, qid);
+    const pt = USE_POINTS[i], qid = pt.quest, qs = c.quests[qid]; if(!qs || qs.state !== "active") return;
+    const li = QUESTS[qid].obj.points.indexOf(pt); if(qs.flags[li]) return;
+    qs.flags[li] = 1; SIM.fx(W, { k: "lit", side: c.side, i }); SIM.progress(W, c, qid);
   },
   questTick(W, c){
     for(const qid in c.quests){
       const qs = c.quests[qid], Q = QUESTS[qid], o = Q.obj;
       if(qs.state !== "active") continue;
-      if(o.type === "collect"){ for(const n of W.nodes) if(n.ready && Math.hypot(n.x - c.x, n.y - c.y) < 90){ SIM.gather(W, c, n); break; } }
+      if(o.type === "collect"){ for(const n of W.nodes) if(n.ready && n.kind === o.node && Math.hypot(n.x - c.x, n.y - c.y) < 90){ SIM.gather(W, c, n); break; } }
       else if(o.type === "explore"){
         o.points.forEach((p, i) => {
           if(qs.state !== "active" || qs.flags[i] || Math.hypot(p.x - c.x, p.y - c.y) > 380) return;
@@ -255,15 +267,15 @@ const SIM = {
         });
       }else if(o.type === "defend"){
         const d = Math.hypot(o.at.x - c.x, o.at.y - c.y);
-        if(!qs.phase){ if(d < 550){ qs.phase = 1; qs.endAt = W.t + o.dur; qs.waveI = 0; qs.nextWave = W.t + 2; SIM.fx(W, { k: "defstart", side: c.side }); } }
+        if(!qs.phase){ if(d < 550){ qs.phase = 1; qs.endAt = W.t + o.dur; qs.waveI = 0; qs.nextWave = W.t + 2; SIM.fx(W, { k: "defstart", side: c.side, quest: qid }); } }
         else if(d > 1150) SIM.failQuest(W, c, qid);
         else {
-          if(qs.waveI < WAVES.length && W.t >= qs.nextWave){
-            const n = WAVES[qs.waveI++];
-            for(let k = 0; k < n; k++){ const a = -Math.PI / 2 + (Math.random() - .5) * 2.4, rr = 850 + Math.random() * 150; const m = SIM.spawnMob(W, "bandit", { x: clampX(o.at.x + Math.cos(a) * rr), y: clampY(o.at.y + Math.sin(a) * rr) }); m.event = c.side; m.aggro = c.id; }
-            qs.nextWave = W.t + 14; SIM.fx(W, { k: "wave", side: c.side, n: qs.waveI, of: WAVES.length });
+          if(qs.waveI < o.waves.length && W.t >= qs.nextWave){
+            const n = o.waves[qs.waveI++];
+            for(let k = 0; k < n; k++){ const a = o.from + (Math.random() - .5) * 2.4, rr = 850 + Math.random() * 150; const m = SIM.spawnMob(W, o.mob, { x: clampX(o.at.x + Math.cos(a) * rr), y: clampY(o.at.y + Math.sin(a) * rr) }); m.event = c.side; m.aggro = c.id; }
+            qs.nextWave = W.t + 14; SIM.fx(W, { k: "wave", side: c.side, quest: qid, n: qs.waveI, of: o.waves.length });
           }
-          if(W.t >= qs.endAt){ qs.phase = 0; SIM.clearEvent(W, c.side); SIM.questReady(W, c, qid); SIM.fx(W, { k: "defwin", side: c.side }); }
+          if(W.t >= qs.endAt){ qs.phase = 0; SIM.clearEvent(W, c.side); SIM.questReady(W, c, qid); SIM.fx(W, { k: "defwin", side: c.side, quest: qid }); }
         }
       }
     }
@@ -297,6 +309,7 @@ const SIM = {
         let item = null;
         let got = null;
         if(Q.reward === "weapon") got = SIM.questWeapon(W, c);
+        else if(Q.reward === "legendary"){ got = genItem({ ilvl: 16, rarity: 4, cls: c.kit.cls, slot: "weapon", nid: W.nid++ }); got.n = `${RIMEWYRM_WEAPON[c.kit.cls]}`; got.glow = true; }
         else if(Q.reward && Q.reward.item !== undefined){
           got = genItem({ ilvl: c.lvl + 1, rarity: Q.reward.item, cls: c.kit.cls, slot: Q.reward.slot || ARMOR_SLOTS[Math.floor(Math.random() * ARMOR_SLOTS.length)], nid: W.nid++ });
           if(Q.reward.name) got.n = `${Q.reward.name} ${BASE_NAMES[got.s][got.m]}`;
@@ -358,7 +371,7 @@ const SIM = {
     if(c.dead) return;
     if(cmd.move || cmd.atk || cmd.talk || cmd.gather || cmd.use !== undefined){ c.lootTo = null; c.gatherTo = null; c.useTo = null; c.channel = null; }
     if(cmd.gather){ const n = W.nodes.find(x => x.id === String(cmd.gather)); if(n){ c.gatherTo = n.id; c.move = c.target = c.talkTo = null; } return; }
-    if(cmd.use !== undefined){ const i = +cmd.use; if(BEACONS[i]){ c.useTo = i; c.move = c.target = c.talkTo = null; } return; }
+    if(cmd.use !== undefined){ const i = Math.floor(+cmd.use); if(USE_POINTS[i]){ c.useTo = i; c.move = c.target = c.talkTo = null; } return; }
     if(cmd.talk){ const npc = NPCS.find(n => n.id === cmd.talk); if(npc){ c.talkTo = npc.id; c.target = null; c.move = null; } return; }
     if(cmd.move){ c.move = [clampX(+cmd.move[0] || 0), clampY(+cmd.move[1] || 0)]; c.target = null; c.talkTo = null; }
     else if(cmd.atk){ const t = SIM.find(W, String(cmd.atk)); if(t && t.team !== c.team){ c.target = t.id; c.move = null; c.talkTo = null; } }
@@ -366,6 +379,8 @@ const SIM = {
   },
   // heals and shields go to the living player nearest the cursor (within ALLY_PICK of it and
   // ALLY_RANGE of the caster); if nobody is closer to the cursor than you, they go to you
+  // heals and shields grow with level and with Ability Power, like damage does
+  supportAmount: (c, p) => p.amount * (1 + .1 * (c.lvl - 1)) * (1 + (c.ap || 0) / 100),
   supportTarget(W, c, at){
     let best = c, bd = Math.min(ALLY_PICK, Math.hypot(c.x - at[0], c.y - at[1]));
     for(const h of SIM.heroes(W)){
@@ -412,16 +427,16 @@ const SIM = {
       }
       case "spin": c.spin = { left: p.dur, done: 0, p }; break;
       case "shield": {
-        const t = SIM.supportTarget(W, c, at), amt = p.amount * (1 + .1 * (c.lvl - 1));
+        const t = SIM.supportTarget(W, c, at), amt = SIM.supportAmount(c, p);
         t.shield = Math.max(t.shield, amt); t.shieldT = p.dur; t.boostT = 2; t.boost = p.boost;
         if(p.cleanse) t.cc = { stun: 0, root: 0, slow: 0, slowAmt: 0 };
-        SIM.fx(W, { k: "shielded", side: t.side, v: Math.round(amt), from: c.side, name: c.name });
+        SIM.fx(W, { k: "shielded", side: t.side, v: Math.round(amt), from: c.side, name: c.name }); SIM.healThreat(W, c, amt);
         if(p.dmg){ SIM.burst(W, c, c.x, c.y, p.radius, p); SIM.fx(W, { k: "ring", x: c.x, y: c.y, r: p.radius }); }
         break;
       }
       case "heal": {
-        const t = SIM.supportTarget(W, c, at), healed = Math.min(t.maxHp - t.hp, p.amount * (1 + .1 * (c.lvl - 1)));
-        t.hp += healed; SIM.fx(W, { k: "heal", side: t.side, v: Math.round(healed), from: c.side, name: c.name });
+        const t = SIM.supportTarget(W, c, at), healed = Math.min(t.maxHp - t.hp, SIM.supportAmount(c, p));
+        t.hp += healed; SIM.fx(W, { k: "heal", side: t.side, v: Math.round(healed), from: c.side, name: c.name }); SIM.healThreat(W, c, healed);
         if(p.dmg){ SIM.burst(W, c, c.x, c.y, p.radius, p); SIM.fx(W, { k: "ring", x: c.x, y: c.y, r: p.radius }); }
         break;
       }
@@ -483,7 +498,7 @@ const SIM = {
           else if(Math.hypot(n.x - c.x, n.y - c.y) < 130){ SIM.gather(W, c, n); c.gatherTo = null; }
           else goal = [n.x, n.y];
         }else if(c.useTo !== null && c.useTo !== undefined){
-          const b = BEACONS[c.useTo];
+          const b = USE_POINTS[c.useTo];
           if(Math.hypot(b.x - c.x, b.y - c.y) < 230){ const i = c.useTo; c.useTo = null; SIM.startUse(W, c, i); }
           else goal = [b.x, b.y];
         }else if(c.lootTo){
@@ -542,6 +557,7 @@ const SIM = {
     for(const m of W.mobs){
       if(m.dead) continue;
       SIM.tickTimers(m, dt); m.atkT -= dt; m.moving = false;
+      if(m.boss){ SIM.bossTick(W, m, dt); continue; }
       if(m.forced || m.cc.stun > 0) continue;
       const T = MOBS[m.kind], rooted = m.cc.root > 0;
       // the Old Tusker paws the ground, then charges in a straight line
@@ -654,9 +670,9 @@ const SIM = {
         pot: c.potT > W.t ? Math.ceil(c.potT - W.t) : 0,
         chan: c.channel ? { n: c.channel.name, p: Math.round(c.channel.t / c.channel.dur * 100) / 100 } : null, party: c.party || "",
         gear: { ver: c.gearVer, inv: c.inv, equip: c.equip } })),
-      m: W.mobs.map(m => [m.id, m.kind, r(m.x), r(m.y), r(m.hp), r(m.maxHp), Math.round(m.face * 10) / 10, (m.moving ? 1 : 0) | (m.aggro ? 2 : 0) | (m.charging ? 4 : 0) | (m.windup > 0 ? 8 : 0)]),
+      m: W.mobs.map(m => [m.id, m.kind, r(m.x), r(m.y), r(m.hp), r(m.maxHp), Math.round(m.face * 10) / 10, (m.moving ? 1 : 0) | (m.aggro ? 2 : 0) | (m.charging ? 4 : 0) | (m.windup > 0 || m.cast ? 8 : 0)]),
       l: W.loot.map(l => [l.id, l.side, l.item, r(l.x), r(l.y), l.rar || 0]),
-      n: W.nodes.map(n => [n.id, r(n.x), r(n.y), n.ready ? 1 : 0]),
+      n: W.nodes.map(n => [n.id, r(n.x), r(n.y), n.ready ? 1 : 0, n.kind]),
       s: W.shots.map(sh => [sh.id, sh.kind, r(sh.x), r(sh.y), sh.owner, sh.slot || ""]),
       z: W.zones.map(z => [z.id, r(z.x), r(z.y), z.r, Math.round(z.t * 100) / 100, z.dur, z.slot, z.owner]),
       f: W.fields.map(f => [f.id, r(f.x), r(f.y), f.r, f.slot, f.owner]),

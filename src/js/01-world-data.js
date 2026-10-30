@@ -24,7 +24,8 @@ const PINES = { x: 3900, y: 6650, r: 750 };    // Howling Pines, wolf territory 
 const TOWER = { x: 4250, y: 1250 };            // Old Watchtower on the southern road
 const HERB_AREA = { x: 5700, y: 2300, r: 1150 };
 const LOOKOUTS = [{ name: "East Overlook", x: 6950, y: 4650 }, { name: "Southwest Bluff", x: 1800, y: 1650 }, { name: "Pinecrest Ridge", x: 2700, y: 7000 }];
-const BEACONS = [{ name: "West Beacon", x: 1450, y: 4400 }, { name: "North Beacon", x: 5300, y: 6950 }, { name: "South Beacon", x: 6850, y: 1500 }];
+const BEACON_TEXT = { quest: "beacons", verb: "Lighting", idle: "A cold signal beacon. Captain Rhea might know what it's for.", done: "This beacon is already burning." };
+const BEACONS = [{ name: "West Beacon", x: 1450, y: 4400 }, { name: "North Beacon", x: 5300, y: 6950 }, { name: "South Beacon", x: 6850, y: 1500 }].map(b => ({ ...b, ...BEACON_TEXT }));
 const WAVES = [2, 2, 3, 3];
 const PASS = { x: 4100, y: ZS, w: 330 };       // Greywind Pass, the gap in the ridge between the zones
 const WELL = [4000, 3750], CAMPFIRE = [4380, 3380];
@@ -46,21 +47,46 @@ const OUTPOST = { x: 4150, y: 9450, r: 520 };  // Highwatch Outpost, just north 
 const RAM_MEADOW = { x: 2500, y: 10900, r: 900 }; // Ramsfoot Meadow (west)
 const LYNX_RIDGE = { x: 5700, y: 11700, r: 800 }; // Whitefang Ridge (east)
 const SUMMIT = { x: 4200, y: 14700 };             // Skyreach Overlook, where the road ends
-const BRAZIER = [4330, 9330];
+const BRAZIER = [4300, 9250];
+const MINE = { x: 1400, y: 12300, r: 600 };       // Hollowdeep Mine (far west), overrun by craglings
+const KETIL_CAMP = { x: 2750, y: 12250 };         // Old Ketil's tent outside the mine
+const LAKE = { x: 6450, y: 13250, r: 520 };       // Glassmere, a frozen lake (east)
+const YETI_DEN = { x: 5500, y: 10300, r: 420 };   // Whitemane's Hollow
+const YRSA_CAMP = { x: 3850, y: 12800 };          // Yrsa's Watch, the scouts' camp below the lair
+const LAIR = { x: 3000, y: 14100, r: 850 };       // The Wyrm's Crown, Skarnvir's lair (north-west)
+const DELVE = [{ name: "the Mine Mouth", x: 1750, y: 12050 }, { name: "the Old Lift", x: 1150, y: 12700 }, { name: "the Deep Shaft", x: 950, y: 12100 }];
+const RUNE_TEXT = { quest: "wards", verb: "Awakening", idle: "An old runestone, cold to the touch. Scout Yrsa might know what it's for.", done: "This rune is already glowing." };
+const RUNES = [{ name: "Rune of Stillness", x: 3750, y: 13600 }, { name: "Rune of Silence", x: 2150, y: 13350 }, { name: "Rune of Binding", x: 3950, y: 14550 }].map(r => ({ ...r, ...RUNE_TEXT }));
+// everything a player can right-click to use for a quest; `use` commands index into this list
+const USE_POINTS = [...BEACONS, ...RUNES];
+// gathering nodes: each kind grows in a ring around a spot; collect quests name the kind they need
+const NODE_INFO = { herb: { name: "Sunpetal", idle: "A pretty flower. Someone might have a use for it." }, ore: { name: "Glimmerstone", idle: "A vein of glittering stone. A miner might want it." }, frostbloom: { name: "Frostbloom", idle: "A pale blue flower, cold as ice. A healer might want it." } };
 const PEAK_PATHS = [
   [[PASS.x, ZS - 1], [4150, 8700], [OUTPOST.x, OUTPOST.y]],
   [[OUTPOST.x, OUTPOST.y], [3950, 11000], [4350, 12900], [SUMMIT.x, SUMMIT.y]],
   [[OUTPOST.x, OUTPOST.y], [3300, 10200], [RAM_MEADOW.x, RAM_MEADOW.y]],
   [[3950, 11000], [4900, 11500], [LYNX_RIDGE.x, LYNX_RIDGE.y]],
+  [[RAM_MEADOW.x, RAM_MEADOW.y], [1900, 11750], [MINE.x + 250, MINE.y - 150]],
+  [[LYNX_RIDGE.x, LYNX_RIDGE.y], [6050, 12300], [LAKE.x, LAKE.y - LAKE.r]],
+  [[OUTPOST.x, OUTPOST.y], [4900, 9900], [YETI_DEN.x, YETI_DEN.y]],
+  [[4350, 12900], [3700, 13300], [LAIR.x + 300, LAIR.y - 300]],
 ];
 // big rock spires inside the zone (solid, and drawn as peaks)
-const CRAGS = [[1700, 12900, 700], [6450, 9700, 520], [2600, 9100, 420], [6100, 14000, 700], [5200, 13400, 380], [2700, 14600, 520]];
+const CRAGS = [[650, 13950, 520], [6450, 9700, 520], [2600, 9100, 420], [6900, 14650, 580], [5300, 13700, 380], [1600, 15200, 450]];
 // the ridge between the zones: a wall of rock everywhere except the pass
 const RIDGE = []; for(let x = 500; x <= ZS - 500; x += 300) if(Math.abs(x - PASS.x) > PASS.w + 430) RIDGE.push({ x, y: ZS, r: 430 });
 const PEAK_OBSTACLES = [...RIDGE, ...CRAGS.map(([x, y, r]) => ({ x, y, r: r * .8 })),
   { x: PASS.x - PASS.w - 330, y: ZS, r: 330 }, { x: PASS.x + PASS.w + 330, y: ZS, r: 330 },
-  { x: BRAZIER[0], y: BRAZIER[1], r: 80 }, { x: OUTPOST.x - 260, y: OUTPOST.y + 230, r: 170 }, { x: OUTPOST.x + 300, y: OUTPOST.y + 180, r: 170 }];
-const FIRES = [CAMPFIRE, BRAZIER];
+  { x: BRAZIER[0], y: BRAZIER[1], r: 80 }, { x: OUTPOST.x - 260, y: OUTPOST.y + 230, r: 170 }, { x: OUTPOST.x + 300, y: OUTPOST.y + 180, r: 170 },
+  { x: KETIL_CAMP.x + 120, y: KETIL_CAMP.y + 60, r: 150 }, { x: YRSA_CAMP.x - 120, y: YRSA_CAMP.y + 40, r: 150 },
+  ...RUNES.map(r => ({ x: r.x, y: r.y, r: 70 }))];
+const YRSA_FIRE = [YRSA_CAMP.x + 130, YRSA_CAMP.y - 60];
+const FIRES = [CAMPFIRE, BRAZIER, YRSA_FIRE];
+const NODE_SPOTS = [
+  { kind: "herb", x: HERB_AREA.x, y: HERB_AREA.y, rmin: 720, rmax: 1100, n: 10 },
+  { kind: "ore", x: MINE.x, y: MINE.y, rmin: 150, rmax: 620, n: 10 },
+  { kind: "frostbloom", x: LAKE.x, y: LAKE.y, rmin: LAKE.r + 60, rmax: LAKE.r + 380, n: 10 },
+];
 // Every zone: a key, its name, and its area in world units (x0, y0 is the south-west corner).
 // New zones go here; the minimap and world map draw whatever is in this list.
 const ZONES = [
@@ -73,9 +99,12 @@ const NPCS = [
   { id: "bram", name: "Farmer Bram", x: 3720, y: 3480, head: "farmer", style: "farmer", idle: "Fine weather for honest work. Mind the flock on your way out." },
   { id: "kaela", name: "Huntress Kaela", x: 5790, y: 5190, head: "huntress", style: "hunter", idle: "Keep your voice down out here. Sound carries in the Bramblewood." },
   { id: "merrin", name: "Old Merrin", x: 1440, y: 2960, head: "fisher", style: "fisher", idle: "Westwind's blowing. Good day to mend nets and not much else." },
-  { id: "rhea", name: "Captain Rhea", x: 4300, y: 3820, head: "guard", style: "guard", idle: "The Vale is quiet. I intend to keep it that way." },
+  { id: "rhea", name: "Captain Rhea", x: 4350, y: 3780, head: "guard", style: "guard", idle: "The Vale is quiet. I intend to keep it that way." },
   { id: "osric", name: "Peddler Osric", title: "Potions", x: 4150, y: 4000, head: "merchant", style: "merchant", shop: ["hpot"], idle: "Potions! Fresh potions! Brewed this morning, and only slightly fizzy." },
   { id: "halvard", name: "Warden Halvard", x: 4010, y: 9560, head: "warden", style: "warden", idle: "Keep your fire lit and your back to the rock. The mountain forgives nothing." },
+  { id: "maren", name: "Sister Maren", x: 3980, y: 9300, head: "healer", style: "healer", idle: "Cold hands, warm heart, my mother used to say. Mostly cold hands, up here." },
+  { id: "ketil", name: "Old Ketil", x: KETIL_CAMP.x - 200, y: KETIL_CAMP.y - 150, head: "miner", style: "miner", idle: "Forty years I dug that mine. Forty years, and now a pack of walking pebbles has the run of it." },
+  { id: "yrsa", name: "Scout Yrsa", x: YRSA_CAMP.x + 150, y: YRSA_CAMP.y - 180, head: "huntress", style: "hunter", idle: "Keep low, keep quiet. He can hear a boot crack the ice from the top of the Crown." },
 ];
 const OBSTACLES = [
   ...HOUSES.map(h => ({ x: h[0], y: h[1], r: 270 })),
@@ -154,7 +183,8 @@ const QUESTS = {
   },
   defend: {
     id: "defend", lvl: 7, title: "Hold the Watchtower", giver: "rhea", turnin: "rhea", prereq: "beacons", xp: 500, reward: { item: 3, slot: "chest", name: "Watch Captain's" }, where: [TOWER.x, TOWER.y], whereR: 550,
-    obj: { type: "defend", at: TOWER, dur: 60, label: "Hold the Old Watchtower" },
+    obj: { type: "defend", at: TOWER, dur: 60, label: "Hold the Old Watchtower", place: "the Old Watchtower", mob: "bandit", waves: WAVES, from: -Math.PI / 2,
+      start: ["Bandits approach!", "Hold the Old Watchtower for 60 seconds"], waveText: "bandits coming up the road", win: ["The watchtower holds!", "Return to Captain Rhea"] },
     offer: "The bandits are coming up the southern road, and the Old Watchtower is all that stands between them and the village. Get down there and hold it. One minute is all I need to rally the farmers. Whatever happens, don't leave the tower.",
     objective: "Go to the Old Watchtower on the southern road. When the bandits attack, survive for 60 seconds without leaving the tower.",
     progress: "The Old Watchtower, south down the road. Hold it for one minute.",
@@ -179,11 +209,115 @@ const QUESTS = {
     offer: "The snowfang lynxes have come down off Whitefang Ridge. Hungry winter, too many cubs. They've taken two of our pack mules and they stalk anyone who walks the east trail. They hunt alone, but they'll spring on you from the snow before you see them. Thin them out. Eight should do it.",
     objective: "Slay 8 Snowfang Lynxes on Whitefang Ridge, east of Highwatch Outpost.",
     progress: "Eight lynxes, up on Whitefang Ridge to the east. Watch the snowdrifts.",
-    complete: "Eight pelts' worth. The east trail will be safe for the mules again, and the rest will think twice about coming down. Take this, and my thanks. There's plenty more work up here for someone like you.",
+    complete: "Eight pelts' worth. The east trail will be safe for the mules again, and the rest will think twice about coming down. Take this, and my thanks. There's plenty more work up here for someone like you. Sister Maren could use a hand, and Old Ketil has been grumbling about his mine for weeks. He camps west, past Ramsfoot Meadow.",
     done: "The ridge has been quiet since. Good work.",
   },
 };
-const QUEST_ORDER = ["sheep", "tusker", "courier", "scout", "wolves", "herbs", "beacons", "defend", "northpass", "lynx"];
+Object.assign(QUESTS, {
+  rams: {
+    id: "rams", lvl: 10, title: "Thinning the Herd", giver: "halvard", turnin: "halvard", prereq: "lynx", xp: 650, coins: 150, where: [RAM_MEADOW.x, RAM_MEADOW.y], whereR: RAM_MEADOW.r,
+    obj: { type: "kill", kind: "ram", count: 8, label: "Crag Rams slain" },
+    offer: "The crag rams in Ramsfoot Meadow have been charging our supply sledges off the trail. Lost a whole load of flour over the edge last week. Cull the herd. Eight of them. Mind the horns: they'll back off, then come at you like a battering ram.",
+    objective: "Slay 8 Crag Rams in Ramsfoot Meadow, west of Highwatch.",
+    progress: "Eight rams, out in Ramsfoot Meadow. When one lowers its head, get out of the way.",
+    complete: "Ha! The sledges will run in peace. Good meat, too. The cook thanks you, and so do I.",
+    done: "The meadow's been quiet. Well, quieter.",
+  },
+  delve: {
+    id: "delve", lvl: 11, title: "Into the Hollowdeep", giver: "ketil", turnin: "ketil", prereq: "lynx", xp: 650,
+    obj: { type: "explore", points: DELVE, count: 3, label: "Mine sites scouted" },
+    offer: "You! You look like you can swing whatever that is. My mine, the Hollowdeep, is crawling with craglings. Little rock-folk, mean as wasps. I need to know how bad it is. Check the Mine Mouth, the Old Lift and the Deep Shaft, and tell me what you see.",
+    objective: "Scout the Mine Mouth, the Old Lift and the Deep Shaft in the Hollowdeep Mine.",
+    progress: "The Mine Mouth, the Old Lift, the Deep Shaft. Look, don't touch. Well, touch if they touch you first.",
+    complete: "Dozens of them? In my shaft? I knew it. I knew it! Right. We're going to need a plan, and you're the plan.",
+    done: "My mine. My beautiful mine.",
+  },
+  craglings: {
+    id: "craglings", lvl: 11, title: "Rock and Ruin", giver: "ketil", turnin: "ketil", prereq: "delve", xp: 750, reward: { item: 1 }, where: [MINE.x, MINE.y], whereR: MINE.r,
+    obj: { type: "kill", kind: "cragling", count: 10, label: "Craglings smashed" },
+    offer: "Craglings. Rock come to life, they say, wherever the mountain's angry. Don't care why. Care that they're in my mine. Smash ten of them and the rest will scatter deeper.",
+    objective: "Slay 10 Craglings in the Hollowdeep Mine.",
+    progress: "Ten craglings. Hit them where the glow is. That's where they're soft. Well, softer.",
+    complete: "Listen to that. Quiet. Beautiful quiet. Take this. I dug it up years ago and never found a use for it.",
+    done: "Still quiet. Long may it last.",
+  },
+  pick: {
+    id: "pick", lvl: 11, title: "Ketil's Old Pick", giver: "ketil", turnin: "ketil", prereq: "delve", xp: 600, where: [MINE.x, MINE.y], whereR: MINE.r,
+    obj: { type: "loot", from: "cragling", item: "pick", itemName: "Ketil's Old Pick", count: 1, label: "Ketil's Old Pick" },
+    offer: "When they came, I ran. Left my pick behind. My father's pick. One of those little thieves took it, I saw it. Get it back for me, would you? Any of them might be carrying it.",
+    objective: "Slay Craglings in the Hollowdeep Mine until one drops Ketil's Old Pick, then bring it to him.",
+    progress: "Any luck? It's got a crack in the handle and my father's mark on the head.",
+    complete: "That's it. That's the one. Feels right in the hand. Thank you. Truly.",
+    done: "My father would've liked you.",
+  },
+  ore: {
+    id: "ore", lvl: 12, title: "Glimmerstone", giver: "ketil", turnin: "ketil", prereq: ["craglings", "pick"], xp: 800, coins: 250, reward: { item: 2 }, where: [MINE.x, MINE.y], whereR: MINE.r,
+    obj: { type: "collect", node: "ore", count: 8, label: "Glimmerstone mined" },
+    offer: "Now that I've got my pick back, I've got an idea. Glimmerstone. Sparkly blue veins in the mine walls. Halvard's smith can forge it into something special. Chip me out eight chunks.",
+    objective: "Mine 8 Glimmerstone veins in the Hollowdeep Mine. Walk over them or right-click them.",
+    progress: "Eight chunks of glimmerstone. Blue sparkle, can't miss it.",
+    complete: "Look at that shine! Here, take your cut, and this. Never say Ketil doesn't pay his debts.",
+    done: "Smith says it's the best stone he's seen in years.",
+  },
+  frostbloom: {
+    id: "frostbloom", lvl: 11, title: "Frostbloom", giver: "maren", turnin: "maren", prereq: "lynx", xp: 700, coins: 150, where: [LAKE.x, LAKE.y], whereR: LAKE.r + 350,
+    obj: { type: "collect", node: "frostbloom", count: 6, label: "Frostbloom gathered" },
+    offer: "Half the outpost has the shivering cough. Frostbloom tea would break it, but it only grows on the shore of Glassmere, the frozen lake east of Whitefang Ridge. Bring me six blossoms. And be careful of the lights over the ice.",
+    objective: "Gather 6 Frostbloom on the shore of Glassmere, east of Whitefang Ridge.",
+    progress: "Six frostblooms, from the shore of Glassmere. Pale blue, like a winter sky.",
+    complete: "Perfect. Still cold. The tea will be ready by nightfall. You're a godsend.",
+    done: "The coughing's stopped. Everyone's sleeping again.",
+  },
+  wisps: {
+    id: "wisps", lvl: 12, title: "Lights on the Water", giver: "maren", turnin: "maren", prereq: "frostbloom", xp: 850, reward: { item: 2 }, where: [LAKE.x, LAKE.y], whereR: LAKE.r + 250,
+    obj: { type: "kill", kind: "wisp", count: 8, label: "Frost Wisps dispersed" },
+    offer: "Those lights on Glassmere. Frost wisps. The cold given a mind of its own. Since the dragon woke, there are more of them every night, and they've started drifting toward the outpost. Disperse eight of them.",
+    objective: "Disperse 8 Frost Wisps over Glassmere.",
+    progress: "Eight wisps. They're cold to the touch, so fight them quickly.",
+    complete: "The lake's dark again. Thank you. Here, I've been saving this for someone who deserved it.",
+    done: "No lights on the water tonight.",
+  },
+  whitemane: {
+    id: "whitemane", lvl: 13, title: "Whitemane", giver: "halvard", turnin: "halvard", prereq: ["rams", "ore", "wisps"], xp: 1200, reward: { item: 3, name: "Whitemane's" }, where: [YETI_DEN.x, YETI_DEN.y], whereR: YETI_DEN.r,
+    obj: { type: "kill", kind: "yeti", count: 1, label: "Whitemane slain" },
+    offer: "You've done more for Highwatch in a week than most do in a lifetime. One more thing, then. Whitemane. The elder yeti of the hollow east of here. He's been raiding our stores, and last night he tore the gate off its hinges. He's old, and he's huge, and when he roars he charges. Bring a friend if you can.",
+    objective: "Slay Whitemane, the elder yeti, in Whitemane's Hollow east of Highwatch. He's an elite: bring friends if you can.",
+    progress: "Whitemane, in the hollow to the east. When he roars, move.",
+    complete: "Whitemane, dead. I never thought I'd see the day. There's something else, though. Scout Yrsa sent word from her watch below the Wyrm's Crown, to the north. Something big has woken up there. Go and see her.",
+    done: "The gate's back on its hinges. Thanks to you.",
+  },
+  wards: {
+    id: "wards", lvl: 13, title: "The Warding Runes", giver: "yrsa", turnin: "yrsa", prereq: "whitemane", xp: 900,
+    obj: { type: "interact", points: RUNES, count: 3, label: "Runes awakened" },
+    offer: "Halvard sent you? Good. Listen. There's a dragon on the Crown. Skarnvir, the Rimewyrm. He slept for three hundred years and now he's awake and hungry. The old wardens left three runestones around his lair. If we wake them, they'll keep him from leaving. Awaken all three, but don't go into the Crown itself.",
+    objective: "Awaken the Runes of Stillness, Silence and Binding around the Wyrm's Crown. Right-click a rune and hold still while it wakes.",
+    progress: "Three runes, around the edge of the Crown. Right-click one and hold still. And stay out of the ring.",
+    complete: "Can you feel it? The air's gone still. He's trapped up there now. Which means he's angry.",
+    done: "The runes are holding. For now.",
+  },
+  brood: {
+    id: "brood", lvl: 13, title: "The Wyrm's Brood", giver: "yrsa", turnin: "yrsa", prereq: "wards", xp: 1100, reward: { item: 3 }, where: [YRSA_CAMP.x, YRSA_CAMP.y], whereR: 550,
+    obj: { type: "defend", at: YRSA_CAMP, dur: 60, label: "Hold Yrsa's Watch", place: "Yrsa's Watch", mob: "whelp", waves: [2, 3, 3, 4], from: Math.atan2(LAIR.y - YRSA_CAMP.y, LAIR.x - YRSA_CAMP.x),
+      start: ["The brood is coming!", "Hold Yrsa's Watch for 60 seconds"], waveText: "frost whelps diving from the Crown", win: ["The watch holds!", "Speak to Scout Yrsa"] },
+    offer: "Here they come. He's sent his whelps to sniff out who woke the runes. If they find the camp, they'll bring him down on us. Stand with me. Hold the watch for one minute and they'll lose heart.",
+    objective: "Defend Yrsa's Watch from frost whelps for 60 seconds. Don't leave the camp.",
+    progress: "Hold the watch. One minute. Don't let them past.",
+    complete: "We held! He knows we're here now, though. There's only one thing left to do.",
+    done: "Nothing gets past this watch.",
+    fail: "You left the watch. Speak to Scout Yrsa to try again.",
+  },
+  rimewyrm: {
+    id: "rimewyrm", lvl: 15, title: "Skarnvir the Rimewyrm", giver: "yrsa", turnin: "yrsa", prereq: "brood", xp: 3000, coins: 2000, reward: "legendary", raid: true, where: [LAIR.x, LAIR.y], whereR: LAIR.r,
+    obj: { type: "kill", kind: "dragon", count: 1, label: "Skarnvir slain" },
+    offer: "This is it. Skarnvir. No one can face him alone: his scales turn aside a lone blade like it's straw. You'll need a party of at least three. Someone sturdy to hold his attention, someone to keep them alive, and someone to do the damage. Stay out of his breath, stay away from his tail, and kill his whelps. Bring me his heart.",
+    objective: "Raid boss: slay Skarnvir the Rimewyrm in the Wyrm's Crown. Needs a party of at least 3: a tank (melee champions hold his attention best), a healer, and damage dealers.",
+    progress: "He's up on the Crown. Gather your party: three at least, five if you can.",
+    complete: "You did it. You actually did it. The Rimewyrm is dead! They'll sing about this in Sunhollow for a hundred years. Here. Forged from his own fang. It's yours.",
+    done: "Skarnvir is dead. The mountain sleeps easy.",
+  },
+});
+const QUEST_ORDER = ["sheep", "tusker", "courier", "scout", "wolves", "herbs", "beacons", "defend", "northpass", "lynx",
+  "rams", "delve", "craglings", "pick", "ore", "frostbloom", "wisps", "whitemane", "wards", "brood", "rimewyrm"];
 /* ---------- Experience ---------- */
 // Each level needs more XP than the last. Creatures and quests well below your level give less.
 const MAX_LEVEL = 20;
@@ -203,6 +337,7 @@ function levelGap(gap){
 }
 // prereq is a quest id or a list of them; all must be done
 function prereqMet(quests, Q){ const ids = !Q.prereq ? [] : Array.isArray(Q.prereq) ? Q.prereq : [Q.prereq]; return ids.every(id => quests[id] && quests[id].state === "done"); }
+const RIMEWYRM_WEAPON = { melee: "Rimefang, Edge of the Wyrm", caster: "Skarnvir's Frozen Heart", ranged: "Wingbone Longbow" };
 const WEAPON_REWARD = { melee: "Tuskbreaker Blade", caster: "Tuskwood Staff", ranged: "Tuskbone Bow", ad: 32, abil: .18 };
 // Which quest an NPC should talk about, given a hero's quest log (used by the host and for markers)
 function questFor(quests, npcId){
@@ -267,8 +402,11 @@ const POIS = [
   { name: "Merrin's Cabin", x: CABIN.x + 150, y: CABIN.y - 450 }, { name: "Stillwater Pond", x: POND.x, y: POND.y - 780 },
   { name: "Howling Pines", x: PINES.x, y: PINES.y - 900 }, { name: "Old Watchtower", x: TOWER.x + 900, y: TOWER.y + 150 },
   { name: "Greywind Pass", x: PASS.x + 1000, y: PASS.y + 250 }, { name: "Highwatch Outpost", x: OUTPOST.x + 1100, y: OUTPOST.y - 150 },
-  { name: "Ramsfoot Meadow", x: RAM_MEADOW.x, y: RAM_MEADOW.y + 1050 }, { name: "Whitefang Ridge", x: LYNX_RIDGE.x, y: LYNX_RIDGE.y + 950 },
+  { name: "Ramsfoot Meadow", x: RAM_MEADOW.x - 200, y: RAM_MEADOW.y - 950 }, { name: "Whitefang Ridge", x: LYNX_RIDGE.x, y: LYNX_RIDGE.y + 950 },
   { name: "Skyreach Overlook", x: SUMMIT.x, y: SUMMIT.y + 450 },
+  { name: "Hollowdeep Mine", x: MINE.x, y: MINE.y + 800 }, { name: "Glassmere", x: LAKE.x, y: LAKE.y + 700 },
+  { name: "Whitemane's Hollow", x: YETI_DEN.x, y: YETI_DEN.y + 600 }, { name: "Yrsa's Watch", x: YRSA_CAMP.x - 950, y: YRSA_CAMP.y - 50 },
+  { name: "The Wyrm's Crown", x: LAIR.x - 400, y: LAIR.y + 1050 },
 ];
 const MOBS = {
   sheep: { name: "Sheep", lvl: 1, r: 45, hp: 140, dmg: 6, atkCd: 1.6, ms: 260, wander: 110, xp: 22, respawn: 12, leash: 1500, home: [PASTURE.x, PASTURE.y], roam: PASTURE.r - 180, count: 9 },
@@ -276,6 +414,12 @@ const MOBS = {
   wolf: { name: "Gray Wolf", lvl: 4, r: 52, hp: 360, dmg: 15, atkCd: 1.3, ms: 330, wander: 120, xp: 45, respawn: 16, leash: 1900, home: [PINES.x, PINES.y], roam: PINES.r, count: 7, aggroR: 420, pack: true },
   ram: { name: "Crag Ram", lvl: 10, r: 60, hp: 1050, dmg: 30, atkCd: 1.6, ms: 300, wander: 120, xp: 95, respawn: 18, leash: 1700, home: [RAM_MEADOW.x, RAM_MEADOW.y], roam: RAM_MEADOW.r - 150, count: 9, charge: true },
   lynx: { name: "Snowfang Lynx", lvl: 11, r: 55, hp: 980, dmg: 36, atkCd: 1.2, ms: 360, wander: 130, xp: 115, respawn: 16, leash: 1800, home: [LYNX_RIDGE.x, LYNX_RIDGE.y], roam: LYNX_RIDGE.r, count: 10, aggroR: 460 },
+  cragling: { name: "Cragling", lvl: 11, r: 50, hp: 900, dmg: 30, atkCd: 1.3, ms: 320, wander: 110, xp: 100, respawn: 15, leash: 1500, home: [MINE.x, MINE.y], roam: MINE.r - 60, count: 9, aggroR: 330 },
+  wisp: { name: "Frost Wisp", lvl: 12, r: 46, hp: 860, dmg: 34, atkCd: 1.5, ms: 300, wander: 150, xp: 110, respawn: 16, leash: 1600, home: [LAKE.x, LAKE.y], roam: LAKE.r + 200, count: 9, aggroR: 420 },
+  yeti: { name: "Whitemane", lvl: 13, r: 100, hp: 4400, dmg: 56, atkCd: 1.8, ms: 300, wander: 70, xp: 400, respawn: 60, leash: 1500, home: [YETI_DEN.x, YETI_DEN.y], roam: 220, count: 1, elite: true, charge: true },
+  whelp: { name: "Frost Whelp", lvl: 13, r: 50, hp: 650, dmg: 26, atkCd: 1.3, ms: 360, wander: 100, xp: 70, respawn: 0, leash: 99999, home: [LAIR.x, LAIR.y], roam: 300, count: 0, aggroR: 1000 },
+  // the first raid boss: needs a party of 3+ (tank, healer, damage). Behaviour is in 05c-raid.js
+  dragon: { name: "Skarnvir the Rimewyrm", lvl: 15, r: 340, hp: 140000, dmg: 330, atkCd: 1.9, ms: 230, wander: 0, xp: 1500, respawn: 300, leash: 2300, home: [LAIR.x, LAIR.y], roam: 0, count: 1, elite: true, boss: true, aggroR: 650 },
   bandit: { name: "Vale Bandit", lvl: 6, r: 55, hp: 400, dmg: 19, atkCd: 1.4, ms: 300, wander: 100, xp: 60, respawn: 0, leash: 99999, home: [TOWER.x, TOWER.y], roam: 300, count: 0, aggroR: 900 },
 };
 const clampX = v => Math.max(ZMIN, Math.min(ZMAX, v));
@@ -286,33 +430,39 @@ const BAG_SIZE = 20;
 const EQ_SLOTS = ["head", "chest", "hands", "legs", "feet", "weapon"];
 const ARMOR_SLOTS = ["head", "chest", "hands", "legs", "feet"];
 const SLOT_NAME = { head: "Head", chest: "Chest", hands: "Hands", legs: "Legs", feet: "Feet", weapon: "Weapon" };
-const RARITY = [{ n: "Common", c: "#d8d8d8", m: 1 }, { n: "Uncommon", c: "#3fd16a", m: 1.4 }, { n: "Rare", c: "#4d9dff", m: 1.9 }, { n: "Epic", c: "#b45cff", m: 2.6 }];
+const RARITY = [{ n: "Common", c: "#d8d8d8", m: 1 }, { n: "Uncommon", c: "#3fd16a", m: 1.4 }, { n: "Rare", c: "#4d9dff", m: 1.9 }, { n: "Epic", c: "#b45cff", m: 2.6 }, { n: "Legendary", c: "#ff8a1e", m: 3.5 }];
 const STAT = {
   hp: { w: 8, line: v => `+${v} Health`, short: "Health" }, ad: { w: 1, line: v => `+${v} Attack Damage`, short: "Attack" },
   ap: { w: .8, line: v => `+${v}% Ability Damage`, short: "% Ability" }, armor: { w: 1.5, line: v => `+${v} Armor`, short: "Armor" },
   haste: { w: .5, line: v => `+${v}% Cooldown Reduction`, short: "% Haste" }, ms: { w: .5, line: v => `+${v}% Movement Speed`, short: "% Speed" },
 };
 const MATERIAL = {
-  cloth: { label: "Cloth", stats: ["ap", "haste", "hp", "ms"], names: ["Frayed", "Woven", "Silken", "Starweave"], color: ["#7c6aa0", "#6a4fb0", "#4f6ad0", "#a04fd0"] },
-  leather: { label: "Leather", stats: ["ad", "ms", "hp", "haste"], names: ["Worn", "Tanned", "Hardened", "Shadowhide"], color: ["#7a5a3a", "#8a6234", "#6a4a2a", "#4a3050"] },
-  plate: { label: "Plate", stats: ["armor", "hp", "ad", "haste"], names: ["Dented", "Iron", "Steel", "Valor"], color: ["#7d8794", "#9aa6b8", "#c0ccdc", "#d8c27a"] },
+  cloth: { label: "Cloth", stats: ["ap", "haste", "hp", "ms"], names: ["Frayed", "Woven", "Silken", "Starweave", "Wyrmweave"], color: ["#7c6aa0", "#6a4fb0", "#4f6ad0", "#a04fd0", "#3fb4d8"] },
+  leather: { label: "Leather", stats: ["ad", "ms", "hp", "haste"], names: ["Worn", "Tanned", "Hardened", "Shadowhide", "Rimescale"], color: ["#7a5a3a", "#8a6234", "#6a4a2a", "#4a3050", "#2f6a8a"] },
+  plate: { label: "Plate", stats: ["armor", "hp", "ad", "haste"], names: ["Dented", "Iron", "Steel", "Valor", "Dragonforged"], color: ["#7d8794", "#9aa6b8", "#c0ccdc", "#d8c27a", "#e8f0ff"] },
 };
 const BASE_NAMES = { head: { cloth: "Hood", leather: "Cap", plate: "Helm" }, chest: { cloth: "Robe", leather: "Jerkin", plate: "Breastplate" }, hands: { cloth: "Gloves", leather: "Grips", plate: "Gauntlets" }, legs: { cloth: "Trousers", leather: "Leggings", plate: "Legplates" }, feet: { cloth: "Sandals", leather: "Boots", plate: "Sabatons" } };
-const WEAPON_NAMES = { melee: { base: ["Shortsword", "Blade", "Longsword"], pre: ["Rusty", "Sturdy", "Fine", "Runed"], wt: "sword" }, caster: { base: ["Rod", "Staff", "Spire"], pre: ["Cracked", "Oak", "Carved", "Runed"], wt: "staff" }, ranged: { base: ["Shortbow", "Bow", "Longbow"], pre: ["Warped", "Ash", "Recurve", "Runed"], wt: "bow" } };
+const WEAPON_NAMES = { melee: { base: ["Shortsword", "Blade", "Longsword"], pre: ["Rusty", "Sturdy", "Fine", "Runed", "Wyrmfang"], wt: "sword" }, caster: { base: ["Rod", "Staff", "Spire"], pre: ["Cracked", "Oak", "Carved", "Runed", "Wyrmfang"], wt: "staff" }, ranged: { base: ["Shortbow", "Bow", "Longbow"], pre: ["Warped", "Ash", "Recurve", "Runed", "Wyrmfang"], wt: "bow" } };
 const SUFFIX = { hp: "of the Bear", ad: "of the Tiger", ap: "of the Owl", armor: "of the Turtle", haste: "of Swiftness", ms: "of the Fox" };
 const CLASS_MAT = { melee: "plate", caster: "cloth", ranged: "leather" };
-const MATERIALS = { wool: { n: "Tuft of Wool", v: 3 }, pelt: { n: "Wolf Pelt", v: 9 }, hide: { n: "Thick Boar Hide", v: 25 }, horn: { n: "Curled Ram Horn", v: 22 }, frostpelt: { n: "Snowfang Pelt", v: 30 } };
+const MATERIALS = { wool: { n: "Tuft of Wool", v: 3 }, pelt: { n: "Wolf Pelt", v: 9 }, hide: { n: "Thick Boar Hide", v: 25 }, horn: { n: "Curled Ram Horn", v: 22 }, frostpelt: { n: "Snowfang Pelt", v: 30 },
+  shard: { n: "Glimmering Shard", v: 26 }, essence: { n: "Wisp Essence", v: 30 }, yetifur: { n: "Whitemane's Mane", v: 120 }, rimescale: { n: "Rimescale", v: 40 } };
 const LOOT = {
   sheep: { coins: [1, 4], mat: ["wool", .7], gear: .12, ilvl: 2 },
   wolf: { coins: [4, 10], mat: ["pelt", .6], gear: .22, ilvl: 4 },
   bandit: { coins: [10, 24], mat: null, gear: .32, ilvl: 6 },
   ram: { coins: [18, 34], mat: ["horn", .6], gear: .25, ilvl: 11 },
   lynx: { coins: [20, 40], mat: ["frostpelt", .55], gear: .28, ilvl: 12 },
+  cragling: { coins: [22, 40], mat: ["shard", .55], gear: .26, ilvl: 12 },
+  wisp: { coins: [24, 44], mat: ["essence", .5], gear: .28, ilvl: 12 },
+  whelp: { coins: [10, 20], mat: ["rimescale", .4], gear: .15, ilvl: 13 },
+  yeti: { coins: [90, 140], mat: ["yetifur", 1], gear: 1, minRarity: 2, epic: .3, ilvl: 14 },
+  dragon: { raid: true, coins: [600, 900], ilvl: 16 },  // see SIM.raidLoot
   boar: { coins: [40, 70], mat: ["hide", 1], gear: 1, minRarity: 2, epic: .15, ilvl: 5 },
 };
 function rollRarity(min, epic){ const r = Math.random(); const v = r < .01 + (epic || 0) ? 3 : r < .12 ? 2 : r < .45 ? 1 : 0; return Math.max(min || 0, v); }
 function genItem(o){
-  const r = Math.max(0, Math.min(3, o.rarity)), cls = o.cls || "melee", slot = o.slot || EQ_SLOTS[Math.floor(Math.random() * EQ_SLOTS.length)];
+  const r = Math.max(0, Math.min(4, o.rarity)), cls = o.cls || "melee", slot = o.slot || EQ_SLOTS[Math.floor(Math.random() * EQ_SLOTS.length)];
   const mat = slot === "weapon" ? CLASS_MAT[cls] : (Math.random() < .55 ? CLASS_MAT[cls] : ["cloth", "leather", "plate"][Math.floor(Math.random() * 3)]);
   const M = MATERIAL[mat], nStats = Math.min(4, r + 1);
   const budget = (5 + o.ilvl * 2.2) * RARITY[r].m * (slot === "weapon" ? 1.3 : slot === "chest" || slot === "legs" ? 1.15 : 1);
