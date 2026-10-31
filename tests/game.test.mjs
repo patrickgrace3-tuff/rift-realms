@@ -980,3 +980,50 @@ test("cathedral: everything comes back after it's been empty for a while", () =>
   assert.equal(W.mobs.filter(m => m.spawnId).length, G.CATHEDRAL_SPAWNS.length, "every creature and boss is back");
   assert.ok(W.dungeon.sealed, "and the choir is sealed again");
 });
+
+/* ---------- Saved progress ---------- */
+test("save: a champion's progress survives a save and a fresh world", () => {
+  const W = SIM.create(), h = cathedralHero(W, "blue", ARCHER, 14, 3);
+  h.xp = 500; h.coins = 12345; h.arenaWins = 3; h.arenaBest = 7; h.x = G.YRSA_CAMP.x; h.y = G.YRSA_CAMP.y - 300;
+  h.quests = { sheep: { state: "done", count: 5, flags: [] }, wards: { state: "active", count: 2, flags: [1, 0, 1] }, courier: { state: "failed", count: 0, flags: [] } };
+  for(const k of ["power", "power", "haste", "mastery"]) SIM.input(W, "blue", { talent: "Q." + k });
+  SIM.input(W, "blue", { talent: "core.vit" });
+  SIM.addItem(h, G.genItem({ ilvl: 14, rarity: 4, cls: "ranged", slot: "weapon", nid: 4242 }));
+  const before = { lvl: h.lvl, maxHp: h.maxHp, eq: G.EQ_SLOTS.map(s => h.equip[s].n), inv: h.inv.map(i => i.n + (i.q || 1)) };
+  // saved the way a browser does: from the snapshot, through JSON
+  const me = SIM.snapshot(W).h.find(x => x.side === "blue"), save = JSON.parse(JSON.stringify(G.saveRecord(me, h.champId)));
+  const W2 = SIM.create(), h2 = SIM.addHero(W2, "blue", ARCHER());
+  assert.ok(SIM.loadSave(W2, h2, save), "the save loads");
+  assert.equal(h2.lvl, 14); assert.equal(h2.xp, 500); assert.equal(h2.coins, 12345); assert.equal(h2.arenaWins, 3); assert.equal(h2.arenaBest, 7);
+  assert.equal(h2.quests.sheep.state, "done"); assert.equal(h2.quests.wards.state, "active"); assert.deepEqual([...h2.quests.wards.flags], [1, 0, 1]); assert.equal(h2.quests.courier.state, "failed");
+  assert.equal(h2.talents.Q.mastery, 1); assert.equal(h2.talents.Q.power, 2); assert.equal(h2.talents.core.vit, 1);
+  assert.deepEqual(G.EQ_SLOTS.map(s => h2.equip[s].n), before.eq, "the same gear is equipped");
+  assert.deepEqual(h2.inv.map(i => i.n + (i.q || 1)), before.inv, "the same bags");
+  assert.equal(h2.maxHp, before.maxHp, "same stats");
+  assert.ok(Math.hypot(h2.x - h.x, h2.y - h.y) < 2, "back where you were");
+  assert.equal(new Set([...h2.inv, ...Object.values(h2.equip)].map(i => i.id)).size, h2.inv.length + G.EQ_SLOTS.length, "items get fresh ids");
+  assert.equal(G.questFor(h2.quests, "yrsa").state, "progress", "quest givers pick up where you left off");
+});
+
+test("save: a bad or tampered save can't break the game or cheat past the rules", () => {
+  const W = SIM.create(), h = SIM.addHero(W, "blue", ARCHER());
+  assert.equal(SIM.loadSave(W, h, { v: G.SAVE_VERSION, champ: "Someone", lvl: 20 }), false, "another champion's save is refused");
+  assert.equal(SIM.loadSave(W, h, null), false); assert.equal(SIM.loadSave(W, h, "junk"), false); assert.equal(h.lvl, 1);
+  const bad = { v: G.SAVE_VERSION, champ: "Archer", lvl: 999, xp: -5, coins: "lots", arenaBest: 50,
+    quests: { nope: { state: "done" }, sheep: { state: "hacked" }, wolves: { state: "ready", count: 999 }, ["__proto__"]: { state: "done" } },
+    inv: [{ s: "weapon", n: "Godblade", r: 9, st: { ad: 1e9, evil: 5, ["__proto__"]: 1 }, il: 99, color: "javascript:1", wt: "laser" }, { s: "mat", key: "unobtainium", q: 5 }, { s: "use", key: "hpot", q: 900 }, "x", null],
+    equip: { head: { s: "chest", n: "Wrong slot", r: 1, st: {} }, legs: { s: "legs", n: "Pants", r: 2, st: { hp: 40 } } },
+    talents: { core: { vit: 9, might: 9 }, Q: { power: 9, haste: 9, mastery: 9 }, W: { power: 9 }, E: { power: 9 }, R: { power: 9 } },
+    x: 4000, y: 20000 };
+  assert.ok(SIM.loadSave(W, h, bad));
+  assert.equal(h.lvl, G.MAX_LEVEL); assert.equal(h.xp, 0); assert.equal(h.coins, 0); assert.equal(h.arenaBest, 10);
+  assert.deepEqual(Object.keys(h.quests), ["wolves"], "only real quests in real states"); assert.equal(h.quests.wolves.count, G.QUESTS.wolves.obj.count);
+  const blade = h.inv.find(i => i.s === "weapon");
+  assert.ok(blade && blade.r === 4 && blade.st.ad === 5000 && !("evil" in blade.st) && blade.il === 40 && blade.wt === null && blade.color === "#b8a68a", "item stats are clamped and cleaned");
+  assert.equal(h.inv.length, 2, "unknown items are dropped"); assert.equal(h.inv.find(i => i.key === "hpot").q, 20);
+  assert.ok(!h.equip.head && h.equip.legs, "gear only goes in its own slot");
+  assert.ok(G.talentsSpent(h.talents) <= h.lvl - 1, "talents stay within your points and the tree's rules");
+  assert.ok(Object.keys(h.talents.Q).every(k => h.talents.Q[k] <= 3));
+  assert.ok(h.x === G.CATHEDRAL.arrive[0] && h.y === G.CATHEDRAL.arrive[1], "a save inside the cathedral starts at its entrance");
+  SIM.step(W, 1 / 30); assert.ok(!h.dead && h.hp === h.maxHp);
+});

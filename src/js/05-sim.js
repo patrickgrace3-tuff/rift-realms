@@ -680,7 +680,7 @@ const SIM = {
         cc: c.cc.stun > 0 ? "stun" : c.silenceT > W.t ? "silence" : c.cc.root > 0 ? "root" : c.cc.slow > 0 ? "slow" : "", quests: SIM.questView(W, c), weapon: c.weapon ? c.weapon.name : null,
         talents: c.talents, points: talentPoints(c.lvl, c.talents), orbN: c.orbN || 3, ad: Math.round(c.ad),
         wglow: c.weapon && c.weapon.glow ? 1 : 0, coins: c.coins, ap: Math.round(c.ap), armor: Math.round(c.armor), haste: Math.round(c.hasteG), msPct: Math.round(c.msPct),
-        pot: c.potT > W.t ? Math.ceil(c.potT - W.t) : 0, bot: c.bot ? 1 : 0, merc: c.merc ? c.merc.role : "",
+        pot: c.potT > W.t ? Math.ceil(c.potT - W.t) : 0, aw: c.arenaWins || 0, ab: c.arenaBest || 0, bot: c.bot ? 1 : 0, merc: c.merc ? c.merc.role : "",
         chan: c.channel ? { n: c.channel.name, p: Math.round(c.channel.t / c.channel.dur * 100) / 100 } : null, party: c.party || "",
         gear: { ver: c.gearVer, inv: c.inv, equip: c.equip } })),
       m: W.mobs.map(m => [m.id, m.kind, r(m.x), r(m.y), r(m.hp), r(m.maxHp), Math.round(m.face * 10) / 10, (m.moving ? 1 : 0) | (m.aggro ? 2 : 0) | (m.charging ? 4 : 0) | (m.windup > 0 || m.cast ? 8 : 0)]),

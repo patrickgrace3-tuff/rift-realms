@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build" content="3868e15fa3">
+<meta name="build" content="c54389ac9c">
 <script>
 // If this copy of the page is out of date (a browser can hold on to an old one), load the latest.
 // The build code changes whenever any game file does (scripts/stamp.mjs writes it).
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=ee8787ce88">
+<link rel="stylesheet" href="src/styles.css?v=f56f30f2aa">
 </head>
 <body>
 
@@ -67,6 +67,7 @@
         <p class="title" id="pvTitle"></p>
       </div>
     </div>
+    <div class="savebox" id="pvSave" hidden><span id="pvSaveText"></span><button class="btn small" id="pvReset">Start over</button></div>
     <div class="kit" id="pvKit"></div>
     <div class="row">
       <button class="btn" id="pvBack">Back</button>
@@ -317,23 +318,25 @@
 
 <script src="src/js/00-core.js?v=a75aa8578d"></script>
 <script src="src/js/01-world-data.js?v=526cb5ed96"></script>
-<script src="src/js/02-boot-select.js?v=01f3747cfe"></script>
+<script src="src/js/02-boot-select.js?v=d35f364214"></script>
 <script src="src/js/03-art.js?v=04db362e73"></script>
 <script src="src/js/04-scene.js?v=e4be1fdbe2"></script>
 <script src="src/js/04b-peaks.js?v=4e87e0db41"></script>
 <script src="src/js/04c-cathedral.js?v=822f4a2a90"></script>
-<script src="src/js/05-sim.js?v=27e5f1e873"></script>
+<script src="src/js/05-sim.js?v=e3af195898"></script>
 <script src="src/js/05b-party.js?v=31caaeb5d8"></script>
 <script src="src/js/05c-raid.js?v=a30e6dd7dc"></script>
 <script src="src/js/05d-duel.js?v=e320fa34cf"></script>
 <script src="src/js/05e-arena.js?v=ec1f03cd2b"></script>
 <script src="src/js/05f-mercs.js?v=d853a3d80c"></script>
 <script src="src/js/05g-dungeon.js?v=66a217f728"></script>
-<script src="src/js/06-net.js?v=9285f7d4b4"></script>
-<script src="src/js/07-world.js?v=07d72b4b91"></script>
+<script src="src/js/05h-save.js?v=dc274780ee"></script>
+<script src="src/js/06-net.js?v=1bcdd7cefc"></script>
+<script src="src/js/07-world.js?v=7b4f0c8299"></script>
 <script src="src/js/08-ui.js?v=6bff0ac751"></script>
 <script src="src/js/08b-social.js?v=ea060b3aaf"></script>
 <script src="src/js/08c-audio.js?v=fa3c7c035f"></script>
-<script src="src/js/09-render.js?v=60513c3625"></script>
+<script src="src/js/08d-save.js?v=6e363ac65a"></script>
+<script src="src/js/09-render.js?v=e4cb91b1fc"></script>
 </body>
 </html>

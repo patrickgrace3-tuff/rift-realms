@@ -334,6 +334,7 @@ function frame(now){
   requestAnimationFrame(frame);
   if(!G) return;
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  guarded("save", () => saveTick(dt));
   if(G.role === "host") guarded("simulation", () => {
     let rest = dt; while(rest > 0){ const st = Math.min(1 / 60, rest); SIM.step(G.W, st); rest -= st; }
     G.snap = SIM.snapshot(G.W);

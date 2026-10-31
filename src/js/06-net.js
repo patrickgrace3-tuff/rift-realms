@@ -64,7 +64,8 @@ async function onHostData(g, msg){
     try{
       const d = await getDetail(String(msg.champId));
       if(!g.conn.open || !G || !G.W) return;
-      G.details[side] = d; SIM.addHero(G.W, side, d); g.ready = true;
+      G.details[side] = d; const c = SIM.addHero(G.W, side, d); g.ready = true;
+      SIM.loadSave(G.W, c, msg.save); // their saved progress (checked: it comes from their browser)
       sendTo(g.conn, { t: "start", me: side, champ: d.id });
       SIM.note(G.W, null, `${d.name} joined the world.`);
       $("#inviteMsg").className = "lobbymsg ok"; $("#inviteMsg").textContent = `${d.name} joined your world.`;
@@ -82,7 +83,7 @@ $("#joinGo").onclick = () => {
   const peer = new Peer({ debug: 1 }); NET.peer = peer;
   peer.on("open", () => {
     const conn = peer.connect(peerId(code), { reliable: true }); NET.conn = conn;
-    conn.on("open", () => { send({ t: "hello", champId: chosen.id }); msg.className = "lobbymsg ok"; msg.textContent = "Connected. Entering your friend's world…"; });
+    conn.on("open", () => { send({ t: "hello", champId: chosen.id, save: readSave(chosen.id) }); msg.className = "lobbymsg ok"; msg.textContent = "Connected. Entering your friend's world…"; });
     conn.on("data", onGuestData);
     conn.on("close", () => { if(G && G.role === "guest"){ leaveWorld(); showNotice("Disconnected", "The connection to your friend's world was lost."); } });
   });

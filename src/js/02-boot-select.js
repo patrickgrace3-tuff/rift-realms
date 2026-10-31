@@ -48,7 +48,8 @@ function buildSelect(){
   for(const c of champs){
     const b = document.createElement("button");
     b.className = "champ"; b.dataset.id = c.id; b.dataset.name = c.name.toLowerCase(); b.dataset.tags = c.tags.join(",");
-    b.innerHTML = `<img loading="lazy" alt="" src="${champIcon(c.id)}"><span>${esc(c.name)}</span>`;
+    const sv = readSave(c.id);
+    b.innerHTML = `<img loading="lazy" alt="" src="${champIcon(c.id)}"><span>${esc(c.name)}</span>${sv ? `<i class="savelv" title="Saved progress">Lv ${sv.lvl}</i>` : ""}`;
     b.onclick = () => openPreview(c);
     grid.appendChild(b);
   }
@@ -81,6 +82,7 @@ async function openPreview(c){
   $("#pvName").textContent = c.name; $("#pvTitle").textContent = c.title; $("#pvTags").textContent = c.tags.join(" · ");
   $("#pvKit").innerHTML = `<p class="sub">Loading abilities…</p>`;
   $("#pvEnter").disabled = $("#pvJoin").disabled = true;
+  showSaveLine(c.id);
   $("#preview").hidden = false;
   const pc = $("#pvSprite"), pg = pc.getContext("2d"); pg.clearRect(0, 0, 128, 192);
   try{
@@ -103,5 +105,16 @@ async function openPreview(c){
   }
 }
 $("#pvBack").onclick = () => { $("#preview").hidden = true; };
-$("#pvEnter").onclick = () => { $("#preview").hidden = true; startWorld({ role: "host", details: { blue: chosen } }); };
+$("#pvEnter").onclick = () => { $("#preview").hidden = true; startWorld({ role: "host", details: { blue: chosen }, save: readSave(chosen.id) }); };
+// saved progress for this champion: continue it, or start over
+function showSaveLine(id){
+  const s = readSave(id);
+  $("#pvSave").hidden = !s; $("#pvEnter").textContent = s ? "Continue" : "Enter world";
+  if(s) $("#pvSaveText").textContent = `Saved progress: ${saveSummary(s)}`;
+}
+$("#pvReset").onclick = () => {
+  if(!chosen || !confirm(`Start ${chosen.name} over from level 1? Their saved progress will be deleted.`)) return;
+  deleteSave(chosen.id); showSaveLine(chosen.id);
+  const b = $(`.champ[data-id="${chosen.id}"] .savelv`); if(b) b.remove();
+};
 $("#pvJoin").onclick = () => { $("#preview").hidden = true; $("#joinBox").hidden = false; $("#joinMsg").textContent = ""; $("#joinCode").value = ""; $("#joinCode").focus(); };

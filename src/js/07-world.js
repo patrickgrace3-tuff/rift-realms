@@ -12,22 +12,25 @@ function startWorld(opts){
   G = { role: opts.role, myTeam, details: Object.assign({}, opts.details), root, xf: XF,
     W: null, snap: null, fxQueue: [], vis: {}, mobVis: new Map(), lootVis: new Map(), nodeVis: new Map(), sel: null, charKey: "", focusQuest: null, trHtml: "", shotVis: new Map(), zoneVis: new Map(), fieldVis: new Map(), petVis: new Map(), npcVis: [],
     fx: [], nums: [], chatCh: "world", duelVis: new Map(), sendT: 0, holdT: 0, mouse: { x: VW / 2, y: VH / 2 }, smooth: new Map(), dialog: null };
-  if(opts.role === "host"){ G.W = SIM.create(); SIM.addHero(G.W, "blue", opts.details.blue); G.snap = SIM.snapshot(G.W); }
+  let loaded = false;
+  if(opts.role === "host"){ G.W = SIM.create(); const h = SIM.addHero(G.W, "blue", opts.details.blue); loaded = SIM.loadSave(G.W, h, opts.save); G.snap = SIM.snapshot(G.W); }
   zone.visible = true;
   scene.fog = new THREE.Fog(0x9ccbe8, 40, 95);
   buildNpcs();
   const me = G.details[myTeam];
   $("#hudHead").src = champIcon(me.id); $("#hudName").textContent = me.name;
-  $("#inviteBtn").hidden = opts.role !== "host"; $("#mmZone").textContent = "Sunhollow Vale";
+  const startZone = opts.role === "host" ? zoneAt(G.W.heroes.blue.y, G.W.heroes.blue.x) : ZONES[0];
+  $("#inviteBtn").hidden = opts.role !== "host"; $("#mmZone").textContent = startZone.name;
   buildSlots(); resetSocial();
   for(const s of ["#menu", "#notice"]) $(s).hidden = true;
   show("game"); last = performance.now();
-  banner("Sunhollow Vale", opts.role === "host" ? "Starting zone" : "Joined your friend's world", 3500);
-  playMusic("vale"); // started by the click that entered the world, so the browser allows it
+  banner(startZone.name, loaded ? `Welcome back · Level ${G.W.heroes.blue.lvl}` : opts.role === "host" ? "Starting zone" : "Joined your friend's world", 3500);
+  playMusic(startZone.key); // started by the click that entered the world, so the browser allows it
 }
 function leaveWorld(keepNet){
   if(!keepNet) netClose();
   if(!G) return;
+  writeSave();
   if(!keepNet) stopMusic();
   scene.remove(G.root); zone.visible = false; scene.fog = null; G = null;
   $("#dialog").hidden = true; $("#hud").hidden = true; $("#cv").hidden = true; $("#ov").hidden = true;
