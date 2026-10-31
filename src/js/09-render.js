@@ -297,6 +297,7 @@ function render(dt){
     octx.fillStyle = mine ? "#3fbf7f" : foe ? "#d9545b" : ally ? "#5fb0ff" : "#a8adb8"; octx.fillRect(sx - wdt / 2, sy, wdt * Math.max(0, c.hp / c.maxHp), 6);
     if(c.shield > 0){ octx.fillStyle = "rgba(230,240,255,.9)"; octx.fillRect(sx - wdt / 2, sy + 5, Math.min(wdt, wdt * c.shield / c.maxHp), 2); }
     label(`${c.name}  ·  ${c.lvl}`, sx, sy - 6, mine ? "#f0d58e" : foe ? "#ff8a70" : ally ? "#8fc7ff" : "#e4e4e4", 13);
+    if(c.merc && !c.cc) label(`Hired ${ROLE_NAMES[c.merc] || ""}`, sx, sy - 22, "#c9b27a", 11, 700);
     if(c.cc) label({ stun: "STUNNED", root: "ROOTED", slow: "SLOWED" }[c.cc], sx, sy - 22, c.cc === "stun" ? "#f0d58e" : c.cc === "root" ? "#b98cff" : "#7fd3ff", 12, 700);
   }
   // objective arrow around your character
@@ -335,7 +336,7 @@ function frame(now){
     let rest = dt; while(rest > 0){ const st = Math.min(1 / 60, rest); SIM.step(G.W, st); rest -= st; }
     G.snap = SIM.snapshot(G.W);
     for(const f of G.W.fxLocal) G.fxQueue.push(f); G.W.fxLocal.length = 0;
-    serviceArena();
+    serviceArena(); serviceMercs();
     G.sendT -= dt;
     if(!NET.guests.size) G.W.fxNet.length = 0;
     else if(G.sendT <= 0){ G.sendT = .05; netBroadcast(G.snap, G.W.fxNet); G.W.fxNet = []; }

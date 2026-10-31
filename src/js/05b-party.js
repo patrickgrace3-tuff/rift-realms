@@ -76,17 +76,18 @@ Object.assign(SIM, {
     p.members = p.members.filter(s => s !== c.side); c.party = null;
     W.invites = W.invites.filter(i => i.from !== c.side);
     for(const r of W.rolls) if(r.members.includes(c.side) && !r.choices[c.side]) r.choices[c.side] = "pass";
-    if(why !== "gone") SIM.note(W, [c.side], why === "kick" ? "You were removed from the party." : "You left the party.");
+    const quiet = c.bot; // hired champions come and go without party chatter
+    if(why !== "gone" && !quiet) SIM.note(W, [c.side], why === "kick" ? "You were removed from the party." : "You left the party.");
     if(p.members.length < 2){
       for(const s of p.members){ const h = W.heroes[s]; if(h) h.party = null; }
       W.invites = W.invites.filter(i => i.from !== p.leader);
       delete W.parties[p.id];
-      SIM.note(W, p.members, `${c.name} ${why === "kick" ? "was removed" : "left"}. Your party has disbanded.`);
+      if(!quiet) SIM.note(W, p.members, `${c.name} ${why === "kick" ? "was removed" : "left"}. Your party has disbanded.`);
       return;
     }
     let text = `${c.name} ${why === "kick" ? "was removed from" : "left"} the party.`;
-    if(p.leader === c.side){ p.leader = p.members[0]; text += ` ${W.heroes[p.leader].name} is now the leader.`; }
-    SIM.note(W, p.members, text);
+    if(p.leader === c.side){ p.leader = p.members.find(s => W.heroes[s] && !W.heroes[s].bot) || p.members[0]; text += ` ${W.heroes[p.leader].name} is now the leader.`; }
+    if(!quiet) SIM.note(W, p.members, text);
   },
   // called when a player disconnects
   forgetHero(W, c){

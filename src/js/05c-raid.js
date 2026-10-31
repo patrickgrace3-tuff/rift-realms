@@ -40,7 +40,7 @@ Object.assign(SIM, {
       amount *= RAID.soloDmg;
       if(!(c.soloWarnT > W.t)){ c.soloWarnT = W.t + 8; SIM.fx(W, { k: "msg", side: c.side, text: `${m.name}'s scales turn your blows aside. You need a party of ${RAID.party} or more nearby.` }); }
     }
-    m.threat[c.id] = (m.threat[c.id] || 0) + amount * (c.kit.cls === "melee" ? RAID.tankThreat : 1);
+    m.threat[c.id] = (m.threat[c.id] || 0) + amount * (c.merc && c.merc.role === "tank" ? MERCS.tankThreat : c.kit.cls === "melee" ? RAID.tankThreat : 1);
     return amount;
   },
   // healing and shielding draws a little of the boss's attention
@@ -118,13 +118,17 @@ Object.assign(SIM, {
   // Raid loot: everyone who shared the kill gets coins, Rimescale and an Epic of their own;
   // two Legendaries are rolled on (Need/Greed/Pass) by the party
   raidLoot(W, looter, m, group){
-    const L = LOOT[m.kind], members = group.length ? group : [looter];
+    SIM.mercsDismiss(W, group.length ? group : [looter]);
+    // hired champions take no loot
+    const L = LOOT[m.kind], members = (group.length ? group : [looter]).filter(h => !h.bot);
+    if(!members.length) return;
+    looter = members.includes(looter) ? looter : members[0];
     members.forEach((h, k) => {
       const a = k / members.length * Math.PI * 2, coins = L.coins[0] + Math.floor(Math.random() * (L.coins[1] - L.coins[0] + 1));
       const items = [genItem({ ilvl: L.ilvl, rarity: 3, cls: h.kit.cls, nid: W.nid++ }), Object.assign(makeMat("rimescale", W.nid++), { q: 3 })];
       W.loot.push({ id: "l" + W.nid++, side: h.side, bag: true, item: "bag", coins, items, rar: 3, x: clampX(m.x + Math.cos(a) * (m.r + 80)), y: clampY(m.y + Math.sin(a) * (m.r + 80)), expires: W.t + 600 });
     });
-    const rollers = members.filter(h => !h.dead);
+    const rollers = members.filter(h => !h.dead && !h.bot);
     for(let i = 0; i < 2; i++){
       const cls = members[Math.floor(Math.random() * members.length)].kit.cls, it = genItem({ ilvl: L.ilvl, rarity: 4, cls, nid: W.nid++ });
       if(it.s === "weapon") it.glow = true;

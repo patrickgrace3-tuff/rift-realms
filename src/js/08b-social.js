@@ -23,8 +23,8 @@ function updateSocial(me){
       $("#partyLead").textContent = p[1] === G.myTeam ? "You lead this party" : `Led by ${(heroBySide(p[1]) || {}).name || "…"}`;
       $("#pList").innerHTML = p[2].filter(s => s !== G.myTeam).map(s => {
         const h = heroBySide(s); if(!h) return "";
-        return `<div class="pm${h.dead ? " dead" : ""}" data-side="${s}" title="Right-click for options"><img alt="" src="${champIcon(h.champId)}" style="border-color:${SIDE_COLOR[s]}">
-          <div class="pmb"><div class="pmn">${s === p[1] ? '<span class="crown" title="Party leader">♛</span>' : ""}${esc(h.name)} <small>${h.lvl}</small></div>
+        return `<div class="pm${h.dead ? " dead" : ""}" data-side="${s}" title="Right-click for options"><img alt="" src="${champIcon(h.champId)}" style="border-color:${SIDE_COLOR[s] || "#c9b27a"}">
+          <div class="pmb"><div class="pmn">${s === p[1] ? '<span class="crown" title="Party leader">♛</span>' : ""}${esc(h.name)} <small>${h.lvl}</small>${h.merc ? ` <span class="role" title="Hired for the raid">${ROLE_NAMES[h.merc]}</span>` : ""}</div>
           <div class="bar"><i style="width:${Math.max(0, h.hp / h.maxHp * 100)}%"></i></div></div></div>`;
       }).join("");
     }
@@ -184,8 +184,9 @@ $("#pList").addEventListener("contextmenu", e => {
   e.preventDefault();
   const side = pm.dataset.side, h = heroBySide(side), p = myParty(); if(!h) return;
   const busy = !!myDuel();
-  const items = [`<button data-ctx="duel" ${busy || h.dead ? "disabled" : ""}>⚔ Challenge to a duel</button>`];
-  if(p && p[1] === G.myTeam) items.push(`<button data-ctx="kick">Remove from party</button>`);
+  const items = h.bot ? [] : [`<button data-ctx="duel" ${busy || h.dead ? "disabled" : ""}>⚔ Challenge to a duel</button>`];
+  if(p && p[1] === G.myTeam) items.push(`<button data-ctx="kick">${h.merc ? "Send home" : "Remove from party"}</button>`);
+  if(!items.length) return;
   const m = $("#ctxMenu"); m.innerHTML = `<div class="ctxh">${esc(h.name)}</div>${items.join("")}`; m.dataset.side = side; m.hidden = false;
   m.style.left = Math.min(e.clientX, innerWidth - 220) + "px"; m.style.top = Math.min(e.clientY, innerHeight - 120) + "px";
 });

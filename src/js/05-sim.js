@@ -6,7 +6,7 @@
    ===================================================================== */
 const SIM = {
   create(){
-    const W = { t: 0, heroes: {}, mobs: [], shots: [], zones: [], fields: [], pets: [], loot: [], respawnQ: [], fxNet: [], fxLocal: [], nid: 1, parties: {}, invites: [], rolls: [], duels: [], duelReqs: [], arenaReqs: [], botLeave: [] };
+    const W = { t: 0, heroes: {}, mobs: [], shots: [], zones: [], fields: [], pets: [], loot: [], respawnQ: [], fxNet: [], fxLocal: [], nid: 1, parties: {}, invites: [], rolls: [], duels: [], duelReqs: [], arenaReqs: [], botLeave: [], mercReqs: [] };
     for(const kind in MOBS) for(let i = 0; i < MOBS[kind].count; i++) SIM.spawnMob(W, kind);
     W.nodes = [];
     let nid = 0;
@@ -23,7 +23,7 @@ const SIM = {
   },
   addHero(W, side, d){
     const st = d.stats;
-    const c = { id: "c:" + side, side, team: "hero", champId: d.id, name: d.name, kit: buildKit(d),
+    const c = { id: "c:" + side, side, team: "hero", champId: d.id, name: d.name, kit: buildKit(d), tags: (d.tags || []).slice(),
       x: SPAWN[0] + (SIDES.indexOf(side) - 2) * 60, y: SPAWN[1], r: 55,
       base: { hp: st.hp, hpl: st.hpperlevel, ad: st.attackdamage, adl: st.attackdamageperlevel },
       as: Math.max(.5, Math.min(1.1, st.attackspeed || .65)), range: st.attackrange, ranged: st.attackrange > 300, ms: st.movespeed,
@@ -72,7 +72,7 @@ const SIM = {
     if(L.mat && Math.random() < L.mat[1]) items.push(makeMat(L.mat[0], W.nid++));
     if(Math.random() < L.gear) items.push(genItem({ ilvl: L.ilvl + Math.floor(Math.random() * 2), rarity: rollRarity(L.minRarity || 0, L.epic || 0), cls: c.kit.cls, nid: W.nid++ }));
     // in a party, Rare and better gear goes to a Need/Greed roll instead of the killer's bag
-    const rollers = (group || []).filter(h => !h.dead);
+    const rollers = (group || []).filter(h => !h.dead && !h.bot); // hired champions don't take loot
     if(rollers.length > 1){ for(const it of items) if(isGear(it) && it.r >= ROLL_MIN) SIM.startRoll(W, it, rollers, c); items = items.filter(it => !isGear(it) || it.r < ROLL_MIN); }
     const a = Math.random() * Math.PI * 2;
     W.loot.push({ id: "l" + W.nid++, side: c.side, bag: true, item: "bag", coins, items, rar: items.reduce((m, it) => Math.max(m, it.r), 0), x: clampX(u.x + Math.cos(a) * 40), y: clampY(u.y + Math.sin(a) * 40), expires: W.t + 90 });
@@ -158,7 +158,8 @@ const SIM = {
     else if(src && !SIM.isHero(src) && SIM.isHero(u)) amount *= levelGap(SIM.gapOf(u, src)).taken;
     if(u.shield > 0){ const ab = Math.min(u.shield, amount); u.shield -= ab; amount -= ab; if(amount <= 0){ SIM.fx(W, { k: "num", x: u.x, y: u.y, v: "absorbed", hero: 1, tgt: u.side || "" }); return 0; } }
     if(SIM.isHero(u) && u.armor) amount *= 300 / (300 + u.armor);
-    if(src && src.bot && src.skill) amount *= src.skill.dmg; // arena opponents hit softer at lower difficulty
+    if(src && src.bot && src.skill && !src.merc) amount *= src.skill.dmg; // arena opponents hit softer at lower difficulty
+    if(u.merc && u.merc.role === "tank" && !SIM.isHero(src || {})) amount *= 1 - MERCS.tankArmor; // a hired tank shrugs off blows
     if(SIM.isHero(u) && src && SIM.isHero(src) && u.duel){ amount = SIM.duelHit(W, u, src, amount); if(!u.duel){ SIM.fx(W, { k: "num", x: u.x, y: u.y, v: Math.round(amount), hero: 1, src: src.side, tgt: u.side }); return amount; } }
     u.hp -= amount;
     SIM.fx(W, { k: "num", x: u.x, y: u.y, v: Math.round(amount), hero: SIM.isHero(u) ? 1 : 0, src: src && src.side ? src.side : "", tgt: SIM.isHero(u) ? u.side : "" });
@@ -174,7 +175,8 @@ const SIM = {
       u.dead = true;
       if(!u.event && MOBS[u.kind].count > 0) W.respawnQ.push({ kind: u.kind, at: W.t + MOBS[u.kind].respawn });
       SIM.fx(W, { k: "pop", x: u.x, y: u.y, id: u.id });
-      const killer = W.heroes[(u.lastHit || "c:").slice(2)];
+      let killer = W.heroes[(u.lastHit || "c:").slice(2)];
+      if(killer && killer.merc) killer = W.heroes[killer.merc.owner] || null; // a hired champion's kills count for whoever hired it
       const looter = killer || SIM.heroes(W).filter(h => !h.dead).sort((a, b) => Math.hypot(a.x - u.x, a.y - u.y) - Math.hypot(b.x - u.x, b.y - u.y))[0];
       // the killer and their nearby party members share XP, quest credit and quest drops
       // a raid boss credits every party member who fought him (or is in the lair), even if they died and respawned
@@ -291,7 +293,7 @@ const SIM = {
   },
   input(W, side, cmd){
     const c = SIM.hero(W, side); if(!c || !cmd || typeof cmd !== "object") return;
-    if(SIM.socialInput(W, c, cmd) || SIM.duelInput(W, c, cmd) || SIM.arenaInput(W, c, cmd)) return;
+    if(SIM.socialInput(W, c, cmd) || SIM.duelInput(W, c, cmd) || SIM.arenaInput(W, c, cmd) || SIM.mercInput(W, c, cmd)) return;
     if(cmd.stop){ c.move = c.target = c.talkTo = null; return; }
     if(cmd.accept){
       const Q = QUESTS[cmd.accept]; if(!Q) return;
@@ -471,7 +473,7 @@ const SIM = {
     // heroes
     for(const c of SIM.heroes(W)){
       for(const k in c.cds) c.cds[k] = Math.max(0, c.cds[k] - dt);
-      if(c.bot && !c.dead) SIM.botTick(W, c, dt); // computer-controlled arena opponents decide what to do
+      if(c.bot && !c.dead){ if(c.merc) SIM.mercTick(W, c, dt); else SIM.botTick(W, c, dt); } // computer-controlled champions decide what to do
       if(c.dead){ if(W.t >= c.respawnAt){ const home = SIM.respawnAt(c); c.dead = 0; c.hp = c.maxHp; c.x = home[0]; c.y = home[1]; SIM.fx(W, { k: "spawn", side: c.side }); } continue; }
       SIM.tickTimers(c, dt);
       c.shieldT -= dt; if(c.shieldT <= 0) c.shield = 0;
@@ -672,7 +674,7 @@ const SIM = {
         cc: c.cc.stun > 0 ? "stun" : c.cc.root > 0 ? "root" : c.cc.slow > 0 ? "slow" : "", quests: SIM.questView(W, c), weapon: c.weapon ? c.weapon.name : null,
         talents: c.talents, points: talentPoints(c.lvl, c.talents), orbN: c.orbN || 3, ad: Math.round(c.ad),
         wglow: c.weapon && c.weapon.glow ? 1 : 0, coins: c.coins, ap: Math.round(c.ap), armor: Math.round(c.armor), haste: Math.round(c.hasteG), msPct: Math.round(c.msPct),
-        pot: c.potT > W.t ? Math.ceil(c.potT - W.t) : 0, bot: c.bot ? 1 : 0,
+        pot: c.potT > W.t ? Math.ceil(c.potT - W.t) : 0, bot: c.bot ? 1 : 0, merc: c.merc ? c.merc.role : "",
         chan: c.channel ? { n: c.channel.name, p: Math.round(c.channel.t / c.channel.dur * 100) / 100 } : null, party: c.party || "",
         gear: { ver: c.gearVer, inv: c.inv, equip: c.equip } })),
       m: W.mobs.map(m => [m.id, m.kind, r(m.x), r(m.y), r(m.hp), r(m.maxHp), Math.round(m.face * 10) / 10, (m.moving ? 1 : 0) | (m.aggro ? 2 : 0) | (m.charging ? 4 : 0) | (m.windup > 0 || m.cast ? 8 : 0)]),

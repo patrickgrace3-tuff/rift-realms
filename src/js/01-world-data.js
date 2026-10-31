@@ -106,7 +106,7 @@ const NPCS = [
   { id: "halvard", name: "Warden Halvard", x: 4010, y: 9560, head: "warden", style: "warden", idle: "Keep your fire lit and your back to the rock. The mountain forgives nothing." },
   { id: "maren", name: "Sister Maren", x: 3980, y: 9300, head: "healer", style: "healer", idle: "Cold hands, warm heart, my mother used to say. Mostly cold hands, up here." },
   { id: "ketil", name: "Old Ketil", x: KETIL_CAMP.x - 200, y: KETIL_CAMP.y - 150, head: "miner", style: "miner", idle: "Forty years I dug that mine. Forty years, and now a pack of walking pebbles has the run of it." },
-  { id: "yrsa", name: "Scout Yrsa", x: YRSA_CAMP.x + 150, y: YRSA_CAMP.y - 180, head: "huntress", style: "hunter", idle: "Keep low, keep quiet. He can hear a boot crack the ice from the top of the Crown." },
+  { id: "yrsa", mercs: true, name: "Scout Yrsa", x: YRSA_CAMP.x + 150, y: YRSA_CAMP.y - 180, head: "huntress", style: "hunter", idle: "Keep low, keep quiet. He can hear a boot crack the ice from the top of the Crown." },
 ];
 const OBSTACLES = [
   ...HOUSES.map(h => ({ x: h[0], y: h[1], r: 270 })),

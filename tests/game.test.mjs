@@ -740,3 +740,76 @@ test("arena: winning pays coins and counts, losing leaves you at 1 health, and t
   assert.ok(!p.dead && p.hp === 1 && p.arenaWins === 1, "losing: still alive, no win counted");
   step(3); assert.ok(!W.heroes[b2.side]);
 });
+
+/* ---------- Hired raid party (Scout Yrsa) ---------- */
+const TANKY = () => champ("Tanky", 175, ["Tank"], [["Bash", "Strikes, dealing damage and stunning."], ["Bulwark", "Gains a shield."], ["Charge", "Dashes forward, dealing damage."], ["Quake", "Slams the ground, dealing damage in an area."]]);
+function hireWorld(d = ARCHER){
+  const { W, dragon, heroes } = raidWorld([["blue", d]]), [h] = heroes, yrsa = G.NPCS.find(n => n.mercs);
+  h.quests.rimewyrm = { state: "active", count: 0, flags: [] }; h.coins = 10000; h.x = yrsa.x + 100; h.y = yrsa.y;
+  return { W, dragon, h, yrsa };
+}
+function hireNow(W, h){
+  SIM.input(W, h.side, { hire: 1 });
+  const req = W.mercReqs.shift(); if(!req) return [];
+  const pick = { tank: TANKY, healer: HEALER, dps: MAGE };
+  return SIM.mercDone(W, h.side, req.roles.map(r => [r, pick[r]()]));
+}
+
+test("hired party: roles come from tags and abilities, and the plan fills a party with a tank, a healer and damage", () => {
+  const W = SIM.create();
+  const roleOf = d => G.heroRole(SIM.addHero(W, "blue", d()));
+  assert.equal(roleOf(TANKY), "tank"); assert.equal(roleOf(HEALER), "healer"); assert.equal(roleOf(ARCHER), "dps");
+  assert.deepEqual([...G.mercPlan(["dps"])], ["tank", "healer", "dps", "dps"]);
+  assert.deepEqual([...G.mercPlan(["tank"])], ["healer", "dps", "dps", "dps"]);
+  assert.deepEqual([...G.mercPlan(["healer", "dps"])], ["tank", "dps", "dps"]);
+  assert.deepEqual([...G.mercPlan(["tank", "healer", "dps", "dps", "dps"])], []);
+});
+
+test("hired party: only from Yrsa, only during the Skarnvir hunt, paid for, and only once", () => {
+  const { W, h, yrsa } = hireWorld();
+  h.quests.rimewyrm.state = "ready"; SIM.input(W, "blue", { hire: 1 }); assert.equal(W.mercReqs.length, 0, "not after the hunt");
+  h.quests.rimewyrm.state = "active"; h.x = yrsa.x + 2000; SIM.input(W, "blue", { hire: 1 }); assert.equal(W.mercReqs.length, 0, "not from far away");
+  h.x = yrsa.x + 100; h.coins = 5; SIM.input(W, "blue", { hire: 1 }); assert.equal(W.mercReqs.length, 0, "not without the coins");
+  h.coins = 10000;
+  const mercs = hireNow(W, h);
+  assert.equal(mercs.length, 4); assert.equal(h.coins, 10000 - 4 * G.MERCS.price * h.lvl, "paid per champion");
+  assert.deepEqual([...mercs.map(m => m.merc.role).sort()], ["dps", "dps", "healer", "tank"]);
+  const p = SIM.party(W, h); assert.ok(p && p.leader === "blue" && p.members.length === 5, "they join your party");
+  assert.ok(mercs.every(m => m.bot && m.lvl === h.lvl && !SIM.hero(W, m.side)), "computer-controlled, at your level, can't be commanded");
+  SIM.input(W, "blue", { hire: 1 }); assert.equal(W.mercReqs.length, 0, "only one hired party at a time");
+  // if champions can't be found, you get your coins back
+  const b = hireWorld(), coins = b.h.coins; SIM.input(b.W, "blue", { hire: 1 }); b.W.mercReqs.shift(); SIM.mercDone(b.W, "blue", []);
+  assert.equal(b.h.coins, coins);
+  // sending one home, or leaving the party, makes them leave
+  SIM.input(W, "blue", { pkick: mercs[0].side }); for(let i = 0; i < 15; i++) SIM.step(W, 1 / 30);
+  assert.ok(!W.heroes[mercs[0].side], "a kicked merc goes home");
+  SIM.input(W, "blue", { pleave: 1 }); for(let i = 0; i < 30; i++) SIM.step(W, 1 / 30);
+  assert.ok(mercs.every(m => !W.heroes[m.side]), "leaving the party sends them all home");
+});
+
+test("hired party: a lone player with a hired party kills Skarnvir; the hired champions take no loot and leave", () => {
+  const { W, dragon, h } = hireWorld();
+  const mercs = hireNow(W, h);
+  h.x = dragon.x + 200; h.y = dragon.y - 1250;
+  for(let i = 0; i < 120; i++){ SIM.step(W, 1 / 30); }   // they catch up
+  assert.ok(mercs.every(m => Math.hypot(m.x - h.x, m.y - h.y) < 800), "they follow you");
+  const tank = mercs.find(m => m.merc.role === "tank"), brain = raidBrain(W, dragon, [tank, mercs.find(m => m.merc.role === "healer"), h]);
+  h.x = dragon.x + 300; h.y = dragon.y - 1100; SIM.input(W, "blue", { atk: dragon.id });
+  let t = 0, deaths = 0;
+  for(; t < 600 * 60 && !dragon.dead; t++){
+    if(t % 15 === 0) brain();
+    for(const r of W.rolls) SIM.input(W, "blue", { roll: r.id, pick: "need" });
+    SIM.step(W, 1 / 60);
+    for(const f of W.fxNet) if(f.k === "died") deaths++;
+    W.fxNet.length = W.fxLocal.length = 0;
+  }
+  console.log(`# hired raid: ${dragon.dead ? "killed" : "NOT killed"} in ${Math.round(t / 60)}s, ${deaths} deaths, dragon hp ${Math.round(dragon.hp)}`);
+  assert.ok(dragon.dead, "Skarnvir dies");
+  assert.equal(h.quests.rimewyrm.state, "ready");
+  for(let k = 0; k < 60 * 8; k++){ for(const r of W.rolls) SIM.input(W, "blue", { roll: r.id, pick: "need" }); SIM.step(W, 1 / 60); }
+  assert.ok(mercs.every(m => !W.heroes[m.side]), "the hired party leaves after the kill");
+  assert.ok(!SIM.party(W, h), "and the party disbands");
+  const mine = [...h.inv, ...W.loot.filter(l => l.side === "blue").flatMap(l => l.items || [])];
+  assert.ok(mine.filter(it => it.r === 4).length >= 1, "the player gets the Legendary loot");
+  assert.ok(W.loot.every(l => l.side === "blue" || !l.side), "no loot bags for hired champions");
+});

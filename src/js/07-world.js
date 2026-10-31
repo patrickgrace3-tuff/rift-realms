@@ -183,6 +183,16 @@ function openDialog(f){
     act.textContent = f.state === "offer" ? "Accept" : "Complete quest";
     $("#dlgClose").textContent = f.state === "offer" ? "Decline" : "Goodbye";
   }
+  // Scout Yrsa rents out a raid party while you hunt Skarnvir
+  const me = G.snap && G.snap.h.find(h => h.side === G.myTeam), p = myParty();
+  const hired = p && p[2].some(s => { const h = heroBySide(s); return h && h.merc; });
+  const hire = $("#dlgHire"); hire.hidden = !(npc.mercs && f.quest === MERCS.quest && f.state === "progress" && !hired && (!p || p[1] === G.myTeam));
+  if(!hire.hidden){
+    const free = PARTY_MAX - (p ? p[2].length : 1), price = MERCS.price * ((me && me.lvl) || 1);
+    hire.textContent = `Hire a raid party (${fmtCoins(price)} each)`;
+    hire.title = `Fills your party to ${PARTY_MAX} with a tank, a healer and damage dealers for the fight with Skarnvir: ${free} champion${free === 1 ? "" : "s"}, ${fmtCoins(price * free)}. They leave when the dragon falls.`;
+    hire.disabled = free <= 0;
+  }
   $("#dialog").hidden = false; (act.hidden ? $("#dlgClose") : act).focus();
 }
 /* ---------- Arena (Arenamaster Vex) ---------- */
@@ -233,6 +243,22 @@ function renderShop(){
 function closeShop(){ $("#shop").hidden = true; if(G) G.shop = null; }
 $("#shopClose").onclick = closeShop;
 $("#shopList").addEventListener("click", e => { const b = e.target.closest("[data-buy]"); if(b) command({ buy: b.dataset.buy, n: +b.dataset.n }); });
+$("#dlgHire").onclick = () => { command({ hire: 1 }); closeDialog(); };
+// host only: the simulation asks for hired champions; pick one that fits each role and load its abilities
+function mercPick(role, taken){
+  const fits = { tank: c => c.tags.includes("Tank"), healer: c => c.tags.includes("Support"), dps: c => !c.tags.includes("Tank") && !c.tags.includes("Support") }[role];
+  const free = champs.filter(c => !taken.includes(c.id)), pool = free.filter(fits);
+  const from = pool.length ? pool : free;
+  return from.length ? from[Math.floor(Math.random() * from.length)] : null;
+}
+function serviceMercs(){
+  if(G.role !== "host" || !G.W.mercReqs.length) return;
+  const req = G.W.mercReqs.shift(), taken = req.taken.slice();
+  const picks = req.roles.map(role => { const c = mercPick(role, taken); if(c) taken.push(c.id); return [role, c]; });
+  Promise.all(picks.map(([role, c]) => c ? getDetail(c.id).then(d => [role, d], () => null) : null))
+    .then(list => { if(G && G.W) SIM.mercDone(G.W, req.side, list.filter(Boolean)); })
+    .catch(() => { if(G && G.W) SIM.mercDone(G.W, req.side, []); });
+}
 function closeDialog(){ $("#dialog").hidden = true; if(G) G.dialog = null; }
 $("#dlgClose").onclick = closeDialog;
 $("#dlgAction").onclick = () => {
