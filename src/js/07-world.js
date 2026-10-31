@@ -188,11 +188,24 @@ function openDialog(f){
 /* ---------- Arena (Arenamaster Vex) ---------- */
 function openArena(f){
   const npc = NPCS.find(n => n.id === f.npc); if(!npc) return;
-  G.arenaNpc = npc.id; $("#arenaName").textContent = npc.name; $("#arenaWins").textContent = f.wins ? `Your wins in the ring: ${f.wins}` : "You haven't won in the ring yet.";
+  G.arenaNpc = npc.id; G.arenaLvl = f.lvl || 1; $("#arenaName").textContent = npc.name;
+  $("#arenaWins").textContent = f.wins ? `Your wins in the ring: ${f.wins} · best: difficulty ${f.best}` : "You haven't won in the ring yet.";
+  // the difficulty buttons, remembering your last pick
+  let pick = ARENA_RULES.defaultDiff; try{ pick = +localStorage.getItem("rr.arenaDiff") || pick; }catch(e){}
+  $("#arenaDiffs").innerHTML = Array.from({ length: 10 }, (_, i) => `<button class="dbtn" data-diff="${i + 1}" aria-pressed="false" aria-label="Difficulty ${i + 1}, ${ARENA_DIFF_NAMES[i + 1]}">${i + 1}</button>`).join("");
+  setArenaDiff(pick);
   $("#arena").hidden = false; $("#arenaGo").focus();
 }
 function closeArena(){ $("#arena").hidden = true; if(G) G.arenaNpc = null; }
-$("#arenaGo").onclick = () => { command({ arena: 1 }); closeArena(); };
+function setArenaDiff(n){
+  n = arenaSkill(n).diff; G.arenaDiff = n; try{ localStorage.setItem("rr.arenaDiff", n); }catch(e){}
+  for(const b of document.querySelectorAll("#arenaDiffs .dbtn")){ const on = +b.dataset.diff === n; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false"); }
+  const s = arenaSkill(n);
+  $("#arenaDiffName").textContent = `Difficulty ${n} · ${ARENA_DIFF_NAMES[n]}`;
+  $("#arenaDiffInfo").textContent = `Dodges ${Math.round(s.dodge * 100)}% of skillshots · ${Math.round(s.dmg * 100)}% damage · ${Math.round(s.hp * 100)}% health · ${s.potions} potion${s.potions === 1 ? "" : "s"} · win ${fmtCoins(Math.round(ARENA_RULES.reward * n * (G.arenaLvl || 1)))}`;
+}
+$("#arenaDiffs").addEventListener("click", e => { const b = e.target.closest("[data-diff]"); if(b) setArenaDiff(+b.dataset.diff); });
+$("#arenaGo").onclick = () => { command({ arena: 1, diff: G.arenaDiff || ARENA_RULES.defaultDiff }); closeArena(); };
 $("#arenaClose").onclick = closeArena;
 // host only: the simulation asks for an opponent; pick a random champion (not your own) and load its abilities
 function serviceArena(){
@@ -201,7 +214,7 @@ function serviceArena(){
   const pool = champs.filter(c => !me || c.id !== me.champId);
   if(!pool.length){ SIM.arenaFail(G.W, req.side); return; }
   const pick = pool[Math.floor(Math.random() * pool.length)];
-  getDetail(pick.id).then(d => { if(G && G.W) SIM.arenaStart(G.W, req.side, d); }).catch(() => { if(G && G.W) SIM.arenaFail(G.W, req.side); });
+  getDetail(pick.id).then(d => { if(G && G.W) SIM.arenaStart(G.W, req.side, d, req.diff); }).catch(() => { if(G && G.W) SIM.arenaFail(G.W, req.side); });
 }
 /* ---------- Vendor ---------- */
 function openShop(npcId){

@@ -234,6 +234,11 @@ h1{font:400 clamp(34px,6vw,58px)/1 var(--display);margin:8px 0 0;letter-spacing:
 .bossbar .bbb{height:16px;border-radius:8px;background:rgba(20,8,8,.85);border:1px solid #8a3a2a;overflow:hidden;position:relative}
 .bossbar .bbb i{display:block;height:100%;background:linear-gradient(90deg,#b8322a,#ff6a3a);transition:width .25s}
 .bossbar .bbb span{position:absolute;inset:0;display:grid;place-items:center;font:700 12px var(--num);color:#fff}
+.arenadiff{display:flex;flex-direction:column;gap:8px}
+.dbtns{display:grid;grid-template-columns:repeat(10,1fr);gap:4px}
+.dbtn{border:1px solid var(--line);background:#0e1522;border-radius:6px;padding:8px 0;font:700 15px var(--num)}
+.dbtn:hover{border-color:var(--gold)}
+.dbtn.on{background:linear-gradient(#d8b66c,#a9853e);border-color:#e2c47e;color:#1a1408}
 .duelcount{position:absolute;top:26%;left:0;right:0;text-align:center;font:400 120px/1 var(--display);color:var(--gold-2);text-shadow:0 4px 18px #000, 0 0 3px #000;pointer-events:none}
 .duelcount.go{color:#ff5a40;letter-spacing:.04em;text-transform:uppercase;font-size:96px}
 .duelcount.pop{animation:duelpop 1s ease-out forwards}

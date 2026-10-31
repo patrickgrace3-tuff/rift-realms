@@ -39,7 +39,7 @@ const SIM = {
   recalc(c){
     const gs = {}; for(const sl of EQ_SLOTS){ const it = c.equip[sl]; if(it) for(const k in it.st) gs[k] = (gs[k] || 0) + it.st[k]; }
     const ratio = c.maxHp ? c.hp / c.maxHp : 1;
-    c.maxHp = Math.round((c.base.hp + c.base.hpl * (c.lvl - 1) + (gs.hp || 0)) * (1 + TALENT.vit.per * c.talents.core.vit));
+    c.maxHp = Math.round((c.base.hp + c.base.hpl * (c.lvl - 1) + (gs.hp || 0)) * (1 + TALENT.vit.per * c.talents.core.vit) * (c.hpMult || 1)); // hpMult: arena difficulty
     c.hp = Math.min(c.maxHp, Math.max(1, ratio * c.maxHp));
     c.ad = (c.base.ad + c.base.adl * (c.lvl - 1) + (gs.ad || 0)) * (1 + TALENT.might.per * c.talents.core.might);
     c.ap = gs.ap || 0; c.armor = gs.armor || 0; c.hasteG = Math.min(40, gs.haste || 0); c.msPct = Math.min(30, gs.ms || 0);
@@ -158,6 +158,7 @@ const SIM = {
     else if(src && !SIM.isHero(src) && SIM.isHero(u)) amount *= levelGap(SIM.gapOf(u, src)).taken;
     if(u.shield > 0){ const ab = Math.min(u.shield, amount); u.shield -= ab; amount -= ab; if(amount <= 0){ SIM.fx(W, { k: "num", x: u.x, y: u.y, v: "absorbed", hero: 1, tgt: u.side || "" }); return 0; } }
     if(SIM.isHero(u) && u.armor) amount *= 300 / (300 + u.armor);
+    if(src && src.bot && src.skill) amount *= src.skill.dmg; // arena opponents hit softer at lower difficulty
     if(SIM.isHero(u) && src && SIM.isHero(src) && u.duel){ amount = SIM.duelHit(W, u, src, amount); if(!u.duel){ SIM.fx(W, { k: "num", x: u.x, y: u.y, v: Math.round(amount), hero: 1, src: src.side, tgt: u.side }); return amount; } }
     u.hp -= amount;
     SIM.fx(W, { k: "num", x: u.x, y: u.y, v: Math.round(amount), hero: SIM.isHero(u) ? 1 : 0, src: src && src.side ? src.side : "", tgt: SIM.isHero(u) ? u.side : "" });
@@ -202,7 +203,7 @@ const SIM = {
   },
   talk(W, c, npc){
     if(npc.shop){ SIM.fx(W, { k: "shop", side: c.side, npc: npc.id }); return; }
-    if(npc.arena){ SIM.fx(W, { k: "arena", side: c.side, npc: npc.id, wins: c.arenaWins || 0 }); return; }
+    if(npc.arena){ SIM.fx(W, { k: "arena", side: c.side, npc: npc.id, wins: c.arenaWins || 0, best: c.arenaBest || 0, lvl: c.lvl }); return; }
     const qf = questFor(c.quests, npc.id);
     SIM.fx(W, { k: "dialog", side: c.side, npc: npc.id, quest: qf.quest, state: qf.state });
   },
