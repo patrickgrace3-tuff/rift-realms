@@ -153,7 +153,14 @@ function currentQuest(me){
   const live = id => me.quests[id] && me.quests[id].state !== "done";
   return G.focusQuest && live(G.focusQuest) ? G.focusQuest : QUEST_ORDER.find(live);
 }
+// the cathedral is only reached by portal: point at the Rift (or the way out) when the goal is on the other side
 function objectiveTarget(me){
+  const t = objectiveSpot(me); if(!t) return null;
+  if(t.y > DZ && me.y <= DZ) return { x: RIFT.x, y: RIFT.y, r: 0 };
+  if(t.y <= DZ && me.y > DZ) return { x: CATHEDRAL.exit.x, y: CATHEDRAL.exit.y, r: 0 };
+  return t;
+}
+function objectiveSpot(me){
   const qid = currentQuest(me);
   if(!qid) return null;
   const Q = QUESTS[qid], qs = me.quests[qid], o = Q.obj, npcAt = id => { const n = NPCS.find(x => x.id === id); return { x: n.x, y: n.y, r: 0 }; };
@@ -401,14 +408,14 @@ function updateHud(){
   // (when you're close, or while he's fighting someone nearby)
   const boss = G.snap.m.find(m => { const d = Math.hypot(m[2] - me.x, m[3] - me.y); return MOBS[m[1]].boss && (d < 1700 || ((m[7] & 2) && d < 3000)); });
   $("#bossBar").hidden = !boss;
-  if(boss){ const T = MOBS[boss[1]], pct = Math.max(0, boss[4] / boss[5] * 100); $("#bossName").textContent = T.name; $("#bossFill").style.width = pct + "%"; $("#bossPct").textContent = `${Math.ceil(pct)}%`; }
+  if(boss){ const T = MOBS[boss[1]], pct = Math.max(0, boss[4] / boss[5] * 100); $("#bossName").textContent = T.name; $("#bossTitle").textContent = T.title || "Rare Raid Boss"; $("#bossFill").style.width = pct + "%"; $("#bossPct").textContent = `${Math.ceil(pct)}%`; }
   const badge = $("#skillBadge"); badge.hidden = !(me.points > 0); badge.textContent = me.points;
   const tkey = JSON.stringify(me.talents) + me.points + me.lvl;
   if(!$("#skills").hidden && tkey !== G.skillKey) renderSkills(me);
   drawMinimap(me);
-  const zn = zoneAt(me.y).name; if($("#mmZone").textContent !== zn){ $("#mmZone").textContent = zn; playMusic(zoneAt(me.y).key); banner(zn, me.y >= ZS ? "Highwatch Outpost lies north along the road" : "", 3000); }
+  const zn = zoneAt(me.y).name; if($("#mmZone").textContent !== zn){ $("#mmZone").textContent = zn; playMusic(zoneAt(me.y).key); banner(zn, me.y > DZ ? "Sister Elowen waits in the narthex" : me.y >= ZS ? "Highwatch Outpost lies north along the road" : "", 3000); }
   if(!$("#bigmap").hidden) drawBigMap(me);
-  $("#respawn").hidden = !me.dead; if(me.dead) $("#respawn").textContent = `You were defeated. Returning to ${me.y >= ZS ? "Highwatch Outpost" : "the village"} in ${me.dead}…`;
+  $("#respawn").hidden = !me.dead; if(me.dead) $("#respawn").textContent = `You were defeated. Returning to ${me.y > DZ ? "the cathedral entrance" : me.y >= ZS ? "Highwatch Outpost" : "the village"} in ${me.dead}…`;
   // quest tracker lists every active quest; click one to point the arrow at it
   const active = QUEST_ORDER.filter(id => me.quests[id] && me.quests[id].state !== "done");
   $("#tracker").hidden = !active.length;
@@ -458,6 +465,7 @@ function handleFx(f){
     case "defwin": if(mine){ const o = QUESTS[f.quest || "defend"].obj; banner(o.win[0], o.win[1], 3200); } break;
     case "bossmsg": if(f.big) banner(f.big, f.small, 3000); else toast(f.small); chatLine("sys", "", [f.big, f.small].filter(Boolean).join(" · ")); break;
     case "warn": G.fx.push(Object.assign({ t: 0 }, f)); break;
+    case "mheal": G.fx.push({ k: "ring", x: f.x, y: f.y, r: 140, t: 0, dur: .7, col: 0x6be08f }); G.nums.push({ x: f.x, y: f.y, v: `+${f.v}`, t: .9, h: 1.6, color: "#6be08f" }); break;
     case "pick": G.fx.push({ k: "pop", x: f.x, y: f.y, t: 0, dur: .45 }); break;
     case "drop": if(mine) toast(`${QUESTS[f.quest].obj.itemName} dropped. Walk over it or right-click to pick it up`); break;
     case "looted": if(mine) toast(`Picked up ${QUESTS[f.quest].obj.itemName}`); break;
@@ -481,16 +489,24 @@ function handleFx(f){
   }
 }
 function fxMesh(f){
-  if(f.k === "cone" || f.k === "warn"){
+  if(f.k === "warn" && f.len){   // a line: the Abbess's flying kick
+    const a = XF(f.x, f.y), b = XF(f.x + f.dx * f.len, f.y + f.dy * f.len), L = Math.hypot(b.x - a.x, b.z - a.z), geo = new THREE.PlaneGeometry(L, f.w * ZSC);
+    geo.rotateX(-Math.PI / 2); geo.rotateY(Math.atan2(-(b.z - a.z), b.x - a.x)); geo.translate((b.x - a.x) / 2, 0, (b.z - a.z) / 2);
+    f.mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xff3020, transparent: true, depthWrite: false, side: THREE.DoubleSide })); f.ownGeo = true; f.r = 1 / ZSC; // (already world-sized)
+  }else if(f.k === "warn" && f.inner){   // a ring: everywhere except close to the boss
+    const geo = new THREE.RingGeometry(f.inner / f.r, 1, 64); geo.rotateX(-Math.PI / 2);
+    f.mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xff3020, transparent: true, depthWrite: false, side: THREE.DoubleSide })); f.ownGeo = true;
+  }else if(f.k === "cone" || f.k === "warn"){
     const a = XF(f.x, f.y), b = XF(f.x + f.dx * 100, f.y + f.dy * 100), dirW = Math.atan2(-(b.z - a.z), b.x - a.x), half = f.ang / 2 * Math.PI / 180;
     const geo = new THREE.CircleGeometry(1, 32, dirW - half, half * 2); geo.rotateX(-Math.PI / 2);
     // warn: a red marker on the ground before a boss attack lands; frost: the dragon's breath and tail
-    f.mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: f.k === "warn" ? 0xff3020 : f.frost ? 0x9fe6ff : 0xffe08a, transparent: true, depthWrite: false, side: THREE.DoubleSide })); f.ownGeo = true;
+    f.mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: f.k === "warn" ? 0xff3020 : f.frost ? 0x9fe6ff : f.fire ? 0xff8a3a : 0xffe08a, transparent: true, depthWrite: false, side: THREE.DoubleSide })); f.ownGeo = true;
   }else if(f.k === "nova"){
-    f.mesh = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: f.frost ? 0xbfefff : 0xf0d58e, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-    f.edge = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: f.frost ? 0x7fd3ff : 0xffb347, transparent: true, depthWrite: false })); G.root.add(f.edge);
+    f.mesh = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: f.frost ? 0xbfefff : f.fire ? 0xff7a2a : 0xf0d58e, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    f.edge = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: f.frost ? 0x7fd3ff : f.fire ? 0xff5a1a : 0xffb347, transparent: true, depthWrite: false })); G.root.add(f.edge);
   }else{
-    const color = { click: 0x7fe0a0, hit: 0xf0d58e, lvl: 0xf0d58e, pop: 0xffffff, heal: 0x6be08f, blink: 0xb98cff, ring: 0xffe08a }[f.k] || 0xffffff;
+    let color = { click: 0x7fe0a0, hit: 0xf0d58e, lvl: 0xf0d58e, pop: 0xffffff, heal: 0x6be08f, blink: 0xb98cff, ring: 0xffe08a }[f.k] || 0xffffff;
+    if(f.col) color = f.col;
     f.mesh = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false }));
     if(f.k === "blink"){ f.edge = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false })); G.root.add(f.edge); }
   }

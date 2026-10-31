@@ -24,6 +24,7 @@ Object.assign(SIM, {
   bossArena(W, m){ const T = MOBS[m.kind]; return SIM.heroes(W).filter(h => !h.dead && Math.hypot(h.x - T.home[0], h.y - T.home[1]) < T.leash); },
   bossSay(W, m, big, small){ const sides = SIM.heroes(W).filter(h => Math.hypot(h.x - m.x, h.y - m.y) < 3000).map(h => h.side); if(sides.length) SIM.fx(W, { k: "bossmsg", to: sides, big, small }); },
   bossStart(W, m, hero){
+    if(MOBS[m.kind].script) return SIM.dbossStart(W, m, hero); // cathedral bosses (05g-dungeon.js)
     Object.assign(m, { threat: { [hero.id]: 1 }, aggro: hero.id, whelped: {}, stormT: RAID.storm.every, breathCd: 8, tailCd: 5, pickT: 0, cast: null, warned: 0 });
     SIM.bossSay(W, m, `${m.name} awakens!`, "Rare Raid Boss · bring a party of 3 or more");
   },
@@ -40,6 +41,7 @@ Object.assign(SIM, {
       amount *= RAID.soloDmg;
       if(!(c.soloWarnT > W.t)){ c.soloWarnT = W.t + 8; SIM.fx(W, { k: "msg", side: c.side, text: `${m.name}'s scales turn your blows aside. You need a party of ${RAID.party} or more nearby.` }); }
     }
+    if(m.exposedT > W.t) amount *= DUNGEON.exposed; // the Saint, right after his choir falls
     m.threat[c.id] = (m.threat[c.id] || 0) + amount * (c.merc && c.merc.role === "tank" ? MERCS.tankThreat : c.kit.cls === "melee" ? RAID.tankThreat : 1);
     return amount;
   },
@@ -118,8 +120,7 @@ Object.assign(SIM, {
   // Raid loot: everyone who shared the kill gets coins, Rimescale and an Epic of their own;
   // two Legendaries are rolled on (Need/Greed/Pass) by the party
   raidLoot(W, looter, m, group){
-    SIM.mercsDismiss(W, group.length ? group : [looter]);
-    // hired champions take no loot
+    // hired champions take no loot (they stay with you for the Ashen Cathedral, and leave after its last boss)
     const L = LOOT[m.kind], members = (group.length ? group : [looter]).filter(h => !h.bot);
     if(!members.length) return;
     looter = members.includes(looter) ? looter : members[0];
@@ -137,5 +138,8 @@ Object.assign(SIM, {
     }
     SIM.clearEvent(W, "raid:" + m.id);
     SIM.bossSay(W, m, `${m.name} has fallen!`, "Legendary loot drops from the Rimewyrm");
+    // his death breaks the seal under the mountain: the Rift to the Ashen Cathedral opens in the Crown
+    W.riftOpen = W.t + DUNGEON.riftOpen;
+    SIM.bossSay(W, m, "", "A Rift tears open in the Crown! Step into it with your party to enter the Ashen Cathedral.");
   },
 });

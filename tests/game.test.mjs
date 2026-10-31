@@ -787,7 +787,7 @@ test("hired party: only from Yrsa, only during the Skarnvir hunt, paid for, and 
   assert.ok(mercs.every(m => !W.heroes[m.side]), "leaving the party sends them all home");
 });
 
-test("hired party: a lone player with a hired party kills Skarnvir; the hired champions take no loot and leave", () => {
+test("hired party: a lone player with a hired party kills Skarnvir; the hired champions take no loot and stay on", () => {
   const { W, dragon, h } = hireWorld();
   const mercs = hireNow(W, h);
   h.x = dragon.x + 200; h.y = dragon.y - 1250;
@@ -807,9 +807,176 @@ test("hired party: a lone player with a hired party kills Skarnvir; the hired ch
   assert.ok(dragon.dead, "Skarnvir dies");
   assert.equal(h.quests.rimewyrm.state, "ready");
   for(let k = 0; k < 60 * 8; k++){ for(const r of W.rolls) SIM.input(W, "blue", { roll: r.id, pick: "need" }); SIM.step(W, 1 / 60); }
-  assert.ok(mercs.every(m => !W.heroes[m.side]), "the hired party leaves after the kill");
-  assert.ok(!SIM.party(W, h), "and the party disbands");
+  assert.ok(mercs.every(m => W.heroes[m.side]), "the hired party stays for the Ashen Cathedral");
+  assert.ok(W.riftOpen > W.t, "and the Rift is open");
   const mine = [...h.inv, ...W.loot.filter(l => l.side === "blue").flatMap(l => l.items || [])];
   assert.ok(mine.filter(it => it.r === 4).length >= 1, "the player gets the Legendary loot");
   assert.ok(W.loot.every(l => l.side === "blue" || !l.side), "no loot bags for hired champions");
+});
+
+/* ---------- The Ashen Cathedral (dungeon) ---------- */
+function cathedralHero(W, side, d, lvl = 16, rarity = 3){
+  const h = SIM.addHero(W, side, d()); h.lvl = lvl;
+  for(const slot of G.EQ_SLOTS) h.equip[slot] = G.genItem({ ilvl: lvl, rarity, cls: h.kit.cls, slot, nid: 7000 + slot.length + side.length * 10 });
+  SIM.recalc(h); h.hp = h.maxHp;
+  SIM.addItem(h, { id: "pot" + side, n: "Health Potion", s: "use", key: "hpot", r: 0, q: 15, v: 6, stack: true });
+  return h;
+}
+const runFor = (W, secs, each) => { for(let i = 0; i < secs * 30; i++){ if(each) each(i); SIM.step(W, 1 / 30); W.fxNet.length = W.fxLocal.length = 0; } };
+
+test("cathedral: walls keep you in, the choir is sealed, and the Peaks don't lead there", () => {
+  const W = SIM.create(), h = cathedralHero(W, "blue", ARCHER);
+  for(const m of W.mobs) if(m.spawnId) m.dead = true;
+  h.x = 4000; h.y = 15000; SIM.input(W, "blue", { move: [4000, 23000] }); runFor(W, 8);
+  assert.ok(h.y <= G.WH, "walking north in the Peaks stops at the mountains");
+  h.x = 4000; h.y = 18150; SIM.input(W, "blue", { move: [800, 18150] }); runFor(W, 6);
+  assert.ok(h.x >= G.CATHEDRAL.narthex[0], `the narthex wall stops you (x ${Math.round(h.x)})`);
+  SIM.input(W, "blue", { move: [4000, 23100] }); runFor(W, 25);
+  assert.ok(h.y < G.CATHEDRAL.door, `the seal stops you at the choir (y ${Math.round(h.y)})`);
+  W.dungeon.sealed = false; runFor(W, 6);
+  assert.ok(h.y > G.CATHEDRAL.door + 200, "once it's broken you can walk in");
+  SIM.input(W, "blue", { move: [1300, 22000] }); runFor(W, 15);
+  assert.ok(Math.hypot(h.x - 1300, h.y - 22000) < 200, "the west chapel can be reached through the transept");
+});
+
+test("cathedral: Skarnvir's death opens the Rift, which takes your whole party in; hired champions stay", () => {
+  const { W, dragon, heroes } = raidWorld([["blue", GAREN_LIKE], ["red", HEALER]]);
+  const [a, b] = heroes, out = SIM.addHero(W, "green", ARCHER());
+  SIM.input(W, "blue", { pinvite: "red" }); SIM.input(W, "red", { paccept: "blue" });
+  a.quests.rimewyrm = b.quests.rimewyrm = { state: "active", count: 0, flags: [] }; a.coins = 99999;
+  // before the kill the Rift is sealed
+  a.x = G.RIFT.x; a.y = G.RIFT.y; SIM.step(W, 1 / 30);
+  assert.ok(a.y < G.DZ, "the Rift is sealed while Skarnvir lives");
+  // hire a party at Yrsa: it fills the party to five
+  const yrsa = G.NPCS.find(n => n.id === "yrsa"); a.x = yrsa.x + 100; a.y = yrsa.y;
+  SIM.input(W, "blue", { hire: 1 }); const req = W.mercReqs.shift();
+  const mercs = SIM.mercDone(W, "blue", req.roles.map(r => [r, { tank: TANKY, healer: HEALER, dps: MAGE }[r]()]));
+  assert.equal(SIM.partyMembers(W, a).length, 5);
+  for(const h of [a, b, ...mercs]){ h.x = dragon.x + 200; h.y = dragon.y - 800; }
+  out.x = dragon.x - 400; out.y = dragon.y - 900;
+  SIM.damage(W, dragon, 100, a); dragon.hp = 1; SIM.damage(W, dragon, 1e9, a);
+  assert.ok(dragon.dead && W.riftOpen > W.t, "the Rift opens");
+  runFor(W, 10);
+  assert.ok(mercs.every(m => W.heroes[m.side]), "the hired party doesn't leave after Skarnvir");
+  // step in: the whole party goes, the stranger doesn't
+  a.x = G.RIFT.x + 20; a.y = G.RIFT.y; runFor(W, .2);
+  assert.ok([a, b, ...mercs].every(h => h.y > G.DZ), "everyone in the party is in the cathedral");
+  assert.ok(out.y < G.DZ, "someone outside the party stays behind");
+  assert.ok(Math.hypot(a.x - G.CATHEDRAL.arrive[0], a.y - G.CATHEDRAL.arrive[1]) < 400, "you arrive in the narthex");
+  // the way out leads back to Yrsa's Watch, hired champions in tow
+  runFor(W, 4); a.x = G.CATHEDRAL.exit.x; a.y = G.CATHEDRAL.exit.y; runFor(W, .2);
+  assert.ok(a.y < G.DZ && Math.hypot(a.x - G.YRSA_CAMP.x, a.y - G.YRSA_CAMP.y) < 900, "the exit leads to Yrsa's Watch");
+  assert.ok(mercs.every(m => m.y < G.DZ), "your hired champions come out with you");
+  assert.ok(b.y > G.DZ, "other players stay inside until they leave");
+  // later, a Skarnvir slayer can always use the Rift
+  W.riftOpen = 0; a.quests.rimewyrm.state = "done"; runFor(W, 4); a.x = G.RIFT.x; a.y = G.RIFT.y; runFor(W, .2);
+  assert.ok(a.y > G.DZ, "the Rift stays open for whoever killed Skarnvir");
+});
+
+test("cathedral: packs pull together; acolytes shoot from range and heal their allies", () => {
+  const W = SIM.create(), h = cathedralHero(W, "blue", ARCHER);
+  const packA = W.mobs.filter(m => m.pack === "A"), acolyte = packA.find(m => m.kind === "acolyte"), monk = packA.find(m => m.kind === "monk");
+  h.x = 4000; h.y = 18300; SIM.damage(W, monk, 10, h);
+  assert.ok(packA.every(m => m.aggro === h.id), "hitting one pulls the whole pack");
+  assert.ok(W.mobs.filter(m => m.pack === "B").every(m => !m.aggro), "other packs stay put");
+  monk.hp = monk.maxHp * .4; const before = monk.hp, hp0 = h.hp; let shots = 0;
+  runFor(W, 6, () => { shots = Math.max(shots, W.mshots.length); h.x = 4000; h.y = 18300; h.hp = Math.max(h.hp, 500); });
+  assert.ok(monk.hp > before, "the acolyte healed the monk");
+  assert.ok(shots > 0 && Math.hypot(acolyte.x - h.x, acolyte.y - h.y) > 300, "the acolyte casts firebolts from range");
+});
+
+test("cathedral: boss mechanics (sweep, palm of silence, the sealed Saint, his choir and the Radiant Nova)", () => {
+  const W = SIM.create(), a = cathedralHero(W, "blue", GAREN_LIKE), b = cathedralHero(W, "red", HEALER), c = cathedralHero(W, "green", ARCHER);
+  for(const h of [b, c]){ SIM.input(W, "blue", { pinvite: h.side }); SIM.input(W, h.side, { paccept: "blue" }); }
+  for(const m of W.mobs) if(m.pack) m.dead = true;
+  const boss = k => W.mobs.find(m => m.kind === k && !m.dead), dz = W => { for(let i = 0; i < 90; i++){ SIM.step(W, 1 / 30); } W.fxNet.length = W.fxLocal.length = 0; };
+  // Deacon Varrow: the censer sweep hits those close to him, not those far away
+  const dea = boss("deacon"); a.x = dea.x + 200; a.y = dea.y; c.x = dea.x + 900; c.y = dea.y; b.x = dea.x + 1000; b.y = dea.y + 200;
+  SIM.damage(W, dea, 100, a); dea.cds.sweep = 0; dea.cds.incense = 99; dea.cds.embers = 99;
+  const ha = a.hp, hc = c.hp; for(let i = 0; i < 70; i++){ SIM.step(W, 1 / 30); a.x = dea.x + 200; a.y = dea.y; c.x = dea.x + 900; c.y = dea.y; a.hp = Math.max(a.hp, 1500); }
+  assert.ok(a.hp < ha - 300 && c.hp >= hc - 50, "the sweep hit the close hero only");
+  dea.dead = true; W.mobs = W.mobs.filter(m => !m.dead); W.dangers = [];
+  // Abbess Ysolde: her palm silences, and a silenced hero can't cast
+  const ab = boss("abbess"); a.x = ab.x + 200; a.y = ab.y; b.x = ab.x - 800; c.x = ab.x - 900; b.y = c.y = ab.y;
+  SIM.damage(W, ab, 100, a); ab.cds.palm = 0; ab.cds.kick = 99; ab.cds.fire = 99;
+  for(let i = 0; i < 60; i++){ SIM.step(W, 1 / 30); a.x = ab.x + 200; a.y = ab.y; a.hp = Math.max(a.hp, 1500); }
+  assert.ok(a.silenceT > W.t, "Palm of Silence silences");
+  a.cds.Q = 0; SIM.input(W, "blue", { cast: "Q", at: [ab.x, ab.y] }); assert.equal(a.cds.Q, 0, "no casting while silenced");
+  ab.dead = true; W.mobs = W.mobs.filter(m => !m.dead); W.dangers = [];
+  // Archprelate Malchar: untouchable while sealed
+  const st = boss("saint"); a.x = 4000; a.y = 22500; SIM.step(W, 1 / 30);
+  assert.equal(SIM.damage(W, st, 500, a), 0, "the Saint can't be hurt through the seal");
+  W.dungeon.sealed = false; SIM.step(W, 1 / 30);
+  for(const h of [a, b, c]){ h.x = st.x + (h === a ? 150 : 0); h.y = st.y - (h === a ? 0 : 600); }
+  SIM.damage(W, st, 500, a); assert.ok(st.aggro, "he wakes once the seals are broken");
+  // phase 2: below 70% his choir shields him until it dies
+  st.hp = st.maxHp * .69; SIM.step(W, 1 / 30);
+  assert.ok(st.immune, "the choir shields him");
+  const adds = W.mobs.filter(m => m.event === "dboss:" + st.id); assert.equal(adds.length, 4, "four choir adds");
+  for(const m of adds) m.dead = true; SIM.step(W, 1 / 30);
+  assert.ok(!st.immune && st.exposedT > W.t, "with the choir dead he's exposed");
+  // phase 3: the Radiant Nova hurts everyone except those close to him
+  st.hp = st.maxHp * .39; W.dangers = []; W.hazards = []; st.cast = null; SIM.step(W, 1 / 30);
+  st.cds.nova = 0; st.cds.pillar = 99; st.cds.sermon = 99; st.cds.judgment = 99; st.cast = null;
+  for(let i = 0; i < 6; i++) SIM.step(W, 1 / 30);
+  const nova = W.dangers.find(d => d.name === "Radiant Nova"); assert.ok(nova, "he calls the Radiant Nova");
+  const near = { x: st.x + 200, y: st.y, r: 55 }, far = { x: st.x + 900, y: st.y, r: 55 };
+  assert.ok(!SIM.inDanger(nova, near) && SIM.inDanger(nova, far), "only his shadow is safe");
+  const to = SIM.dangerEscape(W, far); assert.ok(Math.hypot(to[0] - st.x, to[1] - st.y) < 420, "and the escape is towards him");
+});
+
+test("cathedral: a player and a hired party clear it; Epics from every boss, a Legendary from the Saint, then the party leaves", () => {
+  const W = SIM.create(), h = cathedralHero(W, "blue", ARCHER), el = G.NPCS.find(n => n.id === "elowen");
+  h.quests.rimewyrm = { state: "done", count: 1, flags: [] }; h.coins = 99999;
+  h.x = el.x + 100; h.y = el.y;
+  for(const q of ["censer", "silentvow"]){ SIM.input(W, "blue", { accept: q }); assert.equal(h.quests[q].state, "active", `${q} accepted from Elowen`); }
+  SIM.input(W, "blue", { hire: 1 }); const req = W.mercReqs.shift();
+  const mercs = SIM.mercDone(W, "blue", req.roles.map(r => [r, { tank: TANKY, healer: HEALER, dps: MAGE }[r]()]));
+  assert.equal(mercs.length, 4, "Elowen hires out a party too");
+  const route = [[4000, 19000], [4000, 20200], [3600, 21500], [2800, 22000], [1900, 22000, "deacon"], [4000, 21600], [5200, 22000], [6100, 22000, "abbess"], [4000, 21700], [4000, 22800, "saint"]];
+  const alive = kind => W.mobs.some(m => !m.dead && m.kind === kind), party = () => SIM.partyMembers(W, h).map(p => p.id);
+  let wi = 0, t = 0, deaths = 0, accepted = false;
+  for(; t < 1500 * 30 && wi < route.length; t++){
+    if(t % 6 === 0 && !h.dead){
+      if(!accepted && !alive("deacon") && !alive("abbess")){ accepted = true; for(const q of ["censer", "silentvow"]) assert.equal(h.quests[q].state, "ready", `${q} complete`); }
+      const esc = SIM.dangerEscape(W, h);
+      if(esc) SIM.input(W, "blue", { move: esc });
+      else {
+        if(h.hp < h.maxHp * .35) SIM.input(W, "blue", { potion: 1 });
+        const ps = party(), f = W.mobs.filter(m => !m.dead && m.aggro && ps.includes(m.aggro) && Math.hypot(m.x - h.x, m.y - h.y) < 1800 && !m.immune).sort((a, b) => (a.boss - b.boss) || Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
+        const [x, y, kind] = route[wi];
+        if(f){ SIM.input(W, "blue", { atk: f.id }); for(const k of ["Q", "W", "E", "R"]) SIM.input(W, "blue", { cast: k, at: [f.x, f.y] }); }
+        else if(Math.hypot(h.x - x, h.y - y) > 150) SIM.input(W, "blue", { move: [x, y] });
+        else if(!kind || !alive(kind)) wi++;
+        else SIM.input(W, "blue", { atk: W.mobs.find(m => m.kind === kind && !m.dead).id });
+      }
+    }
+    SIM.step(W, 1 / 30);
+    for(const f of W.fxNet) if(f.k === "died") deaths++;
+    W.fxNet.length = W.fxLocal.length = 0;
+  }
+  console.log(`# cathedral: ${wi >= route.length ? "cleared" : "NOT cleared"} in ${Math.round(t / 30)}s, ${deaths} deaths, level ${h.lvl}`);
+  assert.ok(!alive("deacon") && !alive("abbess") && !alive("saint"), "all three bosses are dead");
+  assert.ok(!W.dungeon.sealed, "the seals broke");
+  const mine = [...h.inv, ...W.loot.filter(l => l.side === "blue").flatMap(l => l.items || [])];
+  assert.ok(mine.filter(it => it.r === 3).length >= 3, "an Epic from each boss");
+  assert.equal(mine.filter(it => it.r === 4).length, 1, "one Legendary from the Saint");
+  runFor(W, 8);
+  assert.ok(mercs.every(m => !W.heroes[m.side]), "the hired party leaves after the Saint");
+  // the last quest, then turn everything in
+  h.x = el.x + 100; h.y = el.y; h.dead = 0;
+  for(const q of ["censer", "silentvow"]){ SIM.input(W, "blue", { turnin: q }); assert.equal(h.quests[q].state, "done"); }
+  assert.equal(G.questFor(h.quests, "elowen").quest, "ashensaint", "the Saint's quest opens after both chapels");
+});
+
+test("cathedral: everything comes back after it's been empty for a while", () => {
+  const W = SIM.create(), h = cathedralHero(W, "blue", ARCHER);
+  for(const m of W.mobs) if(m.spawnId && m.kind !== "saint") m.dead = true;
+  W.mobs = W.mobs.filter(m => !m.dead); W.dungeon.sealed = false;
+  h.x = 4000; h.y = 18150; runFor(W, 5);
+  h.x = G.CATHEDRAL.exit.x; h.y = G.CATHEDRAL.exit.y; runFor(W, 1);
+  assert.ok(h.y < G.DZ, "left");
+  runFor(W, G.CATHEDRAL.resetAfter + 5);
+  assert.equal(W.mobs.filter(m => m.spawnId).length, G.CATHEDRAL_SPAWNS.length, "every creature and boss is back");
+  assert.ok(W.dungeon.sealed, "and the choir is sealed again");
 });

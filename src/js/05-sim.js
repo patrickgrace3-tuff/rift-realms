@@ -8,6 +8,7 @@ const SIM = {
   create(){
     const W = { t: 0, heroes: {}, mobs: [], shots: [], zones: [], fields: [], pets: [], loot: [], respawnQ: [], fxNet: [], fxLocal: [], nid: 1, parties: {}, invites: [], rolls: [], duels: [], duelReqs: [], arenaReqs: [], botLeave: [], mercReqs: [] };
     for(const kind in MOBS) for(let i = 0; i < MOBS[kind].count; i++) SIM.spawnMob(W, kind);
+    SIM.dungeonCreate(W);
     W.nodes = [];
     let nid = 0;
     for(const sp of NODE_SPOTS){
@@ -67,6 +68,7 @@ const SIM = {
   dropBag(W, c, u, group){
     const L = LOOT[u.kind]; if(!L) return;
     if(L.raid){ SIM.raidLoot(W, c, u, group || [c]); return; }
+    if(L.dungeon){ SIM.dungeonLoot(W, c, u, group || [c]); return; }
     let items = [];
     const coins = L.coins[0] + Math.floor(Math.random() * (L.coins[1] - L.coins[0] + 1));
     if(L.mat && Math.random() < L.mat[1]) items.push(makeMat(L.mat[0], W.nid++));
@@ -89,6 +91,7 @@ const SIM = {
     W.mobs.push(m); return m;
   },
   alertPack(W, m, heroId){
+    if(m.pack){ for(const o of W.mobs) if(o !== m && o.pack === m.pack && !o.dead && !o.aggro && !o.returning){ o.aggro = heroId; o.wp = null; SIM.fx(W, { k: "angry", id: o.id }); } return; } // a cathedral pack pulls together
     if(!MOBS[m.kind].pack) return;
     for(const o of W.mobs) if(o !== m && o.kind === m.kind && !o.dead && !o.aggro && !o.returning && Math.hypot(o.x - m.x, o.y - m.y) < 650){ o.aggro = heroId; o.wp = null; SIM.fx(W, { k: "angry", id: o.id }); }
   },
@@ -99,7 +102,7 @@ const SIM = {
   },
   xpNext: xpForLevel,
   // fallen heroes return to the village, or to Highwatch if they fell in the Peaks
-  respawnAt: c => c.y >= ZS ? [OUTPOST.x + 120, OUTPOST.y - 260] : SPAWN,
+  respawnAt: c => c.y > DZ ? CATHEDRAL.arrive : c.y >= ZS ? [OUTPOST.x + 120, OUTPOST.y - 260] : SPAWN,
   dmgScale: c => (1 + .09 * ((c.lvl || 1) - 1)) * (1 + (c.ap || 0) / 100),
   fx(W, f){ W.fxNet.push(f); W.fxLocal.push(f); },
   isHero: u => u.team === "hero",
@@ -132,7 +135,7 @@ const SIM = {
     let d = (p.dmg || 0) * SIM.dmgScale(c) * mult;
     if(p.execute) d *= 1 + (1 - u.hp / u.maxHp);
     const dealt = d > 0 ? SIM.damage(W, u, d, c) : SIM.rollMiss(W, c, u) ? -1 : 0;
-    if(dealt < 0) return -1;
+    if(dealt < 0 || u.immune) return -1;
     SIM.applyCC(u, p.cc);
     if(p.drain && dealt > 0) c.hp = Math.min(c.maxHp, c.hp + dealt * .35);
     return dealt;
@@ -149,6 +152,7 @@ const SIM = {
   },
   damage(W, u, amount, src){
     if(u.dead || amount <= 0) return 0;
+    if(u.immune && src && SIM.isHero(src)){ SIM.fx(W, { k: "num", x: u.x, y: u.y, v: "Immune", hero: 0, src: src.side }); return 0; } // shielded by its choir
     if(src && SIM.isHero(src)) src.lastCombat = W.t;
     if(SIM.isHero(u)) u.lastCombat = W.t;
     // a hero hit a creature: it turns on them (raid bosses are pulled by SIM.bossHit instead)
@@ -398,6 +402,7 @@ const SIM = {
   cast(W, c, key, at){
     if(c.dead || c.cds[key] > 0 || c.dash || !SIM.canAct(c)) return;
     if(key === "R" && c.lvl < ULT_LEVEL) return;
+    if(c.silenceT > W.t) return; // silenced (Abbess Ysolde's palm)
     c.channel = null; c.useTo = null;
     const p = applyTalents(c.kit[key], c.talents[key]);
     const ax = at[0] - c.x, ay = at[1] - c.y, d = Math.hypot(ax, ay) || 1, nx = ax / d, ny = ay / d;
@@ -469,7 +474,7 @@ const SIM = {
     W.respawnQ = W.respawnQ.filter(r => { if(W.t >= r.at){ SIM.spawnMob(W, r.kind); return false; } return true; });
     for(const n of W.nodes) if(!n.ready && W.t >= n.respawnAt) n.ready = true;
     W.loot = W.loot.filter(l => !l.expires || l.expires > W.t);
-    SIM.socialTick(W); SIM.duelTick(W); SIM.arenaTick(W);
+    SIM.socialTick(W); SIM.duelTick(W); SIM.arenaTick(W); SIM.dungeonTick(W, dt);
     // heroes
     for(const c of SIM.heroes(W)){
       for(const k in c.cds) c.cds[k] = Math.max(0, c.cds[k] - dt);
@@ -564,7 +569,7 @@ const SIM = {
     for(const m of W.mobs){
       if(m.dead) continue;
       SIM.tickTimers(m, dt); m.atkT -= dt; m.moving = false;
-      if(m.boss){ SIM.bossTick(W, m, dt); continue; }
+      if(m.boss){ if(MOBS[m.kind].script) SIM.dbossTick(W, m, dt); else SIM.bossTick(W, m, dt); continue; }
       if(m.forced || m.cc.stun > 0) continue;
       const T = MOBS[m.kind], rooted = m.cc.root > 0;
       // the Old Tusker paws the ground, then charges in a straight line
@@ -593,7 +598,8 @@ const SIM = {
         else {
           const d = Math.hypot(t.x - m.x, t.y - m.y);
           if(T.charge && W.t >= m.chargeCd && d > 320 && d < 1000 && !rooted){ m.windup = .7; m.chargeCd = W.t + 7; SIM.fx(W, { k: "roar", id: m.id }); continue; }
-          if(d <= m.r + t.r + 40){ m.face = Math.atan2(t.x - m.x, t.y - m.y); if(m.atkT <= 0){ m.atkT = T.atkCd; SIM.damage(W, t, m.dmg, m); SIM.fx(W, { k: "butt", id: m.id }); } }
+          if(T.ranged && d <= T.ranged + t.r){ m.face = Math.atan2(t.x - m.x, t.y - m.y); if(m.atkT <= 0){ m.atkT = T.atkCd; SIM.mobShoot(W, m, t); } } // priests cast from range
+          else if(d <= m.r + t.r + 40){ m.face = Math.atan2(t.x - m.x, t.y - m.y); if(m.atkT <= 0){ m.atkT = T.atkCd; SIM.damage(W, t, m.dmg, m); SIM.fx(W, { k: "butt", id: m.id }); } }
           else moveTo(t.x, t.y, SIM.effMs(m));
         }
       }else if(m.returning){
@@ -621,7 +627,7 @@ const SIM = {
         if(u.moving){ const tx = -ry, ty = rx, side = Math.sin(u.face) * tx + Math.cos(u.face) * ty >= 0 ? 1 : -1, slide = Math.min(min - d, 8) + 2; u.x += tx * side * slide; u.y += ty * side * slide; }
       }
       if(Math.hypot(u.x - POND.x, u.y - POND.y) < POND.r * .62){ const dx = u.x - POND.x, dy = u.y - POND.y, d = Math.hypot(dx, dy) || 1; u.x = POND.x + dx / d * POND.r * .62; u.y = POND.y + dy / d * POND.r * .62; }
-      u.x = clampX(u.x); u.y = clampY(u.y);
+      SIM.bound(W, u);
     }
     // projectiles
     for(const sh of W.shots){
@@ -664,14 +670,14 @@ const SIM = {
   },
   snapshot(W){
     const r = v => Math.round(v);
-    return { ...SIM.socialSnapshot(W), ...SIM.duelSnapshot(W),
+    return { ...SIM.socialSnapshot(W), ...SIM.duelSnapshot(W), ...SIM.dungeonSnapshot(W),
       t: Math.round(W.t * 100) / 100,
       h: SIM.heroes(W).map(c => ({
         side: c.side, champId: c.champId, name: c.name, x: r(c.x), y: r(c.y), hp: r(c.hp), maxHp: r(c.maxHp), lvl: c.lvl, xp: r(c.xp), xpNext: SIM.xpNext(c.lvl),
         face: Math.round(c.face * 100) / 100, moving: c.moving ? 1 : 0, dead: c.dead ? Math.max(1, Math.ceil(c.respawnAt - W.t)) : 0,
         castSeq: c.castSeq, castKey: c.castKey, atkSeq: c.atkSeq, cds: { Q: +c.cds.Q.toFixed(1), W: +c.cds.W.toFixed(1), E: +c.cds.E.toFixed(1), R: +c.cds.R.toFixed(1) },
         orbT: c.orbT > 0 ? 1 : 0, orbA: Math.round(c.orbA * 100) / 100, shield: r(c.shield), buff: c.buffT > 0 ? 1 : 0, stealth: c.stealthT > 0 ? 1 : 0,
-        cc: c.cc.stun > 0 ? "stun" : c.cc.root > 0 ? "root" : c.cc.slow > 0 ? "slow" : "", quests: SIM.questView(W, c), weapon: c.weapon ? c.weapon.name : null,
+        cc: c.cc.stun > 0 ? "stun" : c.silenceT > W.t ? "silence" : c.cc.root > 0 ? "root" : c.cc.slow > 0 ? "slow" : "", quests: SIM.questView(W, c), weapon: c.weapon ? c.weapon.name : null,
         talents: c.talents, points: talentPoints(c.lvl, c.talents), orbN: c.orbN || 3, ad: Math.round(c.ad),
         wglow: c.weapon && c.weapon.glow ? 1 : 0, coins: c.coins, ap: Math.round(c.ap), armor: Math.round(c.armor), haste: Math.round(c.hasteG), msPct: Math.round(c.msPct),
         pot: c.potT > W.t ? Math.ceil(c.potT - W.t) : 0, bot: c.bot ? 1 : 0, merc: c.merc ? c.merc.role : "",

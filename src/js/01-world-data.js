@@ -88,11 +88,40 @@ const NODE_SPOTS = [
   { kind: "ore", x: MINE.x, y: MINE.y, rmin: 150, rmax: 620, n: 10 },
   { kind: "frostbloom", x: LAKE.x, y: LAKE.y, rmin: LAKE.r + 60, rmax: LAKE.r + 380, n: 10 },
 ];
+/* ---------- The Ashen Cathedral (dungeon, reached through the Rift in the Wyrm's Crown) ---------- */
+// It sits in its own zone north of the Peaks (y 16000–24000) and can only be reached by portal.
+// Walkable space is a set of rooms (x0, y0, x1, y1) that overlap by 400 so even big units pass between them;
+// walls are whatever lies outside them (SIM.bound).
+const DZ = WH;                                             // the cathedral zone starts where the Peaks end
+const CATHEDRAL = {
+  narthex: [3200, 17600, 4800, 19000],                     // the entrance hall
+  nave: [3000, 18600, 5000, 21500],                        // the long pillared hall
+  transept: [1100, 21100, 6900, 22600],                    // the crossing, with a chapel at each end
+  choir: [2900, 22200, 5100, 23350],                       // the sealed choir where the Ashen Saint waits
+  arrive: [4000, 18150],                                   // where the Rift sets you down
+  exit: { x: 4000, y: 17800 },                             // the way back out, to Yrsa's Watch
+  door: 22600,                                             // the seal across the choir (y)
+  west: { x: 1700, y: 22000 }, east: { x: 6300, y: 22000 }, altar: { x: 4000, y: 23000 },
+  resetAfter: 90,                                          // seconds with nobody inside before everything comes back
+};
+const CATHEDRAL_ROOMS = ["narthex", "nave", "transept", "choir"];
+const PILLARS = []; for(const y of [19000, 19600, 20200, 20800]) for(const x of [3380, 4620]) PILLARS.push({ x, y, r: 90 });
+const RIFT = { x: LAIR.x - 150, y: LAIR.y + 620, r: 170 }; // the Rift Skarnvir's death tears open in the Crown
+// elite packs (a pack pulls together) and the three bosses
+const CATHEDRAL_SPAWNS = [
+  ...[["monk", 3820, 19350], ["monk", 4180, 19350], ["acolyte", 4000, 19560]].map(s => [...s, "A"]),
+  ...[["monk", 3800, 20500], ["monk", 4200, 20500], ["acolyte", 3880, 20720], ["acolyte", 4120, 20720]].map(s => [...s, "B"]),
+  ...[["monk", 2700, 21800], ["monk", 2700, 22200], ["acolyte", 2450, 22000]].map(s => [...s, "C"]),
+  ...[["monk", 5300, 21800], ["monk", 5300, 22200], ["acolyte", 5550, 22000]].map(s => [...s, "D"]),
+  ...[["monk", 3780, 22050], ["monk", 4220, 22050], ["acolyte", 3900, 22300], ["acolyte", 4100, 22300]].map(s => [...s, "E"]),
+  ["deacon", CATHEDRAL.west.x, CATHEDRAL.west.y, ""], ["abbess", CATHEDRAL.east.x, CATHEDRAL.east.y, ""], ["saint", CATHEDRAL.altar.x, CATHEDRAL.altar.y, ""],
+].map(([kind, x, y, pack], i) => ({ id: "cs" + i, kind, x, y, pack }));
 // Every zone: a key, its name, and its area in world units (x0, y0 is the south-west corner).
 // New zones go here; the minimap and world map draw whatever is in this list.
 const ZONES = [
   { key: "vale", name: "Sunhollow Vale", x0: 0, y0: 0, w: ZS, h: ZS },
   { key: "peaks", name: "Frostspine Peaks", x0: 0, y0: ZS, w: ZS, h: ZS },
+  { key: "cathedral", name: "The Ashen Cathedral", x0: 0, y0: DZ, w: ZS, h: ZS, dungeon: true },
 ];
 const zoneAt = (y, x = ZS / 2) => ZONES.find(z => x >= z.x0 && x < z.x0 + z.w && y >= z.y0 && y < z.y0 + z.h) || ZONES[y >= ZS ? ZONES.length - 1 : 0];
 const ZONE_PICS = {}; // each zone's map picture (a canvas), keyed like ZONES; filled in when the scene is built
@@ -106,7 +135,8 @@ const NPCS = [
   { id: "halvard", name: "Warden Halvard", x: 4010, y: 9560, head: "warden", style: "warden", idle: "Keep your fire lit and your back to the rock. The mountain forgives nothing." },
   { id: "maren", name: "Sister Maren", x: 3980, y: 9300, head: "healer", style: "healer", idle: "Cold hands, warm heart, my mother used to say. Mostly cold hands, up here." },
   { id: "ketil", name: "Old Ketil", x: KETIL_CAMP.x - 200, y: KETIL_CAMP.y - 150, head: "miner", style: "miner", idle: "Forty years I dug that mine. Forty years, and now a pack of walking pebbles has the run of it." },
-  { id: "yrsa", mercs: true, name: "Scout Yrsa", x: YRSA_CAMP.x + 150, y: YRSA_CAMP.y - 180, head: "huntress", style: "hunter", idle: "Keep low, keep quiet. He can hear a boot crack the ice from the top of the Crown." },
+  { id: "yrsa", mercs: ["rimewyrm"], name: "Scout Yrsa", x: YRSA_CAMP.x + 150, y: YRSA_CAMP.y - 180, head: "huntress", style: "hunter", idle: "Keep low, keep quiet. He can hear a boot crack the ice from the top of the Crown." },
+  { id: "elowen", mercs: ["censer", "silentvow", "ashensaint"], name: "Sister Elowen", x: 3520, y: 18350, head: "healer", style: "healer", idle: "The Choir sang beneath this mountain for three hundred years. Now it only burns." },
 ];
 const OBSTACLES = [
   ...HOUSES.map(h => ({ x: h[0], y: h[1], r: 270 })),
@@ -114,7 +144,7 @@ const OBSTACLES = [
   ...NPCS.filter(n => !n.shop).map(n => ({ x: n.x, y: n.y, r: 55 })), // vendors are covered by their stall
   { x: CAMP.x, y: CAMP.y, r: 190 }, { x: CABIN.x, y: CABIN.y, r: 250 }, { x: TOWER.x, y: TOWER.y, r: 220 },
   ...BEACONS.map(b => ({ x: b.x, y: b.y, r: 70 })), ...LOOKOUTS.map(p => ({ x: p.x, y: p.y, r: 55 })),
-  ...PEAK_OBSTACLES, { x: STALL.x, y: STALL.y - 50, r: 150 }, // one circle around the stall and its vendor, so there's no corner to get stuck in
+  ...PEAK_OBSTACLES, ...PILLARS, { x: STALL.x, y: STALL.y - 50, r: 150 }, // one circle around the stall and its vendor, so there's no corner to get stuck in
 ];
 const QUESTS = {
   sheep: {
@@ -317,9 +347,36 @@ Object.assign(QUESTS, {
     complete: "You did it. You actually did it. The Rimewyrm is dead! They'll sing about this in Sunhollow for a hundred years. Here. Forged from his own fang. It's yours.",
     done: "Skarnvir is dead. The mountain sleeps easy.",
   },
+  censer: {
+    id: "censer", lvl: 16, title: "The Censer-Bearer", giver: "elowen", turnin: "elowen", prereq: "rimewyrm", xp: 2600, coins: 800, dungeon: true, where: [CATHEDRAL.west.x, CATHEDRAL.west.y], whereR: 500,
+    obj: { type: "kill", kind: "deacon", count: 1, label: "Deacon Varrow slain" },
+    offer: "You came through the Rift? Then the Rimewyrm is dead, and the seal he kept is broken. This is the Ashen Cathedral. The Choir that hid down here worships fire, and they mean to wake their Saint. Deacon Varrow keeps the west chapel. His censer rains embers: don't stand in the burning ground.",
+    objective: "Dungeon: slay Deacon Varrow in the west chapel of the Ashen Cathedral. Bring a party.",
+    progress: "The west chapel. Watch for his censer when he raises it, and get out of the fire.",
+    complete: "The censer has gone cold. One of the two seals on the choir is broken.",
+    done: "Varrow's embers are out. Good.",
+  },
+  silentvow: {
+    id: "silentvow", lvl: 16, title: "The Silent Vow", giver: "elowen", turnin: "elowen", prereq: "rimewyrm", xp: 2600, coins: 800, dungeon: true, where: [CATHEDRAL.east.x, CATHEDRAL.east.y], whereR: 500,
+    obj: { type: "kill", kind: "abbess", count: 1, label: "Abbess Ysolde slain" },
+    offer: "Abbess Ysolde trained the Cinderfist monks. She took a vow of silence and forces it on everyone she strikes: her palm will stop you casting. Never stand in front of her, and watch for her flying kick. She keeps the east chapel.",
+    objective: "Dungeon: slay Abbess Ysolde in the east chapel of the Ashen Cathedral. Bring a party.",
+    progress: "The east chapel. Stay behind her, out of reach of her palm.",
+    complete: "Silent at last, and for good. The second seal is broken.",
+    done: "The east chapel is quiet now.",
+  },
+  ashensaint: {
+    id: "ashensaint", lvl: 17, title: "The Ashen Saint", giver: "elowen", turnin: "elowen", prereq: ["censer", "silentvow"], xp: 5200, coins: 3000, reward: { item: 3, slot: "chest", name: "Ashen Saint's" }, dungeon: true, where: [CATHEDRAL.altar.x, CATHEDRAL.altar.y], whereR: 600,
+    obj: { type: "kill", kind: "saint", count: 1, label: "Archprelate Malchar slain" },
+    offer: "With both seals broken, the choir is open. Archprelate Malchar waits at the altar: the Ashen Saint. When he's hurt, his choir will shield him. Kill them and he's exposed. At the end, when he calls the Radiant Nova, get close to him. Only his shadow is safe.",
+    objective: "Dungeon boss: slay Archprelate Malchar, the Ashen Saint, in the choir. Bring a full party.",
+    progress: "The choir is open. End him.",
+    complete: "It's over. The fire under the mountain is just fire again. Take this. It was mine, before I ran.",
+    done: "Rest a while. You've earned it.",
+  },
 });
 const QUEST_ORDER = ["sheep", "tusker", "courier", "scout", "wolves", "herbs", "beacons", "defend", "northpass", "lynx",
-  "rams", "delve", "craglings", "pick", "ore", "frostbloom", "wisps", "whitemane", "wards", "brood", "rimewyrm"];
+  "rams", "delve", "craglings", "pick", "ore", "frostbloom", "wisps", "whitemane", "wards", "brood", "rimewyrm", "censer", "silentvow", "ashensaint"];
 /* ---------- Experience ---------- */
 // Each level needs more XP than the last. Creatures and quests well below your level give less.
 const MAX_LEVEL = 20;
@@ -410,6 +467,8 @@ const POIS = [
   { name: "Hollowdeep Mine", x: MINE.x, y: MINE.y + 800 }, { name: "Glassmere", x: LAKE.x, y: LAKE.y + 700 },
   { name: "Whitemane's Hollow", x: YETI_DEN.x, y: YETI_DEN.y + 600 }, { name: "Yrsa's Watch", x: YRSA_CAMP.x - 950, y: YRSA_CAMP.y - 50 },
   { name: "The Wyrm's Crown", x: LAIR.x - 400, y: LAIR.y + 1050 },
+  { name: "Narthex", x: 4000, y: 17350 }, { name: "The Nave", x: 5600, y: 20000 }, { name: "West Chapel", x: CATHEDRAL.west.x, y: 22900 },
+  { name: "East Chapel", x: CATHEDRAL.east.x, y: 22900 }, { name: "The Choir", x: 4000, y: 23700 },
 ];
 const MOBS = {
   sheep: { name: "Sheep", lvl: 1, r: 45, hp: 140, dmg: 6, atkCd: 1.6, ms: 260, wander: 110, xp: 22, respawn: 12, leash: 1500, home: [PASTURE.x, PASTURE.y], roam: PASTURE.r - 180, count: 9 },
@@ -423,10 +482,17 @@ const MOBS = {
   whelp: { name: "Frost Whelp", lvl: 13, r: 50, hp: 650, dmg: 26, atkCd: 1.3, ms: 360, wander: 100, xp: 70, respawn: 0, leash: 99999, home: [LAIR.x, LAIR.y], roam: 300, count: 0, aggroR: 1000 },
   // the first raid boss: needs a party of 3+ (tank, healer, damage). Behaviour is in 05c-raid.js
   dragon: { name: "Skarnvir the Rimewyrm", lvl: 15, r: 340, hp: 140000, dmg: 330, atkCd: 1.9, ms: 230, wander: 0, xp: 1500, respawn: 300, leash: 2300, home: [LAIR.x, LAIR.y], roam: 0, count: 1, elite: true, boss: true, aggroR: 650 },
+  // The Ashen Cathedral (05g-dungeon.js): elite packs of priests and monks, two chapel bosses and the Saint.
+  // count 0: the dungeon places them itself (CATHEDRAL_SPAWNS), each with its own home
+  acolyte: { name: "Ashen Acolyte", lvl: 16, r: 55, hp: 6500, dmg: 130, atkCd: 1.9, ms: 300, wander: 0, xp: 260, respawn: 0, leash: 1900, home: [4000, 19000], roam: 0, count: 0, elite: true, aggroR: 480, ranged: 640, heals: { every: 7, pct: .18, range: 900 } },
+  monk: { name: "Cinderfist Monk", lvl: 16, r: 55, hp: 8500, dmg: 110, atkCd: 1.05, ms: 340, wander: 0, xp: 280, respawn: 0, leash: 1900, home: [4000, 19000], roam: 0, count: 0, elite: true, aggroR: 480 },
+  deacon: { name: "Deacon Varrow", title: "Dungeon Boss", lvl: 17, r: 90, hp: 190000, dmg: 470, atkCd: 1.7, ms: 290, wander: 0, xp: 1200, respawn: 0, leash: 1500, home: [CATHEDRAL.west.x, CATHEDRAL.west.y], roam: 0, count: 0, elite: true, boss: true, script: "deacon", aggroR: 560 },
+  abbess: { name: "Abbess Ysolde", title: "Dungeon Boss", lvl: 17, r: 80, hp: 175000, dmg: 390, atkCd: 1.3, ms: 330, wander: 0, xp: 1200, respawn: 0, leash: 1500, home: [CATHEDRAL.east.x, CATHEDRAL.east.y], roam: 0, count: 0, elite: true, boss: true, script: "abbess", aggroR: 560 },
+  saint: { name: "Archprelate Malchar", title: "Final Boss · The Ashen Saint", lvl: 17, r: 120, hp: 420000, dmg: 520, atkCd: 1.8, ms: 270, wander: 0, xp: 2500, respawn: 0, leash: 1700, home: [CATHEDRAL.altar.x, CATHEDRAL.altar.y], roam: 0, count: 0, elite: true, boss: true, script: "saint", aggroR: 600 },
   bandit: { name: "Vale Bandit", lvl: 6, r: 55, hp: 400, dmg: 19, atkCd: 1.4, ms: 300, wander: 100, xp: 60, respawn: 0, leash: 99999, home: [TOWER.x, TOWER.y], roam: 300, count: 0, aggroR: 900 },
 };
 const clampX = v => Math.max(ZMIN, Math.min(ZMAX, v));
-const clampY = v => Math.max(ZMIN, Math.min(WH - ZMIN, v));
+const clampY = v => Math.max(ZMIN, Math.min(ZS * 3 - ZMIN, v)); // (the Peaks' north edge and the cathedral's walls are enforced by SIM.bound)
 
 /* ---------- Items: loot tables, armor generation, inventory ---------- */
 const BAG_SIZE = 20;
@@ -449,7 +515,7 @@ const WEAPON_NAMES = { melee: { base: ["Shortsword", "Blade", "Longsword"], pre:
 const SUFFIX = { hp: "of the Bear", ad: "of the Tiger", ap: "of the Owl", armor: "of the Turtle", haste: "of Swiftness", ms: "of the Fox" };
 const CLASS_MAT = { melee: "plate", caster: "cloth", ranged: "leather" };
 const MATERIALS = { wool: { n: "Tuft of Wool", v: 3 }, pelt: { n: "Wolf Pelt", v: 9 }, hide: { n: "Thick Boar Hide", v: 25 }, horn: { n: "Curled Ram Horn", v: 22 }, frostpelt: { n: "Snowfang Pelt", v: 30 },
-  shard: { n: "Glimmering Shard", v: 26 }, essence: { n: "Wisp Essence", v: 30 }, yetifur: { n: "Whitemane's Mane", v: 120 }, rimescale: { n: "Rimescale", v: 40 } };
+  shard: { n: "Glimmering Shard", v: 26 }, essence: { n: "Wisp Essence", v: 30 }, yetifur: { n: "Whitemane's Mane", v: 120 }, rimescale: { n: "Rimescale", v: 40 }, ashcloth: { n: "Ash-Stained Vestment", v: 45 } };
 const LOOT = {
   sheep: { coins: [1, 4], mat: ["wool", .7], gear: .12, ilvl: 2 },
   wolf: { coins: [4, 10], mat: ["pelt", .6], gear: .22, ilvl: 4 },
@@ -461,6 +527,11 @@ const LOOT = {
   whelp: { coins: [10, 20], mat: ["rimescale", .4], gear: .15, ilvl: 13 },
   yeti: { coins: [90, 140], mat: ["yetifur", 1], gear: 1, minRarity: 2, epic: .3, ilvl: 14 },
   dragon: { raid: true, coins: [600, 900], ilvl: 16 },  // see SIM.raidLoot
+  acolyte: { coins: [40, 70], mat: ["ashcloth", .5], gear: .35, minRarity: 1, epic: .05, ilvl: 16 },
+  monk: { coins: [40, 70], mat: ["ashcloth", .5], gear: .35, minRarity: 1, epic: .05, ilvl: 16 },
+  deacon: { dungeon: "mini", coins: [400, 600], ilvl: 17 },   // see SIM.dungeonLoot
+  abbess: { dungeon: "mini", coins: [400, 600], ilvl: 17 },
+  saint: { dungeon: "final", coins: [900, 1300], ilvl: 18 },
   boar: { coins: [40, 70], mat: ["hide", 1], gear: 1, minRarity: 2, epic: .15, ilvl: 5 },
 };
 function rollRarity(min, epic){ const r = Math.random(); const v = r < .01 + (epic || 0) ? 3 : r < .12 ? 2 : r < .45 ? 1 : 0; return Math.max(min || 0, v); }

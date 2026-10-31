@@ -5,7 +5,6 @@
 
 const MERCS = {
   price: 10,           // coins per hired champion, per level of the hirer
-  quest: "rimewyrm",   // you can hire while this quest is active
   tankThreat: 6,       // a hired tank builds threat this much faster
   tankArmor: .35,      // and takes this much less damage
   tankHp: 1.4,         // and has this much more health
@@ -34,10 +33,10 @@ function mercPlan(roles){
 Object.assign(SIM, {
   mercInput(W, c, cmd){
     if(!cmd.hire) return false;
-    const npc = NPCS.find(n => n.mercs), qs = c.quests[MERCS.quest];
+    const npc = NPCS.filter(n => n.mercs).sort((a, b) => Math.hypot(a.x - c.x, a.y - c.y) - Math.hypot(b.x - c.x, b.y - c.y))[0];
     if(c.dead || c.mercPending) return true;
-    if(!qs || qs.state !== "active"){ SIM.tell(W, c, `${npc.name} only hires out a raid party for the hunt on Skarnvir.`); return true; }
-    if(Math.hypot(c.x - npc.x, c.y - npc.y) > 500){ SIM.tell(W, c, `Talk to ${npc.name} to hire a raid party.`); return true; }
+    if(Math.hypot(c.x - npc.x, c.y - npc.y) > 500){ SIM.tell(W, c, `Talk to ${npc.name} to hire a party.`); return true; }
+    if(!npc.mercs.some(q => c.quests[q] && c.quests[q].state === "active")){ SIM.tell(W, c, `${npc.name} only hires out a party while you're on ${npc.id === "yrsa" ? "the hunt for Skarnvir" : "her quests in the cathedral"}.`); return true; }
     const members = SIM.partyMembers(W, c);
     if(members.some(h => h.merc)){ SIM.tell(W, c, "You already have a hired party."); return true; }
     const p = SIM.party(W, c);
@@ -105,12 +104,16 @@ Object.assign(SIM, {
         m.target = null; m.move = [clampX(m.x + px * side * 650), clampY(m.y + py * side * 650)]; return;
       }
     }
+    // (and never stand in a cathedral boss's telegraph or in burning ground)
+    const esc = SIM.dangerEscape(W, m);
+    if(esc){ m.target = null; m.move = [clampX(esc[0]), clampY(esc[1])]; return; }
     // 2. drink when low
     if(m.hp < m.maxHp * .35 && m.potions > 0 && W.t >= (m.potT || 0)){ m.hp = Math.min(m.maxHp, m.hp + m.maxHp * POTION.heal); m.potT = W.t + POTION.cd; m.potions--; SIM.fx(W, { k: "heal", side: m.side, v: Math.round(m.maxHp * POTION.heal) }); }
     // what to fight: the raid boss, else whatever is attacking the party
     const foes = W.mobs.filter(u => !u.dead && u.aggro && party.some(h => h.id === u.aggro) && near(u, 1600));
     const whelp = foes.filter(u => !u.boss).sort((a, b) => Math.hypot(a.x - m.x, a.y - m.y) - Math.hypot(b.x - m.x, b.y - m.y))[0];
-    const enemy = m.merc.role === "tank" ? (boss || whelp) : m.merc.role === "dps" ? (whelp || boss) : null;
+    const open = boss && !boss.immune ? boss : null;   // (the Saint is immune while his choir lives: kill the adds)
+    const enemy = m.merc.role === "tank" ? (open || whelp || boss) : m.merc.role === "dps" ? (whelp || open) : null;
     const attackWith = (t, skip = []) => {
       if(!t) return false;
       if(m.seen && m.seen.id === t.id && W.t > m.seen.t){ const k = W.t - m.seen.t; m.seen.vx = (t.x - m.seen.x) / k; m.seen.vy = (t.y - m.seen.y) / k; }

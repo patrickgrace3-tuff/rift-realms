@@ -24,6 +24,12 @@ const BODY = {
   gladiator: { tunic: "#8a3a2a", dark: "#5a2418", trim: "#d8b06a", pants: "#4a3a2a", boots: "#2a2018", weapon: "sword" },
   merchant: { tunic: "#8a3a5a", dark: "#5a2440", trim: "#e0c56e", pants: "#4a3a2a", boots: "#2a2018", weapon: "none", shirt: "#e0c56e" },
   warden: { tunic: "#6a5040", dark: "#46342a", trim: "#e8e2d4", pants: "#3e3a44", boots: "#2a2220", weapon: "sword" },
+  // the Ashen Cathedral
+  acolyte: { tunic: "#5a5450", dark: "#3a3634", trim: "#ff7a2a", pants: "#2e2a28", boots: "#1e1a18", weapon: "staff", robe: true, orb: "#ff8a3a" },
+  monk: { tunic: "#9a4420", dark: "#5a2410", trim: "#e0a040", pants: "#3a2a20", boots: "#2a1a10", weapon: "none", gloves: "#e8d8b8" },
+  deacon: { tunic: "#4a4448", dark: "#2e2a30", trim: "#c9a55c", pants: "#2a2628", boots: "#1a1618", weapon: "censer", robe: true },
+  abbess: { tunic: "#24222c", dark: "#141218", trim: "#e8e2d4", pants: "#1a1820", boots: "#100e14", weapon: "none", robe: true, gloves: "#e8e2d4" },
+  saint: { tunic: "#ece2c8", dark: "#b0a080", trim: "#ff8a2a", pants: "#8a7a5a", boots: "#4a3a2a", weapon: "staff", robe: true, orb: "#ffb347" },
 };
 class CharArt {
   constructor(o){
@@ -96,7 +102,8 @@ class CharArt {
       g.restore(); return;
     }
     if(b.weapon === "sword"){ R(x, y - 36, 6, 40, "#d7dde6"); R(x - 6, y + 2, 18, 4, b.trim); R(x, y + 6, 6, 10, "#5a3a22"); }
-    else if(b.weapon === "staff"){ R(x, y - 48, 6, 76, "#7a5232"); R(x - 4, y - 58, 14, 14, "#9fe6ff"); }
+    else if(b.weapon === "staff"){ R(x, y - 48, 6, 76, "#7a5232"); R(x - 4, y - 58, 14, 14, b.orb || "#9fe6ff"); }
+    else if(b.weapon === "censer"){ R(x + 2, y - 4, 2, 30, "#8a8a8a"); R(x - 6, y + 24, 18, 16, "#c9a55c"); R(x - 2, y + 28, 10, 8, "#ff7a2a"); R(x - 2, y + 20, 10, 4, "#e0c070"); }
     else if(b.weapon === "bow"){ R(x, y - 30, 4, 60, "#7a5232"); R(x - 4, y - 34, 4, 6, "#7a5232"); R(x - 4, y + 28, 4, 6, "#7a5232"); R(x - 8, y - 28, 2, 56, "#e8e2d0"); }
   }
 }
@@ -226,12 +233,68 @@ function drawFlower(g){
   g.fillStyle = "#ffe066"; for(let i = 0; i < 6; i++){ const a = i / 6 * Math.PI * 2; g.beginPath(); g.ellipse(32 + Math.cos(a) * 9, 24 + Math.sin(a) * 9, 7, 5, a, 0, Math.PI * 2); g.fill(); }
   g.fillStyle = "#ff9a30"; g.beginPath(); g.arc(32, 24, 6, 0, Math.PI * 2); g.fill();
 }
+// The Ashen Cathedral: hooded acolytes, shaven monks, and three bosses
+function drawAcolyteHead(g, x, y, r){
+  g.fillStyle = "#4a4442"; g.beginPath(); g.arc(x, y, r * .96, 0, Math.PI * 2); g.fill();                     // ash-grey hood
+  g.fillStyle = "#2a2624"; g.fillRect(x - r * .96, y - 4, r * 1.92, 4);
+  g.fillStyle = "#1a1614"; g.beginPath(); g.ellipse(x, y + 8, r * .56, r * .54, 0, 0, Math.PI * 2); g.fill(); // shadowed face
+  g.fillStyle = "#ff8a3a"; g.fillRect(x - 15, y + 2, 9, 5); g.fillRect(x + 6, y + 2, 9, 5);                  // ember eyes
+  g.fillStyle = "#6a625e"; g.fillRect(x - 4, y + 18, 8, 3);
+  g.fillStyle = "#ff7a2a"; g.beginPath(); g.moveTo(x, y - r * .78); g.lineTo(x + 6, y - r * .6); g.lineTo(x, y - r * .45); g.lineTo(x - 6, y - r * .6); g.closePath(); g.fill(); // flame sigil
+  g.lineWidth = 4; g.strokeStyle = "#1b1410"; g.beginPath(); g.arc(x, y, r * .96, 0, Math.PI * 2); g.stroke();
+}
+function drawMonkHead(g, x, y, r){
+  g.fillStyle = "#c98a5a"; g.beginPath(); g.arc(x, y + 2, r * .8, 0, Math.PI * 2); g.fill();                  // shaven head
+  g.fillStyle = "#b8322a"; g.fillRect(x - r * .8, y - 12, r * 1.6, 7);                                          // red headband
+  g.fillStyle = "#e09a6a"; g.fillRect(x - 10, y - 26, 8, 8);
+  g.fillStyle = "#1b1410"; g.fillRect(x - 15, y + 2, 8, 5); g.fillRect(x + 7, y + 2, 8, 5);
+  g.fillStyle = "#4a2a18"; g.fillRect(x - 17, y - 3, 11, 3); g.fillRect(x + 6, y - 3, 11, 3);                 // stern brows
+  g.fillStyle = "#ff7a2a"; g.fillRect(x - 3, y - 26, 6, 10);                                                    // ember tattoo
+  g.fillStyle = "#8a4a2a"; g.fillRect(x - 7, y + 20, 14, 3);
+  g.lineWidth = 4; g.strokeStyle = "#1b1410"; g.beginPath(); g.arc(x, y + 2, r * .8, 0, Math.PI * 2); g.stroke();
+}
+function drawDeaconHead(g, x, y, r){
+  g.fillStyle = "#3a3438"; g.beginPath(); g.arc(x, y, r * .98, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#c9a55c"; g.fillRect(x - r * .98, y - 6, r * 1.96, 5);                                      // gold-trimmed hood
+  g.fillStyle = "#d8a888"; g.beginPath(); g.arc(x, y + 6, r * .58, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#e8e2d8"; g.beginPath(); g.moveTo(x - r * .55, y + 10); g.quadraticCurveTo(x, y + r * 1.1, x + r * .55, y + 10); g.lineTo(x + r * .3, y + 18); g.lineTo(x - r * .3, y + 18); g.fill(); // white beard
+  g.fillStyle = "#ff6a2a"; g.fillRect(x - 14, y - 2, 8, 5); g.fillRect(x + 6, y - 2, 8, 5);
+  g.fillStyle = "#7a6a6a"; g.fillRect(x - 16, y - 8, 11, 3); g.fillRect(x + 5, y - 8, 11, 3);
+  g.lineWidth = 4; g.strokeStyle = "#1b1410"; g.beginPath(); g.arc(x, y, r * .98, 0, Math.PI * 2); g.stroke();
+}
+function drawAbbessHead(g, x, y, r){
+  g.fillStyle = "#18161c"; g.beginPath(); g.arc(x, y, r * .98, 0, Math.PI * 2); g.fill();                    // black veil
+  g.fillStyle = "#ece6da"; g.beginPath(); g.ellipse(x, y + 6, r * .66, r * .7, 0, 0, Math.PI * 2); g.fill(); // white wimple
+  g.fillStyle = "#f0d0b8"; g.beginPath(); g.ellipse(x, y + 6, r * .46, r * .5, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#1b1410"; g.fillRect(x - 12, y, 7, 4); g.fillRect(x + 5, y, 7, 4);
+  g.strokeStyle = "#8a2a2a"; g.lineWidth = 2; g.beginPath(); g.moveTo(x - 9, y + 18); g.lineTo(x + 9, y + 18); g.stroke();                  // sewn-shut mouth
+  for(let i = -2; i <= 2; i++){ g.beginPath(); g.moveTo(x + i * 4, y + 15); g.lineTo(x + i * 4, y + 21); g.stroke(); }
+  g.fillStyle = "#c9a55c"; g.fillRect(x - 3, y - r * .82, 6, 14); g.fillRect(x - 7, y - r * .74, 14, 5);    // small gold cross
+  g.lineWidth = 4; g.strokeStyle = "#1b1410"; g.beginPath(); g.arc(x, y, r * .98, 0, Math.PI * 2); g.stroke();
+}
+function drawSaintHead(g, x, y, r){
+  const grd = g.createRadialGradient(x, y, r * .5, x, y, r * 1.35); grd.addColorStop(0, "rgba(255,170,60,.7)"); grd.addColorStop(1, "rgba(255,120,30,0)");
+  g.fillStyle = grd; g.beginPath(); g.arc(x, y, r * 1.35, 0, Math.PI * 2); g.fill();                         // halo of fire
+  g.fillStyle = "#cfc6b8"; g.beginPath(); g.arc(x, y + 10, r * .6, 0, Math.PI * 2); g.fill();                // ashen face
+  g.fillStyle = "#ece2c8"; g.beginPath(); g.moveTo(x - r * .62, y + 2); g.lineTo(x - r * .5, y - r * .95); g.lineTo(x, y - r * 1.25); g.lineTo(x + r * .5, y - r * .95); g.lineTo(x + r * .62, y + 2); g.closePath(); g.fill(); // tall mitre
+  g.fillStyle = "#ff8a2a"; g.fillRect(x - 4, y - r * 1.05, 8, r * 1.05); g.fillRect(x - r * .5, y - 8, r, 6);
+  g.fillStyle = "#fff6d8"; g.beginPath(); g.arc(x, y - r * .55, 6, 0, Math.PI * 2); g.fill();                // ember gem
+  g.fillStyle = "#ffffff"; g.fillRect(x - 13, y + 6, 8, 5); g.fillRect(x + 5, y + 6, 8, 5);                    // white burning eyes
+  g.fillStyle = "#6a6260"; g.fillRect(x - 6, y + 24, 12, 3);
+  g.lineWidth = 4; g.strokeStyle = "#1b1410"; g.beginPath(); g.moveTo(x - r * .62, y + 2); g.lineTo(x - r * .5, y - r * .95); g.lineTo(x, y - r * 1.25); g.lineTo(x + r * .5, y - r * .95); g.lineTo(x + r * .62, y + 2); g.stroke();
+  g.beginPath(); g.arc(x, y + 10, r * .6, 0, Math.PI * 2); g.stroke();
+}
 const HEADS = { farmer: drawFarmerHead, huntress: drawHuntressHead, fisher: drawFisherHead, guard: drawGuardHead, warden: drawWardenHead, merchant: drawMerchantHead, gladiator: drawGladiatorHead, miner: drawMinerHead, healer: drawHealerHead };
 const MOB_ART = {
   sheep: { cw: 96, ch: 80, sx: 1.35, sy: 1.12, sh: .6, plate: 1.35, draw: (g, f, fl, an) => drawSheep(g, f, fl, an, false) },
   boar: { cw: 128, ch: 96, sx: 2.8, sy: 2.1, sh: 1.15, plate: 2.4, draw: (g, f, fl, an, wu) => drawBoar(g, f, fl, an, wu) },
   wolf: { cw: 112, ch: 80, sx: 1.7, sy: 1.2, sh: .7, plate: 1.45, draw: (g, f, fl, an) => drawWolf(g, f, fl, an) },
   bandit: { char: true, style: "bandit", head: drawBanditHead, sx: 1.6, sy: 2.4, sh: .6, plate: 2.75 },
+  acolyte: { char: true, style: "acolyte", head: drawAcolyteHead, sx: 1.7, sy: 2.55, sh: .6, plate: 2.9 },
+  monk: { char: true, style: "monk", head: drawMonkHead, sx: 1.7, sy: 2.55, sh: .6, plate: 2.9 },
+  deacon: { char: true, style: "deacon", head: drawDeaconHead, sx: 2.6, sy: 3.9, sh: 1, plate: 4.3 },
+  abbess: { char: true, style: "abbess", head: drawAbbessHead, sx: 2.5, sy: 3.75, sh: .95, plate: 4.1 },
+  saint: { char: true, style: "saint", head: drawSaintHead, tier: true, sx: 3.6, sy: 5.4, sh: 1.4, plate: 5.9 },
   ram: { cw: 112, ch: 88, sx: 1.9, sy: 1.5, sh: .75, plate: 1.7, draw: (g, f, fl, an, wu) => drawRam(g, f, fl, an, wu) },
   lynx: { cw: 112, ch: 80, sx: 1.75, sy: 1.25, sh: .7, plate: 1.5, draw: (g, f, fl, an) => drawLynx(g, f, fl, an) },
   cragling: { cw: 96, ch: 80, sx: 1.5, sy: 1.25, sh: .65, plate: 1.45, draw: (g, f, fl, an) => drawCragling(g, f, fl, an) },

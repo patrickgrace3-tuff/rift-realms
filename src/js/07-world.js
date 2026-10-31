@@ -186,11 +186,12 @@ function openDialog(f){
   // Scout Yrsa rents out a raid party while you hunt Skarnvir
   const me = G.snap && G.snap.h.find(h => h.side === G.myTeam), p = myParty();
   const hired = p && p[2].some(s => { const h = heroBySide(s); return h && h.merc; });
-  const hire = $("#dlgHire"); hire.hidden = !(npc.mercs && f.quest === MERCS.quest && f.state === "progress" && !hired && (!p || p[1] === G.myTeam));
+  const hire = $("#dlgHire"), onQuest = npc.mercs && me && npc.mercs.some(q => me.quests[q] && me.quests[q].state === "active");
+  hire.hidden = !(onQuest && !hired && (!p || p[1] === G.myTeam));
   if(!hire.hidden){
     const free = PARTY_MAX - (p ? p[2].length : 1), price = MERCS.price * ((me && me.lvl) || 1);
-    hire.textContent = `Hire a raid party (${fmtCoins(price)} each)`;
-    hire.title = `Fills your party to ${PARTY_MAX} with a tank, a healer and damage dealers for the fight with Skarnvir: ${free} champion${free === 1 ? "" : "s"}, ${fmtCoins(price * free)}. They leave when the dragon falls.`;
+    hire.textContent = `Hire a ${npc.id === "yrsa" ? "raid " : ""}party (${fmtCoins(price)} each)`;
+    hire.title = `Fills your party to ${PARTY_MAX} with a tank, a healer and damage dealers : ${free} champion${free === 1 ? "" : "s"}, ${fmtCoins(price * free)}. They stay through the Ashen Cathedral and leave when its last boss falls.`;
     hire.disabled = free <= 0;
   }
   $("#dialog").hidden = false; (act.hidden ? $("#dlgClose") : act).focus();

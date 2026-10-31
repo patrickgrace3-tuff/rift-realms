@@ -2,7 +2,7 @@
 // three.js setup and the procedural Sunhollow Vale terrain, props and map image (the Peaks are in 04b-peaks.js).
 
 /* ---------- Three.js setup ---------- */
-let renderer, scene, camera, glowMat, ringGeo, discGeo, zone, fireLight, fireFlames = [];
+let HEMI = null, SUN = null, renderer, scene, camera, glowMat, ringGeo, discGeo, zone, fireLight, fireFlames = [];
 const cv = $("#cv"), ov = $("#ov"), octx = ov.getContext("2d");
 let VW = innerWidth, VH = innerHeight, dpr = 1, camDist = 22;
 const raycaster = window.THREE ? new THREE.Raycaster() : null;
@@ -24,8 +24,8 @@ function initThree(){
   renderer.outputEncoding = THREE.sRGBEncoding;
   scene = new THREE.Scene(); scene.background = new THREE.Color(0x9ccbe8);
   camera = new THREE.PerspectiveCamera(38, 1, 0.5, 600);
-  scene.add(new THREE.HemisphereLight(0xdff1ff, 0x5a6a3a, 1.05));
-  const sun = new THREE.DirectionalLight(0xfff1d6, 1.0); sun.position.set(-20, 30, 12); scene.add(sun);
+  HEMI = new THREE.HemisphereLight(0xdff1ff, 0x5a6a3a, 1.05); scene.add(HEMI);
+  const sun = SUN = new THREE.DirectionalLight(0xfff1d6, 1.0); sun.position.set(-20, 30, 12); scene.add(sun);
   const glc = document.createElement("canvas"); glc.width = glc.height = 64; const gg = glc.getContext("2d");
   const grad = gg.createRadialGradient(32, 32, 0, 32, 32, 32); grad.addColorStop(0, "rgba(255,236,180,.9)"); grad.addColorStop(1, "rgba(255,200,90,0)");
   gg.fillStyle = grad; gg.fillRect(0, 0, 64, 64);
@@ -334,6 +334,7 @@ function buildZone(){
   for(const [x, y] of HOUSES){ const [a, b] = toM(x, y); mg.fillStyle = "#e8dcc0"; mg.fillRect(a - 3, b - 3, 6, 6); mg.strokeRect(a - 3, b - 3, 6, 6); }
   for(const [x, y, col] of [[TOWER.x, TOWER.y, "#a8a296"], [CABIN.x, CABIN.y, "#b08a5a"], [CAMP.x, CAMP.y, "#8a9a5a"], [WELL[0], WELL[1], "#b0aaa0"], [CAMPFIRE[0], CAMPFIRE[1], "#ff9a40"]]){ const [a, b] = toM(x, y); mg.fillStyle = col; mg.fillRect(a - 2.5, b - 2.5, 5, 5); mg.strokeRect(a - 2.5, b - 2.5, 5, 5); }
   buildPeaks(g, ZH, { ss, noise, polyD, rnd, d, c, t2, stone, beamM });
+  buildCathedral(g);
   zone = g; zone.visible = false; scene.add(zone);
 }
 function hAt(x, z){ const [zx, zy] = XF.inv(x, z); return ZH ? ZH(zx, zy) : 0; }

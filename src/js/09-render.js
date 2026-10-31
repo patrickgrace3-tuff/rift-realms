@@ -96,7 +96,7 @@ function render(dt){
     if(!mv){
       const A = MOB_ART[kind] || MOB_ART.sheep;
       let c, art = null;
-      if(A.char){ art = new CharArt({ style: A.style, drawHead: A.head }); c = art.canvas; }
+      if(A.char){ art = new CharArt({ style: A.style, drawHead: A.head, tier: A.tier }); c = art.canvas; }
       else { c = document.createElement("canvas"); c.width = A.cw; c.height = A.ch; }
       const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding;
       const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, alphaTest: .1 })); spr.center.set(.5, 0); spr.scale.set(A.sx, A.sy, 1);
@@ -255,6 +255,7 @@ function render(dt){
     scene.fog.near = camDist * 1.8; scene.fog.far = camDist * 4.2;
     camera.position.set(me.x, me.y + camDist * .8, me.z + camDist * .6); camera.lookAt(me.x, me.y + .8, me.z);
     if(meSnap) updateClimate(dt, meSnap.y, me);
+    guarded("cathedral", () => updateCathedral(s, meSnap, t));
   }
   renderer.render(scene, camera);
 
@@ -264,6 +265,7 @@ function render(dt){
   // sprites face the camera, so their top is along the camera's up direction, not straight up in the world
   const camUp = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
   const spriteTop = (p, h) => worldToScreen(p.x + camUp.x * h, p.y + camUp.y * h, p.z + camUp.z * h);
+  for(const p of PORTAL_VIS){ if(!p.shown) continue; const w = XF(p.x, p.y), [sx, sy, sz] = worldToScreen(w.x, hAt(w.x, w.z) + 4.6, w.z); if(sz < 1) label(p.name, sx, sy, "#ffd8a8", 14, 700); }
   for(const nv of G.npcVis){ const [sx, sy, sz] = spriteTop(nv.pos, 2.4); if(sz < 1){ label(`<${nv.n.name}>`, sx, sy - (nv.n.title ? 20 : 6), "#ffd84a", 14); if(nv.n.title) label(nv.n.title, sx, sy - 5, "#e8e2d4", 12, 500); } }
   for(const [, mv] of G.mobVis){
     if(!mv.pos) continue;
@@ -272,7 +274,7 @@ function render(dt){
       const [bx, ty, bz] = spriteTop(mv.pos, mv.A.sy), by = ty - 12, bw = ET.boss ? 160 : 90; if(bz > 1) continue;
       octx.fillStyle = "rgba(0,0,0,.65)"; octx.fillRect(bx - bw / 2, by, bw, 7);
       octx.fillStyle = "#d9545b"; octx.fillRect(bx - bw / 2, by, bw * Math.max(0, mv.hp / mv.maxHp), 7);
-      label(`${ET.name}  ·  ${ET.lvl}`, bx, by - 6, "#ffb070", ET.boss ? 18 : 15, 700); label(ET.boss ? "Rare Raid Boss" : "Elite", bx, by - (ET.boss ? 25 : 21), ET.boss ? "#ff8a1e" : "#f0d58e", ET.boss ? 13 : 11, 700);
+      label(`${ET.name}  ·  ${ET.lvl}`, bx, by - 6, "#ffb070", ET.boss ? 18 : 15, 700); label(ET.boss ? ET.title || "Rare Raid Boss" : "Elite", bx, by - (ET.boss ? 25 : 21), ET.boss ? "#ff8a1e" : "#f0d58e", ET.boss ? 13 : 11, 700);
       if(mv.windup) label("!", bx, by - 36, "#ff5040", 26, 700);
       continue;
     }
@@ -298,7 +300,7 @@ function render(dt){
     if(c.shield > 0){ octx.fillStyle = "rgba(230,240,255,.9)"; octx.fillRect(sx - wdt / 2, sy + 5, Math.min(wdt, wdt * c.shield / c.maxHp), 2); }
     label(`${c.name}  ·  ${c.lvl}`, sx, sy - 6, mine ? "#f0d58e" : foe ? "#ff8a70" : ally ? "#8fc7ff" : "#e4e4e4", 13);
     if(c.merc && !c.cc) label(`Hired ${ROLE_NAMES[c.merc] || ""}`, sx, sy - 22, "#c9b27a", 11, 700);
-    if(c.cc) label({ stun: "STUNNED", root: "ROOTED", slow: "SLOWED" }[c.cc], sx, sy - 22, c.cc === "stun" ? "#f0d58e" : c.cc === "root" ? "#b98cff" : "#7fd3ff", 12, 700);
+    if(c.cc) label({ stun: "STUNNED", root: "ROOTED", slow: "SLOWED", silence: "SILENCED" }[c.cc], sx, sy - 22, c.cc === "stun" ? "#f0d58e" : c.cc === "root" ? "#b98cff" : c.cc === "silence" ? "#ff9ad0" : "#7fd3ff", 12, 700);
   }
   // objective arrow around your character
   if(meSnap && !meSnap.dead && G.vis[G.myTeam] && G.vis[G.myTeam].pos){
