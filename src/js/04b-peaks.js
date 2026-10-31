@@ -244,9 +244,10 @@ function buildPeaks(g, valeH, T){
 }
 // Cold fog, sky and snowfall in the Peaks. k goes from 0 (Vale) to 1 (Peaks) across the pass.
 const SKY_VALE = window.THREE ? new THREE.Color(0x9ccbe8) : null, SKY_PEAKS = window.THREE ? new THREE.Color(0xc6d4e2) : null;
-function updateClimate(dt, zoneY, look){
-  const inside = zoneY > DZ; cathedralClimate(inside);
-  if(inside){ if(SNOW) SNOW.flakes.visible = false; return; }
+function updateClimate(dt, zoneY, look, zoneX = 0){
+  const jungle = inJungle(zoneX, zoneY), inside = zoneY > DZ && !jungle; cathedralClimate(inside);
+  if(jungle) jungleClimate();
+  if(inside || jungle){ if(SNOW) SNOW.flakes.visible = false; return; }
   const k = Math.max(0, Math.min(1, (zoneY - (ZS - 600)) / 1400));
   if(scene.fog){ scene.fog.color.copy(SKY_VALE).lerp(SKY_PEAKS, k); scene.background.copy(scene.fog.color); }
   if(!SNOW) return;

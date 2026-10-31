@@ -156,9 +156,13 @@ function currentQuest(me){
 // the cathedral is only reached by portal: point at the Rift (or the way out) when the goal is on the other side
 function objectiveTarget(me){
   const t = objectiveSpot(me); if(!t) return null;
-  if(t.y > DZ && me.y <= DZ) return { x: RIFT.x, y: RIFT.y, r: 0 };
-  if(t.y <= DZ && me.y > DZ) return { x: CATHEDRAL.exit.x, y: CATHEDRAL.exit.y, r: 0 };
-  return t;
+  const zt = zoneAt(t.y, t.x).key, zm = zoneAt(me.y, me.x).key, outdoors = k => k === "vale" || k === "peaks";
+  if(zt === zm || (outdoors(zt) && outdoors(zm))) return t;
+  const at = p => ({ x: p.x, y: p.y, r: 0 });
+  if(zm === "jungle") return at(WAYSTONES.jungle);                      // the jungle's waystone leads back to Highwatch
+  if(zm === "cathedral") return zt === "jungle" ? at(CHOIR_PORTALS.right) : at(CATHEDRAL.exit);
+  if(zt === "jungle"){ const q = me.quests.ashensaint; return q && (q.state === "ready" || q.state === "done") ? at(WAYSTONES.peaks) : at(RIFT); }
+  return at(RIFT);
 }
 function objectiveSpot(me){
   const qid = currentQuest(me);
@@ -413,9 +417,9 @@ function updateHud(){
   const tkey = JSON.stringify(me.talents) + me.points + me.lvl;
   if(!$("#skills").hidden && tkey !== G.skillKey) renderSkills(me);
   drawMinimap(me);
-  const zn = zoneAt(me.y).name; if($("#mmZone").textContent !== zn){ $("#mmZone").textContent = zn; playMusic(zoneAt(me.y).key); banner(zn, me.y > DZ ? "Sister Elowen waits in the narthex" : me.y >= ZS ? "Highwatch Outpost lies north along the road" : "", 3000); }
+  const Z = zoneAt(me.y, me.x), zn = Z.name; if($("#mmZone").textContent !== zn){ $("#mmZone").textContent = zn; playMusic(Z.key); banner(zn, ZONE_HINT[Z.key] || "", 3000); }
   if(!$("#bigmap").hidden) drawBigMap(me);
-  $("#respawn").hidden = !me.dead; if(me.dead) $("#respawn").textContent = `You were defeated. Returning to ${me.y > DZ ? "the cathedral entrance" : me.y >= ZS ? "Highwatch Outpost" : "the village"} in ${me.dead}…`;
+  $("#respawn").hidden = !me.dead; if(me.dead) $("#respawn").textContent = `You were defeated. Returning to ${ZONE_HOME[zoneAt(me.y, me.x).key] || "the village"} in ${me.dead}…`;
   // quest tracker lists every active quest; click one to point the arrow at it
   const active = QUEST_ORDER.filter(id => me.quests[id] && me.quests[id].state !== "done");
   $("#tracker").hidden = !active.length;

@@ -143,7 +143,7 @@ function buildCathedral(g){
 const CATH_FOG = window.THREE ? new THREE.Color(0x140e0b) : null;
 function updateCathedral(s, me, t){
   if(!CATH || !s) return;
-  const dg = s.dg || { s: 1, ro: 0, hz: [], ms: [] }, inside = me && me.y > DZ;
+  const dg = s.dg || { s: 1, ro: 0, hz: [], ms: [] }, inside = me && me.y > DZ && me.x <= ZS;
   CATH.seal.visible = !!dg.s; CATH.seal.material.opacity = .65 + Math.sin(t * 3) * .25;
   CATH.lights.visible = inside;
   for(const [i, f] of CATH.flames.entries()) f.material.opacity = .75 + Math.sin(t * 9 + i * 1.7) * .2;

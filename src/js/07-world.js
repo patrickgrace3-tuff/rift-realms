@@ -97,6 +97,7 @@ function thingUnderCursor(cx, cy){
   for(const h of G.snap.h){ if(!duelFoe(h.side) || h.dead) continue; const v = G.vis[h.side]; if(!v || !v.pos) continue; const [sx, sy] = worldToScreen(v.pos.x, v.pos.y + 1.2, v.pos.z); if(Math.abs(sx - cx) < 40 && Math.abs(sy - cy) < 70) return { atk: "c:" + h.side }; }
   let best = null, bd = 1e9;
   for(const m of G.snap.m){
+    if(m[7] & 16) continue; // hidden
     // click anywhere on the creature's body; big ones (the dragon) have a big target
     const A = MOB_ART[m[1]] || MOB_ART.sheep, p = G.smooth.get(m[0]) || { x: m[2], y: m[3] }, w = XF(p.x, p.y), gy = hAt(w.x, w.z);
     const [sx, sy] = worldToScreen(w.x, gy + A.sy * .4, w.z), [ex] = worldToScreen(w.x + A.sx * .45, gy + A.sy * .4, w.z), reach = Math.max(46, Math.abs(ex - sx));

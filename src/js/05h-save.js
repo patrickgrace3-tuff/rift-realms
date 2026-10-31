@@ -59,8 +59,9 @@ Object.assign(SIM, {
     // where you were: the cathedral starts over at its entrance (each world has its own)
     const x = +save.x, y = +save.y;
     if(Number.isFinite(x) && Number.isFinite(y)){
-      if(y > DZ){ c.x = CATHEDRAL.arrive[0]; c.y = CATHEDRAL.arrive[1]; }
-      else { c.x = clampX(x); c.y = Math.max(ZMIN, Math.min(WH - ZMIN, y)); }
+      if(inJungle(x, y)){ c.x = x; c.y = y; SIM.bound(W, c); }       // the jungle is open country: pick up where you were
+      else if(y > DZ){ c.x = CATHEDRAL.arrive[0]; c.y = CATHEDRAL.arrive[1]; }
+      else { c.x = x; c.y = y; SIM.bound(W, c); }
     }
     SIM.recalc(c); c.hp = c.maxHp; c.gearVer++; c.portalT = W.t + 3;
     return true;

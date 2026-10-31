@@ -61,7 +61,7 @@ const RUNES = [{ name: "Rune of Stillness", x: 3750, y: 13600 }, { name: "Rune o
 // everything a player can right-click to use for a quest; `use` commands index into this list
 const USE_POINTS = [...BEACONS, ...RUNES];
 // gathering nodes: each kind grows in a ring around a spot; collect quests name the kind they need
-const NODE_INFO = { herb: { name: "Sunpetal", idle: "A pretty flower. Someone might have a use for it." }, ore: { name: "Glimmerstone", idle: "A vein of glittering stone. A miner might want it." }, frostbloom: { name: "Frostbloom", idle: "A pale blue flower, cold as ice. A healer might want it." } };
+const NODE_INFO = { herb: { name: "Sunpetal", idle: "A pretty flower. Someone might have a use for it." }, ore: { name: "Glimmerstone", idle: "A vein of glittering stone. A miner might want it." }, frostbloom: { name: "Frostbloom", idle: "A pale blue flower, cold as ice. A healer might want it." }, bloodvine: { name: "Bloodvine", idle: "Blood-red blossoms on a thorny vine. A herbalist might want them." } };
 const PEAK_PATHS = [
   [[PASS.x, ZS - 1], [4150, 8700], [OUTPOST.x, OUTPOST.y]],
   [[OUTPOST.x, OUTPOST.y], [3950, 11000], [4350, 12900], [SUMMIT.x, SUMMIT.y]],
@@ -87,6 +87,7 @@ const NODE_SPOTS = [
   { kind: "herb", x: HERB_AREA.x, y: HERB_AREA.y, rmin: 720, rmax: 1100, n: 10 },
   { kind: "ore", x: MINE.x, y: MINE.y, rmin: 150, rmax: 620, n: 10 },
   { kind: "frostbloom", x: LAKE.x, y: LAKE.y, rmin: LAKE.r + 60, rmax: LAKE.r + 380, n: 10 },
+  { kind: "bloodvine", x: ZS + 4300, y: WH + 5000, rmin: 150, rmax: 700, n: 10 },
 ];
 /* ---------- The Ashen Cathedral (dungeon, reached through the Rift in the Wyrm's Crown) ---------- */
 // It sits in its own zone north of the Peaks (y 16000–24000) and can only be reached by portal.
@@ -116,13 +117,41 @@ const CATHEDRAL_SPAWNS = [
   ...[["monk", 3780, 22050], ["monk", 4220, 22050], ["acolyte", 3900, 22300], ["acolyte", 4100, 22300]].map(s => [...s, "E"]),
   ["deacon", CATHEDRAL.west.x, CATHEDRAL.west.y, ""], ["abbess", CATHEDRAL.east.x, CATHEDRAL.east.y, ""], ["saint", CATHEDRAL.altar.x, CATHEDRAL.altar.y, ""],
 ].map(([kind, x, y, pack], i) => ({ id: "cs" + i, kind, x, y, pack }));
+/* ---------- The Thornveil Jungle (east of the cathedral; x 8000–16000, y 16000–24000) ---------- */
+// Reached through the right-hand portal behind the Saint's altar, or the Highwatch waystone once you've been.
+const JX = ZS, JY = DZ;                                    // the jungle's south-west corner
+const J = (x, y) => ({ x: JX + x, y: JY + y });            // jungle-local position (0–8000) to world units
+const CANOPY = { ...J(1500, 1400), r: 520 };               // Canopy Camp, the explorers' base
+const JUNGLE_ARRIVE = [CANOPY.x + 350, CANOPY.y - 180];
+const JUNGLE_FIRE = [CANOPY.x + 120, CANOPY.y - 40];
+const JUNGLE_STALL = { x: CANOPY.x + 420, y: CANOPY.y + 300 }; // Quartermaster Bao's crates
+const WAYSTONES = { jungle: { ...J(1150, 1150), name: "Waystone to Highwatch" }, peaks: { x: OUTPOST.x - 650, y: OUTPOST.y - 120, name: "Waystone to the Thornveil" } };
+const CHOIR_PORTALS = { left: { x: 3350, y: 23050, r: 150 }, right: { x: 4650, y: 23050, r: 150 } };
+const RIVER = [J(2600, 7900), J(2900, 6600), J(2400, 5300), J(3300, 4100), J(4600, 3600), J(5400, 2900), J(6100, 2500)].map(p => [p.x, p.y]);
+const DELTA = { ...J(6300, 2300), r: 760 };                // the Sunken Delta: Mawgrot's lake
+const FERNREACH = { ...J(3000, 1900), r: 900 };            // ferns and serpents, south
+const LEAPER_POOLS = { ...J(4000, 2700), r: 650 };         // frogs by the river
+const THICKET = { ...J(5600, 4300), r: 750 };              // the Prowler Thicket
+const HOWLER = { ...J(1700, 5500), r: 750 };               // Howler Heights: apes
+const GREYBACK_DEN = J(1400, 6500);
+const BROODHOLLOW = { ...J(4500, 6300), r: 420 };          // Sizzra's web-choked hollow
+const RUINS = { ...J(6300, 6500), r: 800 };                // the Moonlit Ruins: Shadowmane's lair
+const OLD_GATE = J(4000, 7300);                            // the Overgrown Gate at the jungle's north edge (the way onward, still shut)
+const BLOODVINE = J(4300, 5000);
+const VANTAGES = [{ name: "the Strangler Fig", ...J(3900, 3700) }, { name: "the Broken Idol", ...J(7000, 4500) }, { name: "the Falls Ledge", ...J(2700, 7000) }];
+const KAPOKS = [J(2300, 3400), J(5000, 1200), J(6800, 3300), J(3300, 5800), J(5400, 7100), J(900, 4300)].map(p => ({ ...p, r: 170 }));
+FIRES.push(JUNGLE_FIRE);
 // Every zone: a key, its name, and its area in world units (x0, y0 is the south-west corner).
 // New zones go here; the minimap and world map draw whatever is in this list.
 const ZONES = [
   { key: "vale", name: "Sunhollow Vale", x0: 0, y0: 0, w: ZS, h: ZS },
   { key: "peaks", name: "Frostspine Peaks", x0: 0, y0: ZS, w: ZS, h: ZS },
   { key: "cathedral", name: "The Ashen Cathedral", x0: 0, y0: DZ, w: ZS, h: ZS, dungeon: true },
+  { key: "jungle", name: "The Thornveil Jungle", x0: JX, y0: JY, w: ZS, h: ZS },
 ];
+// what each zone's arrival banner says, and where you return to when you fall there
+const ZONE_HINT = { vale: "", peaks: "Highwatch Outpost lies north along the road", cathedral: "Sister Elowen waits in the narthex", jungle: "Ranger Tamsin waits at Canopy Camp" };
+const ZONE_HOME = { vale: "the village", peaks: "Highwatch Outpost", cathedral: "the cathedral entrance", jungle: "Canopy Camp" };
 const zoneAt = (y, x = ZS / 2) => ZONES.find(z => x >= z.x0 && x < z.x0 + z.w && y >= z.y0 && y < z.y0 + z.h) || ZONES[y >= ZS ? ZONES.length - 1 : 0];
 const ZONE_PICS = {}; // each zone's map picture (a canvas), keyed like ZONES; filled in when the scene is built
 const NPCS = [
@@ -136,6 +165,9 @@ const NPCS = [
   { id: "maren", name: "Sister Maren", x: 3980, y: 9300, head: "healer", style: "healer", idle: "Cold hands, warm heart, my mother used to say. Mostly cold hands, up here." },
   { id: "ketil", name: "Old Ketil", x: KETIL_CAMP.x - 200, y: KETIL_CAMP.y - 150, head: "miner", style: "miner", idle: "Forty years I dug that mine. Forty years, and now a pack of walking pebbles has the run of it." },
   { id: "yrsa", mercs: ["rimewyrm"], name: "Scout Yrsa", x: YRSA_CAMP.x + 150, y: YRSA_CAMP.y - 180, head: "huntress", style: "hunter", idle: "Keep low, keep quiet. He can hear a boot crack the ice from the top of the Crown." },
+  { id: "tamsin", mercs: ["tyrant", "queen"], name: "Ranger Tamsin", x: CANOPY.x - 150, y: CANOPY.y + 220, head: "huntress", style: "hunter", idle: "Everything out here wants to eat you. The trick is to be the one doing the eating." },
+  { id: "ezo", name: "Herbalist Ezo", x: CANOPY.x + 80, y: CANOPY.y + 420, head: "fisher", style: "fisher", idle: "Half the leaves in this jungle will heal you. The other half will kill you. I'm still working out which is which." },
+  { id: "bao", name: "Quartermaster Bao", title: "Potions", x: JUNGLE_STALL.x, y: JUNGLE_STALL.y - 110, head: "merchant", style: "merchant", shop: ["hpot"], idle: "Potions, freshly carried through a portal. Mind the frogs on your way out." },
   { id: "elowen", mercs: ["censer", "silentvow", "ashensaint"], name: "Sister Elowen", x: 3520, y: 18350, head: "healer", style: "healer", idle: "The Choir sang beneath this mountain for three hundred years. Now it only burns." },
 ];
 const OBSTACLES = [
@@ -144,7 +176,7 @@ const OBSTACLES = [
   ...NPCS.filter(n => !n.shop).map(n => ({ x: n.x, y: n.y, r: 55 })), // vendors are covered by their stall
   { x: CAMP.x, y: CAMP.y, r: 190 }, { x: CABIN.x, y: CABIN.y, r: 250 }, { x: TOWER.x, y: TOWER.y, r: 220 },
   ...BEACONS.map(b => ({ x: b.x, y: b.y, r: 70 })), ...LOOKOUTS.map(p => ({ x: p.x, y: p.y, r: 55 })),
-  ...PEAK_OBSTACLES, ...PILLARS, { x: STALL.x, y: STALL.y - 50, r: 150 }, // one circle around the stall and its vendor, so there's no corner to get stuck in
+  ...PEAK_OBSTACLES, ...PILLARS, ...KAPOKS, { x: JUNGLE_STALL.x, y: JUNGLE_STALL.y - 50, r: 150 }, { x: JUNGLE_FIRE[0], y: JUNGLE_FIRE[1], r: 80 }, { x: STALL.x, y: STALL.y - 50, r: 150 }, // one circle around the stall and its vendor, so there's no corner to get stuck in
 ];
 const QUESTS = {
   sheep: {
@@ -374,9 +406,93 @@ Object.assign(QUESTS, {
     complete: "It's over. The fire under the mountain is just fire again. Take this. It was mine, before I ran.",
     done: "Rest a while. You've earned it.",
   },
+  // ---------- The Thornveil Jungle ----------
+  frogs: {
+    id: "frogs", lvl: 15, title: "Leaper Season", giver: "ezo", turnin: "ezo", prereq: null, xp: 500, coins: 300, where: [LEAPER_POOLS.x, LEAPER_POOLS.y], whereR: LEAPER_POOLS.r,
+    obj: { type: "kill", kind: "frog", count: 10, label: "Jade Leapers slain" },
+    offer: "New faces! Through the portal, were you? Welcome to the Thornveil. First lesson: the green frogs by the river spit. Second lesson: they're delicious. Thin them out for me, ten will do, and I'll teach you a third.",
+    objective: "Slay 10 Jade Leapers by the river east of Canopy Camp.",
+    progress: "Ten leapers. Mind the spit.",
+    complete: "Ten! You'll do. The third lesson: never trust anything in this jungle that looks friendly. Except me.",
+    done: "Leaper stew tonight. You're invited.",
+  },
+  canopy: {
+    id: "canopy", lvl: 16, title: "Snakes in the Ferns", giver: "tamsin", turnin: "tamsin", prereq: null, xp: 700, coins: 400, where: [FERNREACH.x, FERNREACH.y], whereR: FERNREACH.r,
+    obj: { type: "kill", kind: "serpent", count: 8, label: "Vine Serpents slain" },
+    offer: "You came through the cathedral? Then you're tougher than you look. The Thornveil is worse. Vine Serpents have been taking my scouts in the Fernreach, south of camp. They hang in the creepers and drop on you. Kill eight and the rest will learn some manners.",
+    objective: "Slay 8 Vine Serpents in the Fernreach, south of Canopy Camp.",
+    progress: "Eight serpents. Look up, not down.",
+    complete: "Good. My scouts can move again. Now I need eyes on the rest of this place.",
+    done: "The ferns are quieter. Thanks.",
+  },
+  vantage: {
+    id: "vantage", lvl: 16, title: "Eyes Above the Canopy", giver: "tamsin", turnin: "tamsin", prereq: "canopy", xp: 600, coins: 400, reward: { item: 2 },
+    obj: { type: "explore", points: VANTAGES, count: 3, label: "Vantage points reached" },
+    offer: "I need to know what's out there. Three high places: the Strangler Fig by the river, the Broken Idol in the east, and the Falls Ledge in the far north. Get up there, take a look, and come back alive.",
+    objective: "Reach the Strangler Fig, the Broken Idol and the Falls Ledge.",
+    progress: "Three vantage points. Don't linger at any of them.",
+    complete: "A crocodile the size of a barge in the delta, and something black moving in the old ruins. I was afraid of that. Take this, you'll need it.",
+    done: "The maps are coming along, thanks to you.",
+  },
+  bloodvine: {
+    id: "bloodvine", lvl: 16, title: "Bloodvine Blossoms", giver: "ezo", turnin: "ezo", prereq: "frogs", xp: 700, coins: 400, reward: { item: 2 },
+    obj: { type: "collect", node: "bloodvine", count: 8, label: "Bloodvine blossoms" },
+    where: [BLOODVINE.x, BLOODVINE.y], whereR: 700,
+    offer: "Bloodvine. Red blossoms that grow north of the river, past the Strangler Fig. Brewed right, they close a wound in seconds. Brewed wrong... well, we won't brew it wrong. Bring me eight.",
+    objective: "Gather 8 Bloodvine blossoms north of the river.",
+    progress: "Red blossoms, north of the river. Eight of them.",
+    complete: "Lovely, lovely. This will keep a whole raiding party on its feet. Here, for your trouble.",
+    done: "The bloodvine tonic is bubbling nicely.",
+  },
+  prowlers: {
+    id: "prowlers", lvl: 17, title: "The Striped Hunters", giver: "ezo", turnin: "ezo", prereq: "bloodvine", xp: 800, coins: 500, where: [THICKET.x, THICKET.y], whereR: THICKET.r,
+    obj: { type: "kill", kind: "prowler", count: 8, label: "Striped Prowlers slain" },
+    offer: "The prowlers in the thicket east of here hunt in packs, and lately they've been hunting us. Something is driving them. Kill eight before they get bolder.",
+    objective: "Slay 8 Striped Prowlers in the Prowler Thicket. They hunt in packs.",
+    progress: "Eight prowlers. Never fight one where you can't see the others.",
+    complete: "They're scared of something worse than you. I'd wager it lives in the ruins.",
+    done: "The thicket's quieter now.",
+  },
+  greyback: {
+    id: "greyback", lvl: 17, title: "The Howler King", giver: "tamsin", turnin: "tamsin", prereq: "vantage", xp: 1000, coins: 700, reward: { item: 3 }, where: [GREYBACK_DEN.x, GREYBACK_DEN.y], whereR: 450,
+    obj: { type: "kill", kind: "greyback", count: 1, label: "Greyback slain" },
+    offer: "Up on Howler Heights there's an ape twice the size of the rest, with a silver back and a temper to match. Greyback. When he beats his chest, he's about to charge. Step aside and make him pay for it.",
+    objective: "Elite: slay Greyback, the Howler King, on Howler Heights in the north-west.",
+    progress: "Watch for the chest-beating. That's the charge coming.",
+    complete: "Greyback, dead. The howlers will scatter now. Take this. I took it off the last fool who tried and didn't make it.",
+    done: "The heights are quiet. Strange, after all that howling.",
+  },
+  venom: {
+    id: "venom", lvl: 17, title: "The Broodmother", giver: "ezo", turnin: "ezo", prereq: "prowlers", xp: 1000, coins: 700, reward: { item: 3 }, where: [BROODHOLLOW.x, BROODHOLLOW.y], whereR: BROODHOLLOW.r,
+    obj: { type: "loot", from: "sizzra", item: "venomsac", itemName: "Sizzra's Venom Sac", count: 1, label: "Sizzra's Venom Sac" },
+    offer: "There's a spider in the Broodhollow, north of the bloodvine. Sizzra. She spits from far away, so close the distance fast. Her venom sac is the last thing I need for an antidote, and believe me, you'll want the antidote before you face what lives in the ruins.",
+    objective: "Elite: slay Sizzra the Broodmother in the Broodhollow and bring Ezo her venom sac.",
+    progress: "The Broodhollow. Get close, she's weaker up close.",
+    complete: "Careful, careful! Don't squeeze it. There. With this, Tamsin's raiders can face anything. Here's a little something.",
+    done: "Antidote's ready. Don't make me use it on you.",
+  },
+  tyrant: {
+    id: "tyrant", lvl: 18, title: "The River Tyrant", giver: "tamsin", turnin: "tamsin", prereq: ["greyback", "venom"], xp: 2200, coins: 2500, raid: true, where: [DELTA.x, DELTA.y], whereR: DELTA.r,
+    obj: { type: "kill", kind: "mawgrot", count: 1, label: "Mawgrot slain" },
+    offer: "Mawgrot. The crocodile in the Sunken Delta. He's dragged three boats under this month. You'll need a raid party: three at least. When he sinks under the water, he's coming up underneath somebody. Keep moving, and kill the crocodiles he calls.",
+    objective: "Raid boss: slay Mawgrot, the River Tyrant, in the Sunken Delta. Needs a party of at least 3.",
+    progress: "The Sunken Delta, south-east. Keep moving when he dives.",
+    complete: "The Tyrant is dead! The river's ours again. They'll be telling this one in every camp from here to Highwatch.",
+    done: "Boats on the river again. Thanks to you.",
+  },
+  queen: {
+    id: "queen", lvl: 18, title: "Queen of the Canopy", giver: "tamsin", turnin: "tamsin", prereq: ["greyback", "venom"], xp: 2200, coins: 2500, raid: true, where: [RUINS.x, RUINS.y], whereR: RUINS.r,
+    obj: { type: "kill", kind: "shadowmane", count: 1, label: "Shadowmane slain" },
+    offer: "The black shape in the Moonlit Ruins is Shadowmane, a jaguar the size of a horse. She's what's been driving the prowlers. She pounces from far away and vanishes into the dark, then strikes from nowhere. Bring a raid party. Stay apart when she's hidden.",
+    objective: "Raid boss: slay Shadowmane, Queen of the Canopy, in the Moonlit Ruins. Needs a party of at least 3.",
+    progress: "The Moonlit Ruins, north-east. Spread out when she vanishes.",
+    complete: "Shadowmane is dead. Do you hear that? The jungle's breathing again. And look: the Overgrown Gate at the north edge. Its vines are pulling back. Whatever lies beyond it, you're ready for it now.",
+    done: "Beyond the Overgrown Gate... one day soon.",
+  },
 });
 const QUEST_ORDER = ["sheep", "tusker", "courier", "scout", "wolves", "herbs", "beacons", "defend", "northpass", "lynx",
-  "rams", "delve", "craglings", "pick", "ore", "frostbloom", "wisps", "whitemane", "wards", "brood", "rimewyrm", "censer", "silentvow", "ashensaint"];
+  "rams", "delve", "craglings", "pick", "ore", "frostbloom", "wisps", "whitemane", "wards", "brood", "rimewyrm", "censer", "silentvow", "ashensaint",
+  "frogs", "canopy", "vantage", "bloodvine", "prowlers", "greyback", "venom", "tyrant", "queen"];
 /* ---------- Experience ---------- */
 // Each level needs more XP than the last. Creatures and quests well below your level give less.
 const MAX_LEVEL = 20;
@@ -469,6 +585,9 @@ const POIS = [
   { name: "The Wyrm's Crown", x: LAIR.x - 400, y: LAIR.y + 1050 },
   { name: "Narthex", x: 4000, y: 17350 }, { name: "The Nave", x: 5600, y: 20000 }, { name: "West Chapel", x: CATHEDRAL.west.x, y: 22900 },
   { name: "East Chapel", x: CATHEDRAL.east.x, y: 22900 }, { name: "The Choir", x: 4000, y: 23700 },
+  { name: "Canopy Camp", x: CANOPY.x, y: CANOPY.y - 650 }, { name: "Fernreach", x: FERNREACH.x, y: FERNREACH.y - 700 }, { name: "Sunken Delta", x: DELTA.x, y: DELTA.y + 950 },
+  { name: "Prowler Thicket", x: THICKET.x, y: THICKET.y - 900 }, { name: "Howler Heights", x: HOWLER.x + 300, y: HOWLER.y - 900 }, { name: "Broodhollow", x: BROODHOLLOW.x, y: BROODHOLLOW.y + 600 },
+  { name: "Moonlit Ruins", x: RUINS.x, y: RUINS.y - 950 }, { name: "Overgrown Gate", x: OLD_GATE.x, y: OLD_GATE.y - 450 },
 ];
 const MOBS = {
   sheep: { name: "Sheep", lvl: 1, r: 45, hp: 140, dmg: 6, atkCd: 1.6, ms: 260, wander: 110, xp: 22, respawn: 12, leash: 1500, home: [PASTURE.x, PASTURE.y], roam: PASTURE.r - 180, count: 9 },
@@ -489,9 +608,20 @@ const MOBS = {
   deacon: { name: "Deacon Varrow", title: "Dungeon Boss", lvl: 17, r: 90, hp: 190000, dmg: 470, atkCd: 1.7, ms: 290, wander: 0, xp: 1200, respawn: 0, leash: 1500, home: [CATHEDRAL.west.x, CATHEDRAL.west.y], roam: 0, count: 0, elite: true, boss: true, script: "deacon", aggroR: 560 },
   abbess: { name: "Abbess Ysolde", title: "Dungeon Boss", lvl: 17, r: 80, hp: 175000, dmg: 390, atkCd: 1.3, ms: 330, wander: 0, xp: 1200, respawn: 0, leash: 1500, home: [CATHEDRAL.east.x, CATHEDRAL.east.y], roam: 0, count: 0, elite: true, boss: true, script: "abbess", aggroR: 560 },
   saint: { name: "Archprelate Malchar", title: "Final Boss · The Ashen Saint", lvl: 17, r: 120, hp: 420000, dmg: 520, atkCd: 1.8, ms: 270, wander: 0, xp: 2500, respawn: 0, leash: 1700, home: [CATHEDRAL.altar.x, CATHEDRAL.altar.y], roam: 0, count: 0, elite: true, boss: true, script: "saint", aggroR: 600 },
+  // The Thornveil Jungle
+  frog: { name: "Jade Leaper", lvl: 15, r: 45, hp: 1300, dmg: 40, atkCd: 1.4, ms: 330, wander: 120, xp: 40, respawn: 30, leash: 1500, home: [LEAPER_POOLS.x, LEAPER_POOLS.y], roam: LEAPER_POOLS.r - 100, count: 9 },
+  serpent: { name: "Vine Serpent", lvl: 16, r: 50, hp: 1500, dmg: 52, atkCd: 1.3, ms: 320, wander: 110, xp: 50, respawn: 30, leash: 1600, home: [FERNREACH.x, FERNREACH.y], roam: FERNREACH.r - 150, count: 9, aggroR: 320 },
+  prowler: { name: "Striped Prowler", lvl: 16, r: 55, hp: 1700, dmg: 60, atkCd: 1.2, ms: 370, wander: 140, xp: 55, respawn: 30, leash: 1800, home: [THICKET.x, THICKET.y], roam: THICKET.r - 100, count: 9, aggroR: 450, pack: true },
+  ape: { name: "Howler Ape", lvl: 17, r: 60, hp: 2100, dmg: 66, atkCd: 1.4, ms: 330, wander: 120, xp: 60, respawn: 30, leash: 1700, home: [HOWLER.x, HOWLER.y], roam: HOWLER.r - 100, count: 9, aggroR: 420, pack: true },
+  croc: { name: "Delta Crocodile", lvl: 17, r: 70, hp: 2400, dmg: 75, atkCd: 1.7, ms: 260, wander: 80, xp: 65, respawn: 30, leash: 1500, home: [DELTA.x - 900, DELTA.y + 700], roam: 350, count: 5, aggroR: 380 },
+  greyback: { name: "Greyback, the Howler King", lvl: 17, r: 100, hp: 9000, dmg: 120, atkCd: 1.7, ms: 320, wander: 60, xp: 250, respawn: 60, leash: 1500, home: [GREYBACK_DEN.x, GREYBACK_DEN.y], roam: 200, count: 1, elite: true, charge: true, aggroR: 500 },
+  sizzra: { name: "Sizzra the Broodmother", lvl: 17, r: 95, hp: 8500, dmg: 105, atkCd: 1.6, ms: 300, wander: 50, xp: 250, respawn: 60, leash: 1400, home: [BROODHOLLOW.x, BROODHOLLOW.y], roam: 150, count: 1, elite: true, ranged: 600, aggroR: 500 },
+  // jungle raid bosses (05i-jungle.js): a party of 3+, telegraphs and phases like the cathedral's bosses
+  mawgrot: { name: "Mawgrot, the River Tyrant", title: "Raid Boss · Sunken Delta", lvl: 18, r: 260, hp: 480000, dmg: 600, atkCd: 2, ms: 240, wander: 0, xp: 1500, respawn: 300, leash: 1900, home: [DELTA.x, DELTA.y], roam: 0, count: 1, elite: true, boss: true, script: "mawgrot", aggroR: 700 },
+  shadowmane: { name: "Shadowmane, Queen of the Canopy", title: "Raid Boss · Moonlit Ruins", lvl: 18, r: 170, hp: 430000, dmg: 490, atkCd: 1.2, ms: 380, wander: 0, xp: 1500, respawn: 300, leash: 1900, home: [RUINS.x, RUINS.y], roam: 0, count: 1, elite: true, boss: true, script: "shadowmane", aggroR: 650 },
   bandit: { name: "Vale Bandit", lvl: 6, r: 55, hp: 400, dmg: 19, atkCd: 1.4, ms: 300, wander: 100, xp: 60, respawn: 0, leash: 99999, home: [TOWER.x, TOWER.y], roam: 300, count: 0, aggroR: 900 },
 };
-const clampX = v => Math.max(ZMIN, Math.min(ZMAX, v));
+const clampX = v => Math.max(ZMIN, Math.min(ZS * 2 - ZMIN, v)); // (each zone's own edges are enforced by SIM.bound)
 const clampY = v => Math.max(ZMIN, Math.min(ZS * 3 - ZMIN, v)); // (the Peaks' north edge and the cathedral's walls are enforced by SIM.bound)
 
 /* ---------- Items: loot tables, armor generation, inventory ---------- */
@@ -515,7 +645,7 @@ const WEAPON_NAMES = { melee: { base: ["Shortsword", "Blade", "Longsword"], pre:
 const SUFFIX = { hp: "of the Bear", ad: "of the Tiger", ap: "of the Owl", armor: "of the Turtle", haste: "of Swiftness", ms: "of the Fox" };
 const CLASS_MAT = { melee: "plate", caster: "cloth", ranged: "leather" };
 const MATERIALS = { wool: { n: "Tuft of Wool", v: 3 }, pelt: { n: "Wolf Pelt", v: 9 }, hide: { n: "Thick Boar Hide", v: 25 }, horn: { n: "Curled Ram Horn", v: 22 }, frostpelt: { n: "Snowfang Pelt", v: 30 },
-  shard: { n: "Glimmering Shard", v: 26 }, essence: { n: "Wisp Essence", v: 30 }, yetifur: { n: "Whitemane's Mane", v: 120 }, rimescale: { n: "Rimescale", v: 40 }, ashcloth: { n: "Ash-Stained Vestment", v: 45 } };
+  shard: { n: "Glimmering Shard", v: 26 }, essence: { n: "Wisp Essence", v: 30 }, yetifur: { n: "Whitemane's Mane", v: 120 }, rimescale: { n: "Rimescale", v: 40 }, ashcloth: { n: "Ash-Stained Vestment", v: 45 }, junglehide: { n: "Thornveil Hide", v: 50 } };
 const LOOT = {
   sheep: { coins: [1, 4], mat: ["wool", .7], gear: .12, ilvl: 2 },
   wolf: { coins: [4, 10], mat: ["pelt", .6], gear: .22, ilvl: 4 },
@@ -532,6 +662,15 @@ const LOOT = {
   deacon: { dungeon: "mini", coins: [400, 600], ilvl: 17 },   // see SIM.dungeonLoot
   abbess: { dungeon: "mini", coins: [400, 600], ilvl: 17 },
   saint: { dungeon: "final", coins: [900, 1300], ilvl: 18 },
+  frog: { coins: [24, 44], mat: ["junglehide", .35], gear: .25, ilvl: 16 },
+  serpent: { coins: [26, 46], mat: ["junglehide", .45], gear: .28, ilvl: 16 },
+  prowler: { coins: [28, 50], mat: ["junglehide", .55], gear: .3, ilvl: 17 },
+  ape: { coins: [30, 52], mat: ["junglehide", .5], gear: .3, ilvl: 17 },
+  croc: { coins: [32, 56], mat: ["junglehide", .6], gear: .32, ilvl: 17 },
+  greyback: { coins: [140, 220], mat: ["junglehide", 1], gear: 1, minRarity: 2, epic: .35, ilvl: 18 },
+  sizzra: { coins: [140, 220], mat: ["junglehide", 1], gear: 1, minRarity: 2, epic: .35, ilvl: 18 },
+  mawgrot: { dungeon: "raid", coins: [900, 1300], ilvl: 19, mat: "junglehide" },
+  shadowmane: { dungeon: "raid", coins: [900, 1300], ilvl: 19, mat: "junglehide" },
   boar: { coins: [40, 70], mat: ["hide", 1], gear: 1, minRarity: 2, epic: .15, ilvl: 5 },
 };
 function rollRarity(min, epic){ const r = Math.random(); const v = r < .01 + (epic || 0) ? 3 : r < .12 ? 2 : r < .45 ? 1 : 0; return Math.max(min || 0, v); }

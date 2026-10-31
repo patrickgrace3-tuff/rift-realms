@@ -335,6 +335,7 @@ function buildZone(){
   for(const [x, y, col] of [[TOWER.x, TOWER.y, "#a8a296"], [CABIN.x, CABIN.y, "#b08a5a"], [CAMP.x, CAMP.y, "#8a9a5a"], [WELL[0], WELL[1], "#b0aaa0"], [CAMPFIRE[0], CAMPFIRE[1], "#ff9a40"]]){ const [a, b] = toM(x, y); mg.fillStyle = col; mg.fillRect(a - 2.5, b - 2.5, 5, 5); mg.strokeRect(a - 2.5, b - 2.5, 5, 5); }
   buildPeaks(g, ZH, { ss, noise, polyD, rnd, d, c, t2, stone, beamM });
   buildCathedral(g);
+  buildJungle(g);
   zone = g; zone.visible = false; scene.add(zone);
 }
 function hAt(x, z){ const [zx, zy] = XF.inv(x, z); return ZH ? ZH(zx, zy) : 0; }

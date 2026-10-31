@@ -294,6 +294,15 @@ const MOB_ART = {
   monk: { char: true, style: "monk", head: drawMonkHead, sx: 1.7, sy: 2.55, sh: .6, plate: 2.9 },
   deacon: { char: true, style: "deacon", head: drawDeaconHead, sx: 2.6, sy: 3.9, sh: 1, plate: 4.3 },
   abbess: { char: true, style: "abbess", head: drawAbbessHead, sx: 2.5, sy: 3.75, sh: .95, plate: 4.1 },
+  frog: { cw: 80, ch: 64, sx: 1.2, sy: .95, sh: .55, plate: 1.25, draw: (g, f, fl, an) => drawFrog(g, f, fl, an) },
+  serpent: { cw: 112, ch: 64, sx: 1.7, sy: 1, sh: .6, plate: 1.3, draw: (g, f, fl, an) => drawSerpent(g, f, fl, an) },
+  prowler: { cw: 128, ch: 80, sx: 1.9, sy: 1.2, sh: .75, plate: 1.5, draw: (g, f, fl, an, wu) => drawCat(g, f, fl, an, wu, 128, 80, PROWLER_PAL) },
+  ape: { cw: 112, ch: 112, sx: 1.9, sy: 1.9, sh: .75, plate: 2.1, draw: (g, f, fl, an, wu) => drawApe(g, f, fl, an, wu, 112, 112, APE_PAL) },
+  croc: { cw: 192, ch: 80, sx: 2.6, sy: 1.1, sh: .9, plate: 1.4, draw: (g, f, fl, an, wu) => drawCroc(g, f, fl, an, wu, 192, 80, false) },
+  greyback: { cw: 128, ch: 128, sx: 3.3, sy: 3.3, sh: 1.25, plate: 3.5, draw: (g, f, fl, an, wu) => drawApe(g, f, fl, an, wu, 128, 128, GREY_PAL) },
+  sizzra: { cw: 160, ch: 120, sx: 3.6, sy: 2.7, sh: 1.3, plate: 3, draw: (g, f, fl, an, wu) => drawSpider(g, f, fl, an, wu, 160, 120) },
+  mawgrot: { cw: 384, ch: 160, sx: 13, sy: 5.4, sh: 4.6, plate: 6, draw: (g, f, fl, an, wu) => drawCroc(g, f, fl, an, wu, 384, 160, true) },
+  shadowmane: { cw: 256, ch: 160, sx: 8, sy: 5, sh: 3, plate: 5.6, draw: (g, f, fl, an, wu) => drawCat(g, f, fl, an, wu, 256, 160, SHADOW_PAL) },
   saint: { char: true, style: "saint", head: drawSaintHead, tier: true, sx: 3.6, sy: 5.4, sh: 1.4, plate: 5.9 },
   ram: { cw: 112, ch: 88, sx: 1.9, sy: 1.5, sh: .75, plate: 1.7, draw: (g, f, fl, an, wu) => drawRam(g, f, fl, an, wu) },
   lynx: { cw: 112, ch: 80, sx: 1.75, sy: 1.25, sh: .7, plate: 1.5, draw: (g, f, fl, an) => drawLynx(g, f, fl, an) },
@@ -400,8 +409,109 @@ function drawFrostbloom(g){
   g.fillStyle = "#c9e8ff"; for(let i = 0; i < 6; i++){ const a = i / 6 * Math.PI * 2; g.beginPath(); g.ellipse(32 + Math.cos(a) * 9, 24 + Math.sin(a) * 9, 8, 4, a, 0, Math.PI * 2); g.fill(); }
   g.fillStyle = "#5fb0e8"; g.beginPath(); g.arc(32, 24, 6, 0, Math.PI * 2); g.fill();
 }
-const NODE_ART = { herb: drawFlower, ore: drawOre, frostbloom: drawFrostbloom };
-const QUEST_ITEM_ART = { tooth: (g) => drawTooth(g), pick: drawPick };
+
+/* ---------- The Thornveil Jungle ---------- */
+// each is drawn at a base size and scaled to its canvas, facing right
+const artBegin = (g, flip, W, H, bw, bh) => { g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H); if(flip){ g.translate(W, 0); g.scale(-1, 1); } g.scale(W / bw, H / bh); };
+function drawFrog(g, frame, flip, angry){
+  artBegin(g, flip, 80, 64, 80, 64); const hop = [0, -4, -6, -2][frame % 4];
+  g.fillStyle = "#2f7a3a"; g.beginPath(); g.ellipse(16, 50 + hop * .3, 12, 6, 0, 0, Math.PI * 2); g.fill();          // back leg
+  g.fillStyle = "#4fae4a"; g.beginPath(); g.ellipse(38, 40 + hop, 24, 15, -.15, 0, Math.PI * 2); g.fill();             // body
+  g.fillStyle = "#c8e86a"; g.beginPath(); g.ellipse(42, 48 + hop, 16, 7, 0, 0, Math.PI * 2); g.fill();                  // belly
+  g.fillStyle = "#1f5a2a"; for(const [x, y] of [[28, 32], [40, 30], [34, 40]]) g.fillRect(x, y + hop, 5, 5);           // spots
+  g.fillStyle = "#4fae4a"; g.beginPath(); g.arc(54, 28 + hop, 8, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#ffd84a"; g.beginPath(); g.arc(56, 26 + hop, 5, 0, Math.PI * 2); g.fill();
+  g.fillStyle = angry ? "#c0392b" : "#1b1410"; g.fillRect(56, 24 + hop, 3, 4);
+  g.fillStyle = "#2f7a3a"; g.fillRect(48, 54 + hop * .3, 10, 4); g.fillRect(24, 56, 14, 4);
+  if(angry){ g.fillStyle = "#e86a8a"; g.fillRect(62, 38 + hop, 10, 3); }
+}
+function drawSerpent(g, frame, flip, angry){
+  artBegin(g, flip, 112, 64, 112, 64); const w = [0, 1, 0, -1][frame % 4];
+  g.lineCap = "round"; g.lineWidth = 12; g.strokeStyle = "#3a6a2a"; g.beginPath(); g.moveTo(6, 52);
+  for(let i = 1; i <= 6; i++) g.lineTo(6 + i * 14, 52 + Math.sin(i * 1.3 + w) * 6); g.stroke();
+  g.lineWidth = 4; g.strokeStyle = "#a8c84a"; g.beginPath(); g.moveTo(10, 52); for(let i = 1; i <= 6; i++) g.lineTo(6 + i * 14, 52 + Math.sin(i * 1.3 + w) * 6); g.stroke();
+  g.lineWidth = 11; g.strokeStyle = "#3a6a2a"; g.beginPath(); g.moveTo(90, 50 + Math.sin(7.8 + w) * 6); g.quadraticCurveTo(98, 30, 92, 18); g.stroke();   // raised neck
+  g.fillStyle = "#4a7a32"; g.beginPath(); g.ellipse(98, 16, 11, 7, .2, 0, Math.PI * 2); g.fill();
+  g.fillStyle = angry ? "#ff5040" : "#ffd84a"; g.fillRect(100, 12, 4, 3);
+  g.strokeStyle = "#c0392b"; g.lineWidth = 2; g.beginPath(); g.moveTo(108, 18); g.lineTo(114, 20); g.moveTo(112, 19); g.lineTo(115, 16); g.stroke();
+}
+// a big cat: the Striped Prowler, and (black, with violet eyes) Shadowmane
+function drawCat(g, frame, flip, angry, windup, W, H, pal){
+  artBegin(g, flip, W, H, 128, 80); const step = [0, 1, 0, -1][frame % 4];
+  if(windup) g.translate(Math.sin(performance.now() / 25) * 2, 2);
+  g.fillStyle = pal.dark; [[34, step], [46, -step], [86, -step], [98, step]].forEach(([x, s]) => g.fillRect(x + s * 3, 52 - Math.max(0, s) * 3, 8, 24));
+  g.fillStyle = pal.body; g.beginPath(); g.moveTo(24, 40); g.quadraticCurveTo(4, 30, 6, 12); g.quadraticCurveTo(14, 30, 28, 36); g.fill();  // tail
+  g.beginPath(); g.ellipse(64, 44, 38, 14, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = pal.belly; g.beginPath(); g.ellipse(68, 52, 26, 6, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = pal.stripe; for(let i = 0; i < 6; i++) g.fillRect(40 + i * 10, 32, 4, 12);
+  g.fillStyle = pal.body; g.beginPath(); g.ellipse(104, 36, 15, 13, -.1, 0, Math.PI * 2); g.fill();                   // head
+  g.beginPath(); g.moveTo(94, 26); g.lineTo(96, 14); g.lineTo(102, 24); g.fill(); g.beginPath(); g.moveTo(104, 23); g.lineTo(110, 12); g.lineTo(113, 26); g.fill();
+  g.fillStyle = pal.belly; g.beginPath(); g.ellipse(114, 42, 7, 5, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = angry ? pal.angry : pal.eye; g.fillRect(108, 32, 5, 4);
+  if(angry || windup){ g.fillStyle = "#ffffff"; g.fillRect(112, 44, 2, 5); g.fillRect(117, 44, 2, 5); }
+}
+// a great ape: Howler Apes, and Greyback with his silver back
+function drawApe(g, frame, flip, angry, windup, W, H, pal){
+  artBegin(g, flip, W, H, 112, 112); const step = [0, 1, 0, -1][frame % 4];
+  if(windup){ g.translate(Math.sin(performance.now() / 30) * 2, 0); }
+  g.fillStyle = pal.dark; [[38, step], [62, -step]].forEach(([x, s]) => g.fillRect(x + s * 3, 80 - Math.max(0, s) * 3, 16, 26));
+  g.fillStyle = pal.body; g.beginPath(); g.ellipse(56, 62, 32, 30, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = pal.back; g.beginPath(); g.ellipse(48, 54, 22, 18, -.3, 0, Math.PI * 2); g.fill();
+  g.fillStyle = pal.body; g.save(); g.translate(86, 50); g.rotate(windup ? -2.2 : -.2 + step * .1); g.fillRect(-8, 0, 16, 46); g.restore();     // long arms
+  g.save(); g.translate(26, 52); g.rotate(windup ? 2.2 : .2 - step * .1); g.fillRect(-8, 0, 16, 46); g.restore();
+  g.fillStyle = pal.body; g.beginPath(); g.arc(78, 30, 17, 0, Math.PI * 2); g.fill();
+  g.fillStyle = pal.face; g.beginPath(); g.ellipse(84, 34, 11, 10, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#1b1410"; g.fillRect(80, 22, 16, 4);
+  g.fillStyle = angry ? "#ff4030" : "#1b1410"; g.fillRect(82, 27, 4, 4); g.fillRect(89, 27, 4, 4);
+  if(angry || windup){ g.fillStyle = "#1b1410"; g.beginPath(); g.ellipse(87, 40, 6, 5, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = "#fff"; g.fillRect(83, 37, 2, 3); g.fillRect(90, 37, 2, 3); }
+}
+// a crocodile: Delta Crocodiles, and Mawgrot (scarred, with a crown of reeds)
+function drawCroc(g, frame, flip, angry, windup, W, H, big){
+  artBegin(g, flip, W, H, 192, 80); const step = [0, 1, 0, -1][frame % 4], body = big ? "#4a5a2a" : "#5a7a3a", dark = big ? "#2e3a1a" : "#3a5426", belly = "#c8c08a";
+  if(windup) g.translate(Math.sin(performance.now() / 25) * 2, 0);
+  g.fillStyle = dark; [[52, step], [72, -step], [122, -step], [142, step]].forEach(([x, s]) => g.fillRect(x + s * 3, 54, 12, 16));
+  g.fillStyle = body; g.beginPath(); g.moveTo(4, 44); g.quadraticCurveTo(30, 34, 60, 38); g.lineTo(60, 54); g.quadraticCurveTo(30, 52, 4, 44); g.fill();   // tail
+  g.beginPath(); g.ellipse(100, 46, 48, 14, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = belly; g.beginPath(); g.ellipse(104, 56, 38, 5, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = dark; for(let i = 0; i < 9; i++) g.fillRect(30 + i * 13, 31 + (i % 2) * 2, 7, 6);                         // scutes
+  const jaw = angry || windup ? 8 : 0;
+  g.fillStyle = body; g.beginPath(); g.moveTo(140, 36); g.lineTo(188, 40 - jaw / 2); g.lineTo(188, 46 - jaw / 2); g.lineTo(140, 48); g.fill();           // upper jaw
+  g.beginPath(); g.moveTo(140, 48); g.lineTo(186, 50 + jaw); g.lineTo(186, 55 + jaw); g.lineTo(140, 56); g.fill();
+  g.fillStyle = "#f2ecd8"; for(let i = 0; i < 6; i++){ g.fillRect(148 + i * 7, 46 - jaw / 2, 3, 4); g.fillRect(150 + i * 7, 48 + jaw, 3, 3); }
+  g.fillStyle = dark; g.beginPath(); g.arc(146, 32, 6, 0, Math.PI * 2); g.fill();
+  g.fillStyle = angry ? "#ff6030" : "#e8d040"; g.fillRect(145, 29, 4, 4);
+  if(big){ g.fillStyle = "#8a7a3a"; for(let i = 0; i < 5; i++) g.fillRect(126 + i * 6, 22 - (i % 2) * 6, 3, 14); g.strokeStyle = "#c8b8a0"; g.lineWidth = 2; g.beginPath(); g.moveTo(110, 36); g.lineTo(124, 50); g.moveTo(116, 34); g.lineTo(128, 48); g.stroke(); }
+}
+// Sizzra the Broodmother: a huge banded spider
+function drawSpider(g, frame, flip, angry, windup, W, H){
+  artBegin(g, flip, W, H, 128, 96); const step = [0, 1, 0, -1][frame % 4];
+  g.strokeStyle = "#2a1e2a"; g.lineWidth = 5; g.lineCap = "round";
+  for(let i = 0; i < 4; i++){ const x = 48 + i * 12, s = (i % 2 ? step : -step) * 4; g.beginPath(); g.moveTo(x, 54); g.lineTo(x - 18 + s, 34); g.lineTo(x - 26 + s, 86); g.stroke(); g.beginPath(); g.moveTo(x, 58); g.lineTo(x + 16 - s, 38); g.lineTo(x + 22 - s, 88); g.stroke(); }
+  g.fillStyle = "#3a2a3a"; g.beginPath(); g.ellipse(40, 50, 30, 24, 0, 0, Math.PI * 2); g.fill();                        // abdomen
+  g.fillStyle = "#c8a030"; for(let i = 0; i < 3; i++) g.fillRect(22 + i * 12, 38 + (i % 2) * 4, 7, 22);                // bands
+  g.fillStyle = "#4a3448"; g.beginPath(); g.ellipse(82, 56, 18, 15, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = angry || windup ? "#ff4030" : "#8aff6a"; for(const [x, y] of [[90, 50], [96, 52], [92, 56], [98, 57]]) g.fillRect(x, y, 3, 3);
+  g.fillStyle = "#6a8a2a"; g.fillRect(96, 62, 4, 8); g.fillRect(90, 64, 4, 7);                                           // dripping fangs
+  if(windup){ g.fillStyle = "rgba(150,255,100,.8)"; g.beginPath(); g.arc(104, 70, 5, 0, Math.PI * 2); g.fill(); }
+}
+const PROWLER_PAL = { body: "#d88a3a", dark: "#a8622a", belly: "#f2dcb0", stripe: "#3a2418", eye: "#e8d040", angry: "#ff4030" };
+const SHADOW_PAL = { body: "#22202c", dark: "#14121c", belly: "#34303f", stripe: "#3a3448", eye: "#b88aff", angry: "#e070ff" };
+const APE_PAL = { body: "#4a3a30", dark: "#3a2c24", back: "#4a3a30", face: "#7a6a5a" };
+const GREY_PAL = { body: "#3a3438", dark: "#2a2428", back: "#c8c8cc", face: "#6a6266" };
+function drawBloodvine(g){
+  g.clearRect(0, 0, 64, 64);
+  g.strokeStyle = "#2f5a22"; g.lineWidth = 4; g.beginPath(); g.moveTo(14, 62); g.quadraticCurveTo(30, 40, 22, 22); g.moveTo(40, 62); g.quadraticCurveTo(36, 44, 46, 26); g.stroke();
+  g.fillStyle = "#3f7a2a"; for(const [x, y] of [[20, 44], [40, 46], [30, 34]]){ g.beginPath(); g.ellipse(x, y, 7, 3, .6, 0, Math.PI * 2); g.fill(); }
+  for(const [x, y] of [[22, 20], [46, 24]]){ g.fillStyle = "#b81a2a"; for(let i = 0; i < 5; i++){ const a = i / 5 * Math.PI * 2; g.beginPath(); g.ellipse(x + Math.cos(a) * 6, y + Math.sin(a) * 6, 5, 3.5, a, 0, Math.PI * 2); g.fill(); } g.fillStyle = "#ffcf40"; g.beginPath(); g.arc(x, y, 3, 0, Math.PI * 2); g.fill(); }
+}
+function drawVenomSac(g){
+  g.clearRect(0, 0, 64, 64);
+  g.fillStyle = "#6aa83a"; g.beginPath(); g.ellipse(32, 38, 16, 18, 0, 0, Math.PI * 2); g.fill(); g.strokeStyle = "#2a3a1a"; g.lineWidth = 3; g.stroke();
+  g.fillStyle = "#b8ff6a"; g.beginPath(); g.ellipse(27, 32, 5, 7, -.3, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#4a3448"; g.fillRect(28, 14, 8, 8);
+}
+const NODE_ART = { herb: drawFlower, ore: drawOre, frostbloom: drawFrostbloom, bloodvine: drawBloodvine };
+const QUEST_ITEM_ART = { tooth: (g) => drawTooth(g), pick: drawPick, venomsac: drawVenomSac };
 // Crag Ram: shaggy mountain sheep with heavy curled horns; shakes before it charges
 function drawRam(g, frame, flip, angry, windup){
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 112, 88);

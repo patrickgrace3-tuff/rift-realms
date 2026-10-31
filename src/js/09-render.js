@@ -116,6 +116,7 @@ function render(dt){
     mv.spr.position.set(w.x + lunge, gy + (moving ? Math.abs(Math.sin(t * 14)) * .05 : 0), w.z);
     mv.sh.position.set(w.x, gy + .02, w.z);
     mv.hp = hp; mv.maxHp = maxHp; mv.angry = angry; mv.pos = { x: w.x, y: gy, z: w.z };
+    mv.hidden = (flags & 16) > 0; mv.spr.visible = mv.sh.visible = !mv.hidden;   // a raid boss under the water or in the shadows
     if(charging && Math.random() < .5) G.fx.push({ k: "pop", x: p.x, y: p.y, t: 0, dur: .4 });
   }
   for(const [id, mv] of G.mobVis) if(!seenM.has(id)){ G.root.remove(mv.spr, mv.sh); mv.tex.dispose(); mv.spr.material.dispose(); mv.sh.material.dispose(); G.mobVis.delete(id); G.smooth.delete(id); }
@@ -254,8 +255,9 @@ function render(dt){
   if(me){
     scene.fog.near = camDist * 1.8; scene.fog.far = camDist * 4.2;
     camera.position.set(me.x, me.y + camDist * .8, me.z + camDist * .6); camera.lookAt(me.x, me.y + .8, me.z);
-    if(meSnap) updateClimate(dt, meSnap.y, me);
+    if(meSnap) updateClimate(dt, meSnap.y, me, meSnap.x);
     guarded("cathedral", () => updateCathedral(s, meSnap, t));
+    guarded("jungle", () => updateJungle(s, meSnap, t));
   }
   renderer.render(scene, camera);
 
@@ -268,7 +270,7 @@ function render(dt){
   for(const p of PORTAL_VIS){ if(!p.shown) continue; const w = XF(p.x, p.y), [sx, sy, sz] = worldToScreen(w.x, hAt(w.x, w.z) + 4.6, w.z); if(sz < 1) label(p.name, sx, sy, "#ffd8a8", 14, 700); }
   for(const nv of G.npcVis){ const [sx, sy, sz] = spriteTop(nv.pos, 2.4); if(sz < 1){ label(`<${nv.n.name}>`, sx, sy - (nv.n.title ? 20 : 6), "#ffd84a", 14); if(nv.n.title) label(nv.n.title, sx, sy - 5, "#e8e2d4", 12, 500); } }
   for(const [, mv] of G.mobVis){
-    if(!mv.pos) continue;
+    if(!mv.pos || mv.hidden) continue;
     const ET = MOBS[mv.kind];
     if(ET.elite){
       const [bx, ty, bz] = spriteTop(mv.pos, mv.A.sy), by = ty - 12, bw = ET.boss ? 160 : 90; if(bz > 1) continue;

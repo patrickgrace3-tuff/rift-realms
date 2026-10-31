@@ -84,11 +84,12 @@ const DBOSS = {
 
 Object.assign(SIM, {
   /* ---------- Walls ---------- */
-  inCathedral: u => u.y > DZ,
+  inCathedral: u => u.y > DZ && u.x <= ZS,
   rooms: W => W.dungeon && W.dungeon.sealed ? ROOM_LIST.filter(r => r !== CATHEDRAL.choir) : ROOM_LIST,
-  // keep a unit inside the world: the Peaks' north edge, or the cathedral's rooms
+  // keep a unit inside its zone: the jungle's edges, the Peaks' north edge, or the cathedral's rooms
   bound(W, u){
-    u.x = clampX(u.x);
+    if(inJungle(u.x, u.y)){ u.x = Math.max(ZS + ZMIN, Math.min(ZS * 2 - ZMIN, u.x)); u.y = Math.max(DZ + ZMIN, Math.min(DZ + ZS - ZMIN, u.y)); return; }
+    u.x = Math.max(ZMIN, Math.min(ZS - ZMIN, u.x));
     if(!SIM.inCathedral(u)){ u.y = Math.max(ZMIN, Math.min(WH - ZMIN, u.y)); return; }
     const pad = u.r || 50, rooms = SIM.rooms(W);
     let bx = u.x, by = u.y, bd = Infinity;
@@ -162,7 +163,7 @@ Object.assign(SIM, {
   },
   resolveDanger(W, d){
     const m = d.src; if(!m || m.dead) return;
-    const hit = SIM.heroes(W).filter(h => !h.dead && SIM.inCathedral(h) && SIM.inDanger(d, h));
+    const hit = SIM.heroes(W).filter(h => !h.dead && SIM.inDanger(d, h));
     for(const h of hit){
       SIM.damage(W, h, d.dmg * (m.enraged ? 1.3 : 1), m);
       if(h.dead) continue;
@@ -237,6 +238,7 @@ Object.assign(SIM, {
     }
     W.hazards = W.hazards.filter(z => z.until > W.t && !z.src.dead && z.src.aggro);
     // once nobody has been inside for a while, everything comes back
+    SIM.jungleTick(W);
     if(SIM.heroes(W).some(h => !h.bot && SIM.inCathedral(h))) D.emptyT = 0;
     else if((D.emptyT += dt) > CATHEDRAL.resetAfter && D.emptyT - dt <= CATHEDRAL.resetAfter) SIM.dungeonReset(W);
   },
@@ -257,7 +259,7 @@ Object.assign(SIM, {
     SIM.bossSay(W, m, `${m.name} attacks!`, B.intro);
   },
   dbossReset(W, m, quiet){
-    Object.assign(m, { aggro: null, threat: {}, cast: null, hp: m.maxHp, x: m.home[0], y: m.home[1], immune: false, enraged: false, frenzy: 1, leap: null, flags: {}, exposedT: 0, atkT: 0 });
+    Object.assign(m, { aggro: null, threat: {}, cast: null, hp: m.maxHp, x: m.home[0], y: m.home[1], immune: false, hidden: false, surfacing: null, enraged: false, frenzy: 1, leap: null, flags: {}, exposedT: 0, atkT: 0 });
     SIM.clearEvent(W, "dboss:" + m.id);
     W.dangers = W.dangers.filter(d => d.src !== m); W.hazards = W.hazards.filter(z => z.src !== m);
     if(!quiet) SIM.bossSay(W, m, `${m.name} is victorious`, "The fight has reset");
@@ -304,26 +306,27 @@ Object.assign(SIM, {
     const L = LOOT[m.kind], all = group.length ? group : [looter], members = all.filter(h => !h.bot), D = W.dungeon;
     SIM.clearEvent(W, "dboss:" + m.id); W.dangers = W.dangers.filter(d => d.src !== m); W.hazards = W.hazards.filter(z => z.src !== m);
     D.down[m.kind] = true;
-    if(D.sealed && D.down.deacon && D.down.abbess){ D.sealed = false; SIM.bossSay(W, m, "The seals are broken!", "The choir is open. Archprelate Malchar waits at the altar."); }
-    else SIM.bossSay(W, m, `${m.name} has fallen!`, "Epic loot for everyone who fought");
+    if(m.kind === "saint") SIM.bossSay(W, m, "Two portals open behind the altar", "The right-hand one leads somewhere warm...");
+    else if(D.sealed && D.down.deacon && D.down.abbess){ D.sealed = false; SIM.bossSay(W, m, "The seals are broken!", "The choir is open. Archprelate Malchar waits at the altar."); }
+    else if(L.dungeon !== "raid") SIM.bossSay(W, m, `${m.name} has fallen!`, "Epic loot for everyone who fought");
     if(L.dungeon === "final") SIM.mercsDismiss(W, all);
     if(!members.length) return;
     if(!members.includes(looter)) looter = members[0];
     members.forEach((h, k) => {
       const a = k / members.length * Math.PI * 2, coins = L.coins[0] + Math.floor(Math.random() * (L.coins[1] - L.coins[0] + 1));
-      const items = [genItem({ ilvl: L.ilvl, rarity: 3, cls: h.kit.cls, nid: W.nid++ }), Object.assign(makeMat("ashcloth", W.nid++), { q: 2 })];
+      const items = [genItem({ ilvl: L.ilvl, rarity: 3, cls: h.kit.cls, nid: W.nid++ }), Object.assign(makeMat(L.mat || "ashcloth", W.nid++), { q: 2 })];
       W.loot.push({ id: "l" + W.nid++, side: h.side, bag: true, item: "bag", coins, items, rar: 3, x: clampX(m.x + Math.cos(a) * (m.r + 90)), y: clampY(m.y + Math.sin(a) * (m.r + 90)), expires: W.t + 600 });
     });
-    if(L.dungeon !== "final") return;
+    if(L.dungeon === "mini") return;
     const rollers = members.filter(h => !h.dead), cls = members[Math.floor(Math.random() * members.length)].kit.cls, it = genItem({ ilvl: L.ilvl, rarity: 4, cls, nid: W.nid++ });
     if(it.s === "weapon") it.glow = true;
     if(rollers.length > 1) SIM.startRoll(W, it, rollers, looter);
     else W.loot.push({ id: "l" + W.nid++, side: looter.side, bag: true, item: "bag", coins: 0, items: [it], rar: 4, x: m.x, y: m.y, expires: W.t + 600 });
-    SIM.bossSay(W, m, "The Ashen Saint is dead!", `A Legendary ${it.n} drops`);
+    if(m.kind !== "saint") SIM.bossSay(W, m, `${m.name} is slain!`, `A Legendary ${it.n} drops`);
   },
 
   dungeonSnapshot(W){
     const r = Math.round;
-    return { dg: { s: W.dungeon && W.dungeon.sealed ? 1 : 0, ro: W.riftOpen > W.t ? 1 : 0, hz: W.hazards.map(z => [z.id, r(z.x), r(z.y), z.r]), ms: W.mshots.map(sh => [sh.id, r(sh.x), r(sh.y)]) } };
+    return { dg: { s: W.dungeon && W.dungeon.sealed ? 1 : 0, sd: W.dungeon && W.dungeon.down.saint ? 1 : 0, ro: W.riftOpen > W.t ? 1 : 0, hz: W.hazards.map(z => [z.id, r(z.x), r(z.y), z.r]), ms: W.mshots.map(sh => [sh.id, r(sh.x), r(sh.y)]) } };
   },
 });

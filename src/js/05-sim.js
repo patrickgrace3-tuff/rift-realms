@@ -4,6 +4,8 @@
 /* =====================================================================
    SIMULATION (host only; zone units)
    ===================================================================== */
+const GRID = 600;          // grid cell size for nearby-unit and obstacle checks (bigger than any two units' reach)
+let OBST_GRID = null;
 const SIM = {
   create(){
     const W = { t: 0, heroes: {}, mobs: [], shots: [], zones: [], fields: [], pets: [], loot: [], respawnQ: [], fxNet: [], fxLocal: [], nid: 1, parties: {}, invites: [], rolls: [], duels: [], duelReqs: [], arenaReqs: [], botLeave: [], mercReqs: [] };
@@ -102,7 +104,7 @@ const SIM = {
   },
   xpNext: xpForLevel,
   // fallen heroes return to the village, or to Highwatch if they fell in the Peaks
-  respawnAt: c => c.y > DZ ? CATHEDRAL.arrive : c.y >= ZS ? [OUTPOST.x + 120, OUTPOST.y - 260] : SPAWN,
+  respawnAt: c => inJungle(c.x, c.y) ? JUNGLE_ARRIVE : c.y > DZ ? CATHEDRAL.arrive : c.y >= ZS ? [OUTPOST.x + 120, OUTPOST.y - 260] : SPAWN,
   dmgScale: c => (1 + .09 * ((c.lvl || 1) - 1)) * (1 + (c.ap || 0) / 100),
   fx(W, f){ W.fxNet.push(f); W.fxLocal.push(f); },
   isHero: u => u.team === "hero",
@@ -613,13 +615,18 @@ const SIM = {
       }
     }
     // separation, obstacles, zone edges
-    const all = SIM.units(W);
-    for(let i = 0; i < all.length; i++) for(let j = i + 1; j < all.length; j++){
-      const a = all[i], b = all[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), min = (a.r + b.r) * .85;
-      if(d < min && d > .01){ const push = (min - d) / 2, nx = dx / d, ny = dy / d; if(!a.dash && !a.forced){ a.x -= nx * push; a.y -= ny * push; } if(!b.dash && !b.forced){ b.x += nx * push; b.y += ny * push; } }
+    // (only nearby pairs are compared: units are bucketed into a grid of GRID-sized cells)
+    const all = SIM.units(W), cells = new Map(), cell = (x, y) => Math.floor(x / GRID) * 4096 + Math.floor(y / GRID);
+    for(const u of all){ const k = cell(u.x, u.y); let c = cells.get(k); if(!c) cells.set(k, c = []); c.push(u); }
+    for(const [k, list] of cells) for(const n of [k, k + 1, k + 4096 - 1, k + 4096, k + 4096 + 1]){   // this cell and the half of its neighbours not yet visited
+      const other = n === k ? list : cells.get(n); if(!other) continue;
+      for(let i = 0; i < list.length; i++) for(let j = n === k ? i + 1 : 0; j < other.length; j++){
+        const a = list[i], b = other[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), min = (a.r + b.r) * .85;
+        if(d < min && d > .01){ const push = (min - d) / 2, nx = dx / d, ny = dy / d; if(!a.dash && !a.forced){ a.x -= nx * push; a.y -= ny * push; } if(!b.dash && !b.forced){ b.x += nx * push; b.y += ny * push; } }
+      }
     }
     for(const u of all){
-      for(const o of OBSTACLES){
+      for(const o of SIM.obstaclesNear(u.x, u.y)){
         const dx = u.x - o.x, dy = u.y - o.y, d = Math.hypot(dx, dy), min = o.r + u.r;
         if(d >= min || d <= .01) continue;
         const rx = dx / d, ry = dy / d; u.x = o.x + rx * min; u.y = o.y + ry * min;
@@ -668,6 +675,11 @@ const SIM = {
     W.pets = W.pets.filter(pt => pt.t > 0);
     W.mobs = W.mobs.filter(m => !m.dead);
   },
+  // obstacles that could touch a unit at (x, y): looked up in a grid built once
+  obstaclesNear(x, y){
+    if(!OBST_GRID){ OBST_GRID = new Map(); for(const o of OBSTACLES){ const pad = o.r + 400; for(let gx = Math.floor((o.x - pad) / GRID); gx <= Math.floor((o.x + pad) / GRID); gx++) for(let gy = Math.floor((o.y - pad) / GRID); gy <= Math.floor((o.y + pad) / GRID); gy++){ const k = gx * 4096 + gy; let c = OBST_GRID.get(k); if(!c) OBST_GRID.set(k, c = []); c.push(o); } } }
+    return OBST_GRID.get(Math.floor(x / GRID) * 4096 + Math.floor(y / GRID)) || [];
+  },
   snapshot(W){
     const r = v => Math.round(v);
     return { ...SIM.socialSnapshot(W), ...SIM.duelSnapshot(W), ...SIM.dungeonSnapshot(W),
@@ -683,7 +695,7 @@ const SIM = {
         pot: c.potT > W.t ? Math.ceil(c.potT - W.t) : 0, aw: c.arenaWins || 0, ab: c.arenaBest || 0, bot: c.bot ? 1 : 0, merc: c.merc ? c.merc.role : "",
         chan: c.channel ? { n: c.channel.name, p: Math.round(c.channel.t / c.channel.dur * 100) / 100 } : null, party: c.party || "",
         gear: { ver: c.gearVer, inv: c.inv, equip: c.equip } })),
-      m: W.mobs.map(m => [m.id, m.kind, r(m.x), r(m.y), r(m.hp), r(m.maxHp), Math.round(m.face * 10) / 10, (m.moving ? 1 : 0) | (m.aggro ? 2 : 0) | (m.charging ? 4 : 0) | (m.windup > 0 || m.cast ? 8 : 0)]),
+      m: W.mobs.map(m => [m.id, m.kind, r(m.x), r(m.y), r(m.hp), r(m.maxHp), Math.round(m.face * 10) / 10, (m.moving ? 1 : 0) | (m.aggro ? 2 : 0) | (m.charging ? 4 : 0) | (m.windup > 0 || m.cast ? 8 : 0) | (m.hidden ? 16 : 0)]),
       l: W.loot.map(l => [l.id, l.side, l.item, r(l.x), r(l.y), l.rar || 0]),
       n: W.nodes.map(n => [n.id, r(n.x), r(n.y), n.ready ? 1 : 0, n.kind]),
       s: W.shots.map(sh => [sh.id, sh.kind, r(sh.x), r(sh.y), sh.owner, sh.slot || ""]),

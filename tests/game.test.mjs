@@ -1027,3 +1027,103 @@ test("save: a bad or tampered save can't break the game or cheat past the rules"
   assert.ok(h.x === G.CATHEDRAL.arrive[0] && h.y === G.CATHEDRAL.arrive[1], "a save inside the cathedral starts at its entrance");
   SIM.step(W, 1 / 30); assert.ok(!h.dead && h.hp === h.maxHp);
 });
+
+/* ---------- The Thornveil Jungle ---------- */
+test("jungle: the Saint opens two portals; the right takes your party to the jungle, the left is still sealed", () => {
+  const W = SIM.create(), a = cathedralHero(W, "blue", ARCHER, 17), b = cathedralHero(W, "red", HEALER, 17);
+  SIM.input(W, "blue", { pinvite: "red" }); SIM.input(W, "red", { paccept: "blue" });
+  const P = G.CHOIR_PORTALS; W.dungeon.sealed = false;
+  for(const h of [a, b]){ h.x = 4000; h.y = 22700; }
+  a.x = P.right.x; a.y = P.right.y; runFor(W, .2);
+  assert.ok(a.y < G.DZ + 8000 && a.x < G.ZS, "the portals stay shut while the Saint lives");
+  const saint = W.mobs.find(m => m.kind === "saint"); saint.immune = false; SIM.damage(W, saint, 100, a); saint.hp = 1; SIM.damage(W, saint, 1e9, a);
+  assert.ok(saint.dead && W.dungeon.down.saint);
+  runFor(W, 4); a.x = P.left.x; a.y = P.left.y; runFor(W, .2);
+  assert.ok(!G.inJungle(a.x, a.y), "the left portal is sealed for now");
+  a.x = P.right.x; a.y = P.right.y; runFor(W, .2);
+  assert.ok(G.inJungle(a.x, a.y) && G.inJungle(b.x, b.y), "the right portal takes the whole party into the jungle");
+  assert.ok(Math.hypot(a.x - G.CANOPY.x, a.y - G.CANOPY.y) < 800, "you arrive by Canopy Camp");
+});
+
+test("jungle: walls hold, you fall back to Canopy Camp, and the waystones link it with Highwatch", () => {
+  const W = SIM.create(), h = cathedralHero(W, "blue", ARCHER, 17);
+  for(const m of W.mobs) if(G.inJungle(m.x, m.y)) m.dead = true;
+  h.x = G.CANOPY.x; h.y = G.CANOPY.y; SIM.input(W, "blue", { move: [0, 17000] }); runFor(W, 10);
+  assert.ok(G.inJungle(h.x, h.y), "walking west stops at the jungle's edge");
+  SIM.damage(W, h, 1e9, null); runFor(W, 7);
+  assert.ok(!h.dead && Math.hypot(h.x - G.CANOPY.x, h.y - G.CANOPY.y) < 800, "you come back at Canopy Camp");
+  // the Highwatch waystone is dark until you've been to the jungle
+  const fresh = cathedralHero(W, "red", GAREN_LIKE, 17); fresh.x = G.WAYSTONES.peaks.x; fresh.y = G.WAYSTONES.peaks.y; runFor(W, .2);
+  assert.ok(!G.inJungle(fresh.x, fresh.y), "the waystone is dark for someone who hasn't been");
+  h.quests.ashensaint = { state: "done", count: 1, flags: [] };
+  h.portalT = 0; h.x = G.WAYSTONES.jungle.x; h.y = G.WAYSTONES.jungle.y; runFor(W, .2);
+  assert.ok(Math.hypot(h.x - G.WAYSTONES.peaks.x, h.y - G.WAYSTONES.peaks.y) < 500, "the camp waystone leads to Highwatch");
+  runFor(W, 4); h.x = G.WAYSTONES.peaks.x; h.y = G.WAYSTONES.peaks.y; runFor(W, .2);
+  assert.ok(G.inJungle(h.x, h.y), "and back again");
+  // a save made in the jungle comes back there
+  const s = JSON.parse(JSON.stringify(G.saveRecord(SIM.snapshot(W).h.find(x => x.side === "blue"), h.champId)));
+  const W2 = SIM.create(), h2 = SIM.addHero(W2, "blue", ARCHER()); SIM.loadSave(W2, h2, s);
+  assert.ok(G.inJungle(h2.x, h2.y) && Math.hypot(h2.x - h.x, h2.y - h.y) < 2, "saved in the jungle, back in the jungle");
+});
+
+test("jungle: a level 17 player can do every quest before the raids alone", () => {
+  const W = SIM.create(), h = cathedralHero(W, "blue", GAREN_LIKE, 17, 3);
+  h.quests.ashensaint = { state: "done", count: 1, flags: [] }; h.x = G.JUNGLE_ARRIVE[0]; h.y = G.JUNGLE_ARRIVE[1];
+  const step = (secs, each) => runFor(W, secs, each);
+  const near = (list) => list.sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
+  const fightBack = i => { if(i % 6) return false; if(h.hp < h.maxHp * .35) SIM.input(W, "blue", { potion: 1 }); const f = near(W.mobs.filter(m => !m.dead && m.aggro === h.id)); if(!f) return false; SIM.input(W, "blue", { atk: f.id }); for(const k of ["Q", "W", "E", "R"]) SIM.input(W, "blue", { cast: k, at: [f.x, f.y] }); return true; };
+  const travel = (x, y, max = 120) => { for(let s = 0; s < max && Math.hypot(h.x - x, h.y - y) > 150; s++) step(1, i => { if(!fightBack(i) && i % 6 === 0) SIM.input(W, "blue", { move: [x, y] }); }); };
+  const hunt = (qid, kind, max = 500) => { for(let s = 0; s < max && h.quests[qid].state === "active"; s++) step(1, i => { if(fightBack(i) || i % 6) return; const t = near(W.mobs.filter(m => !m.dead && m.kind === kind)); if(t){ SIM.input(W, "blue", { atk: t.id }); if(Math.hypot(t.x - h.x, t.y - h.y) < 600) for(const k of ["Q", "W", "E", "R"]) SIM.input(W, "blue", { cast: k, at: [t.x, t.y] }); } }); };
+  const npc = id => G.NPCS.find(n => n.id === id);
+  const accept = (id, qid) => { for(let k = 0; k < 3 && !h.quests[qid]; k++){ travel(npc(id).x, npc(id).y - 200); SIM.input(W, "blue", { accept: qid }); step(.2); } assert.ok(h.quests[qid], `${qid} accepted`); };
+  const turnIn = (id, qid) => { for(let k = 0; k < 3 && h.quests[qid].state !== "done"; k++){ travel(npc(id).x, npc(id).y - 200); SIM.input(W, "blue", { turnin: qid }); step(.2); } assert.equal(h.quests[qid].state, "done", `${qid} turned in`); };
+  accept("ezo", "frogs"); hunt("frogs", "frog"); turnIn("ezo", "frogs");
+  accept("tamsin", "canopy"); hunt("canopy", "serpent"); turnIn("tamsin", "canopy");
+  accept("tamsin", "vantage"); G.VANTAGES.forEach((p, i) => { for(let k = 0; k < 3 && !h.quests.vantage.flags[i]; k++) travel(p.x, p.y, 200); }); turnIn("tamsin", "vantage");
+  accept("ezo", "bloodvine");
+  for(let k = 0; k < 30 && h.quests.bloodvine.state === "active"; k++){ const n = near(W.nodes.filter(n => n.ready && n.kind === "bloodvine")); if(!n){ step(5); continue; } travel(n.x, n.y); SIM.input(W, "blue", { gather: n.id }); step(2); }
+  turnIn("ezo", "bloodvine");
+  accept("ezo", "prowlers"); hunt("prowlers", "prowler"); turnIn("ezo", "prowlers");
+  accept("tamsin", "greyback"); travel(G.GREYBACK_DEN.x, G.GREYBACK_DEN.y - 500, 200); hunt("greyback", "greyback", 400); turnIn("tamsin", "greyback");
+  accept("ezo", "venom"); travel(G.BROODHOLLOW.x, G.BROODHOLLOW.y - 500, 200);
+  for(let s = 0; s < 400 && h.quests.venom.state === "active"; s += 5){ const sac = W.loot.find(l => l.quest === "venom" && l.side === "blue"); if(sac){ SIM.input(W, "blue", { pickup: sac.id }); step(5); } else hunt("venom", "sizzra", 5); }
+  turnIn("ezo", "venom");
+  console.log(`# jungle quests done at level ${h.lvl}`);
+  for(const id of ["frogs", "canopy", "vantage", "bloodvine", "prowlers", "greyback", "venom"]) assert.equal(h.quests[id].state, "done");
+  for(const id of ["tyrant", "queen"]) assert.equal(G.questFor(h.quests, "tamsin").state === "offer" || h.quests[id], true, "the raids are offered next");
+});
+
+test("jungle: Mawgrot dives and Shadowmane vanishes; a hired party kills both for Legendary loot", () => {
+  for(const [kind, qid] of [["mawgrot", "tyrant"], ["shadowmane", "queen"]]){
+    const W = SIM.create(), h = cathedralHero(W, "blue", ARCHER, 17), tam = G.NPCS.find(n => n.id === "tamsin");
+    h.coins = 99999; h.quests[qid] = { state: "active", count: 0, flags: [] }; h.x = tam.x + 100; h.y = tam.y;
+    SIM.input(W, "blue", { hire: 1 }); const req = W.mercReqs.shift();
+    const mercs = SIM.mercDone(W, "blue", req.roles.map(r => [r, { tank: TANKY, healer: HEALER, dps: MAGE }[r]()]));
+    assert.equal(mercs.length, 4, "Tamsin hires out a raid party");
+    const boss = W.mobs.find(m => m.kind === kind);
+    for(const m of W.mobs) if(!m.boss && Math.hypot(m.x - boss.x, m.y - boss.y) < 2500) m.dead = true;
+    for(const x of [h, ...mercs]){ x.x = boss.x - 300; x.y = boss.y - 1100; }
+    SIM.input(W, "blue", { atk: boss.id });
+    let t = 0, hid = false;
+    for(; t < 900 * 30 && !boss.dead; t++){
+      if(boss.hidden){ hid = true; assert.equal(SIM.damage(W, boss, 100, h), 0, "can't be hurt while hidden"); }
+      if(t % 6 === 0 && !h.dead){
+        const esc = SIM.dangerEscape(W, h);
+        if(esc) SIM.input(W, "blue", { move: esc });
+        else {
+          if(h.hp < h.maxHp * .35) SIM.input(W, "blue", { potion: 1 });
+          const ps = SIM.partyMembers(W, h).map(p => p.id), f = W.mobs.filter(m => !m.dead && !m.immune && (m === boss || (m.aggro && ps.includes(m.aggro))) && Math.hypot(m.x - h.x, m.y - h.y) < 2500).sort((a, b) => (a.boss - b.boss) || Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
+          if(f){ SIM.input(W, "blue", { atk: f.id }); for(const k of ["Q", "W", "E", "R"]) SIM.input(W, "blue", { cast: k, at: [f.x, f.y] }); }
+          else SIM.input(W, "blue", { move: [boss.x - 500, boss.y - 500] });
+        }
+      }
+      SIM.step(W, 1 / 30); W.fxNet.length = W.fxLocal.length = 0;
+    }
+    console.log(`# ${kind}: ${boss.dead ? "killed" : "NOT killed"} in ${Math.round(t / 30)}s`);
+    assert.ok(boss.dead, `${kind} dies`); assert.ok(hid, `${kind} hid at least once`);
+    assert.equal(h.quests[qid].state, "ready");
+    const mine = [...h.inv, ...W.loot.filter(l => l.side === "blue").flatMap(l => l.items || [])];
+    assert.equal(mine.filter(i => i.r === 4).length, 1, "a Legendary"); assert.ok(mine.some(i => i.r === 3), "and an Epic");
+    assert.ok(!W.loot.some(l => l.side && l.side.startsWith("merc")), "nothing for the hired party");
+  }
+});
