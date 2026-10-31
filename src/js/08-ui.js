@@ -22,7 +22,13 @@ function lootLine(text, color){
 }
 
 /* ---------- Character window ---------- */
-function openChar(){ $("#charWin").hidden = false; G.charKey = ""; G.salvArm = null; renderChar(); }
+function openChar(){ $("#charWin").hidden = false; G.charKey = ""; G.salvArm = null; G.multi = null; renderChar(); }
+// picking several bag items at once (salvage here, or sell at a vendor)
+const isJunk = it => it.r <= 1 && it.s !== "use";        // Common and Uncommon gear and trade goods (potions are kept)
+const pickedItems = (inv, set) => inv.filter(it => set.has(it.id));
+const pickedValue = list => list.reduce((a, it) => a + it.v * (it.q || 1), 0);
+const nearVendor = me => NPCS.some(n => n.shop && Math.hypot(me.x - n.x, me.y - n.y) < 450);
+function prunePicks(set, inv){ for(const id of [...set]) if(!inv.some(it => it.id === id)) set.delete(id); }
 function slotBtn(it, attrs, label, sel){
   const border = it ? RARITY[it.r].c : "var(--line)";
   return `<button class="islot${sel ? " sel" : ""}" ${attrs} style="border-color:${border}" aria-label="${it ? esc(it.n) : label}">${it ? `<img alt="" src="${itemIconURL(it)}">${(it.q || 1) > 1 ? `<span class="qty">${it.q}</span>` : ""}` : `<span class="ph">${label}</span>`}</button>`;
@@ -38,7 +44,8 @@ function renderChar(){
   const gear = me.gear || { inv: [], equip: {} }, d = G.details[G.myTeam];
   let sel = null;
   if(G.sel){ sel = G.sel.from === "bag" ? gear.inv.find(x => x.id === G.sel.id) : gear.equip[G.sel.slot]; if(!sel) G.sel = null; }
-  const key = [gear.ver, JSON.stringify(G.sel), G.salvArm, me.lvl, me.coins, me.maxHp, me.ad].join("|");
+  if(G.multi) prunePicks(G.multi, gear.inv);
+  const key = [gear.ver, JSON.stringify(G.sel), G.salvArm, me.lvl, me.coins, me.maxHp, me.ad, G.multi ? [...G.multi].join() : "-", G.multiArm, nearVendor(me)].join("|");
   if(key === G.charKey) return;
   G.charKey = key;
   $("#chName").textContent = d.name; $("#chSub").textContent = `Level ${me.lvl} ${G.myKit.cls}`; $("#chCoins").textContent = fmtCoins(me.coins);
@@ -46,12 +53,20 @@ function renderChar(){
   $("#eqLeft").innerHTML = ["head", "chest", "hands"].map(eqBtn).join("");
   $("#eqRight").innerHTML = ["legs", "feet", "weapon"].map(eqBtn).join("");
   let bags = "";
-  for(let i = 0; i < BAG_SIZE; i++){ const it = gear.inv[i]; bags += it ? slotBtn(it, `data-bag="${it.id}"`, "", G.sel && G.sel.from === "bag" && G.sel.id === it.id) : `<button class="islot" disabled aria-label="Empty bag slot"></button>`; }
+  for(let i = 0; i < BAG_SIZE; i++){ const it = gear.inv[i]; bags += it ? slotBtn(it, `data-bag="${it.id}"`, "", !G.multi && G.sel && G.sel.from === "bag" && G.sel.id === it.id).replace('class="islot', G.multi && G.multi.has(it.id) ? 'class="islot pick' : 'class="islot') : `<button class="islot" disabled aria-label="Empty bag slot"></button>`; }
+  $("#multiBtn").textContent = G.multi ? "Done" : "Select several";
   $("#bags").innerHTML = bags; $("#bagCount").textContent = `${gear.inv.length}/${BAG_SIZE}`;
   const red = Math.round(me.armor / (me.armor + 300) * 100);
   $("#chStats").innerHTML = [["Health", me.maxHp], ["Attack damage", me.ad], ["Ability damage", `+${me.ap}%`], ["Armor", `${me.armor} (${red}% less damage)`], ["Cooldown reduction", `${me.haste}%`], ["Movement speed", `+${me.msPct}%`]].map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join("");
   const det = $("#idetail");
-  if(!sel) det.innerHTML = `<p class="lobbymsg" style="text-align:left">Select an item to see its stats. Double-click a bag item to equip it.</p>`;
+  if(G.multi){
+    const list = pickedItems(gear.inv, G.multi), val = pickedValue(list), good = list.some(it => it.r >= 2), vendor = nearVendor(me);
+    det.innerHTML = `<div class="in">${list.length ? `${list.length} item${list.length === 1 ? "" : "s"} selected · worth ${fmtCoins(val)}` : "Click items to select them"}</div>
+      <div class="im">${good ? "Includes Rare or better items." : vendor ? "A vendor is close by: you can sell them." : "Salvage them for coin, or sell them at a potion vendor."}</div>
+      <div class="multibar"><button class="btn small" data-act="mjunk">Select junk</button><button class="btn small" data-act="mall">Select all</button><button class="btn small" data-act="mclear">Clear</button></div>
+      <div class="row" style="margin-top:8px">${vendor ? `<button class="btn primary" data-act="msell" ${list.length ? "" : "disabled"}>${G.multiArm === "sell" ? "Click again to sell" : `Sell ${list.length || ""} for ${fmtCoins(val)}`}</button>` : ""}<button class="btn${vendor ? "" : " primary"}" data-act="msalvage" ${list.length ? "" : "disabled"}>${G.multiArm === "salvage" ? "Click again to salvage" : `Salvage ${list.length || ""} for ${fmtCoins(val)}`}</button></div>`;
+  }
+  else if(!sel) det.innerHTML = `<p class="lobbymsg" style="text-align:left">Select an item to see its stats. Double-click a bag item to equip it.</p>`;
   else {
     const fromBag = G.sel.from === "bag", cmp = fromBag && isGear(sel) ? gear.equip[sel.s] : null;
     const stats = Object.keys(sel.st || {}).map(k => STAT[k].line(sel.st[k])).join("<br>");
@@ -82,6 +97,20 @@ $("#chClose").onclick = () => { $("#charWin").hidden = true; };
 $("#charWin").addEventListener("click", e => {
   if(!G) return;
   const b = e.target.closest("[data-eq],[data-bag],[data-act]"); if(!b) return;
+  const me = G.snap.h.find(h => h.side === G.myTeam), inv = (me.gear && me.gear.inv) || [];
+  if(G.multi && (b.dataset.bag || (b.dataset.act || "")[0] === "m")){
+    const a = b.dataset.act; G.multiArm = a === "msell" || a === "msalvage" ? G.multiArm : null;
+    if(b.dataset.bag){ if(G.multi.has(b.dataset.bag)) G.multi.delete(b.dataset.bag); else G.multi.add(b.dataset.bag); }
+    else if(a === "mjunk"){ for(const it of inv) if(isJunk(it)) G.multi.add(it.id); }
+    else if(a === "mall"){ for(const it of inv) G.multi.add(it.id); }
+    else if(a === "mclear") G.multi.clear();
+    else if(a === "msell" || a === "msalvage"){
+      const list = pickedItems(inv, G.multi), kind = a === "msell" ? "sell" : "salvage";
+      if(list.length && list.some(it => it.r >= 2) && G.multiArm !== kind) G.multiArm = kind;   // Rare or better: click again to confirm
+      else if(list.length){ command({ [kind]: list.map(it => it.id) }); G.multi.clear(); G.multiArm = null; }
+    }
+    G.charKey = ""; renderChar(); return;
+  }
   if(b.dataset.eq){ G.sel = { from: "eq", slot: b.dataset.eq }; G.salvArm = null; }
   else if(b.dataset.bag){ G.sel = { from: "bag", id: b.dataset.bag }; G.salvArm = null; }
   else if(b.dataset.act && G.sel){
@@ -97,7 +126,8 @@ $("#charWin").addEventListener("click", e => {
   }
   G.charKey = ""; renderChar();
 });
-$("#charWin").addEventListener("dblclick", e => { const b = e.target.closest("[data-bag]"); if(!b || !G) return; const me = G.snap.h.find(h => h.side === G.myTeam), it = me.gear.inv.find(x => x.id === b.dataset.bag); if(isGear(it)){ command({ equip: it.id }); G.sel = null; G.charKey = ""; } });
+$("#multiBtn").onclick = () => { if(!G) return; G.multi = G.multi ? null : new Set(); G.multiArm = null; G.sel = null; G.charKey = ""; renderChar(); };
+$("#charWin").addEventListener("dblclick", e => { const b = e.target.closest("[data-bag]"); if(!b || !G || G.multi) return; const me = G.snap.h.find(h => h.side === G.myTeam), it = me.gear.inv.find(x => x.id === b.dataset.bag); if(isGear(it)){ command({ equip: it.id }); G.sel = null; G.charKey = ""; } });
 
 /* ---------- Skill tree panel ---------- */
 function openSkills(){ $("#skills").hidden = false; G.skillKey = ""; const me = G.snap && G.snap.h.find(h => h.side === G.myTeam); if(me) renderSkills(me); }
@@ -489,6 +519,7 @@ function handleFx(f){
     }
     case "shop": if(mine) openShop(f.npc); break;
     case "arena": if(mine) openArena(f); break;
+    case "sold": if(mine) lootLine(`Sold ${f.n} for ${fmtCoins(f.coins)}`, "#f0d58e"); break;
     case "bought": if(mine) lootLine(`Bought ${f.n}${f.q > 1 ? ` ×${f.q}` : ""} for ${fmtCoins(f.coins)}`, "#f0d58e"); break;
   }
 }

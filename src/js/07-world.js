@@ -234,17 +234,37 @@ function serviceArena(){
 /* ---------- Vendor ---------- */
 function openShop(npcId){
   const npc = NPCS.find(n => n.id === npcId); if(!npc) return;
-  G.shop = npc.id; G.shopKey = ""; $("#shopName").textContent = npc.name; renderShop(); $("#shop").hidden = false;
+  G.shop = npc.id; G.shopKey = ""; G.shopSel = new Set(); G.shopArm = false; $("#shopName").textContent = npc.name; renderShop(); $("#shop").hidden = false;
 }
 function renderShop(){
   const npc = G && NPCS.find(n => n.id === G.shop), me = G && G.snap && G.snap.h.find(h => h.side === G.myTeam); if(!npc || !me) return;
   const have = ((me.gear && me.gear.inv) || []).filter(x => x.key === "hpot").reduce((a, x) => a + (x.q || 1), 0);
-  const key = `${npc.id}|${me.coins}|${have}`; if(key === G.shopKey) return; G.shopKey = key; // only rebuild when something changed, so clicks aren't lost
+  const inv = (me.gear && me.gear.inv) || []; prunePicks(G.shopSel, inv);
+  const key = `${npc.id}|${me.coins}|${have}|${me.gear && me.gear.ver}|${[...G.shopSel].join()}|${G.shopArm}`; if(key === G.shopKey) return; G.shopKey = key; // only rebuild when something changed, so clicks aren't lost
   $("#shopCoins").textContent = fmtCoins(me.coins);
   $("#shopList").innerHTML = npc.shop.map(key => { const it = SHOP_ITEMS[key];
     return `<div class="shoprow"><img alt="" src="${itemIconURL(makePotion(0))}"><div class="si"><b>${esc(it.n)}</b><span>${esc(it.desc)}</span><span>You have ${have}</span></div>
       <div class="sb"><span class="coins">${fmtCoins(it.price)}</span><div class="row"><button class="btn" data-buy="${key}" data-n="1" ${me.coins < it.price ? "disabled" : ""}>Buy 1</button><button class="btn primary" data-buy="${key}" data-n="5" ${me.coins < it.price * 5 ? "disabled" : ""}>Buy 5</button></div></div></div>`; }).join("");
+  // sell from your bags: click items to pick them, then sell them all at once
+  const list = pickedItems(inv, G.shopSel), val = pickedValue(list);
+  $("#shopSell").innerHTML = `<div class="eyebrow">Sell from your bags</div>
+    ${inv.length ? `<div class="sellgrid">${inv.map(it => slotBtn(it, `data-sell="${it.id}"`, "", false).replace('class="islot', G.shopSel.has(it.id) ? 'class="islot pick' : 'class="islot')).join("")}</div>` : `<p class="lobbymsg" style="text-align:left">Your bags are empty.</p>`}
+    <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:6px"><div class="row"><button class="btn small" data-sact="junk">Select junk</button><button class="btn small" data-sact="clear">Clear</button></div>
+    <button class="btn primary" data-sact="sell" ${list.length ? "" : "disabled"}>${G.shopArm ? "Includes Rare or better: click again" : list.length ? `Sell ${list.length} for ${fmtCoins(val)}` : "Pick items to sell"}</button></div>`;
 }
+$("#shopSell").addEventListener("click", e => {
+  const me = G && G.snap && G.snap.h.find(h => h.side === G.myTeam); if(!me) return;
+  const inv = (me.gear && me.gear.inv) || [], b = e.target.closest("[data-sell],[data-sact]"); if(!b) return;
+  if(b.dataset.sell){ G.shopArm = false; if(G.shopSel.has(b.dataset.sell)) G.shopSel.delete(b.dataset.sell); else G.shopSel.add(b.dataset.sell); }
+  else if(b.dataset.sact === "junk"){ G.shopArm = false; for(const it of inv) if(isJunk(it)) G.shopSel.add(it.id); }
+  else if(b.dataset.sact === "clear"){ G.shopArm = false; G.shopSel.clear(); }
+  else if(b.dataset.sact === "sell"){
+    const list = pickedItems(inv, G.shopSel);
+    if(list.some(it => it.r >= 2) && !G.shopArm) G.shopArm = true;
+    else if(list.length){ command({ sell: list.map(it => it.id) }); G.shopSel.clear(); G.shopArm = false; }
+  }
+  G.shopKey = ""; renderShop();
+});
 function closeShop(){ $("#shop").hidden = true; if(G) G.shop = null; }
 $("#shopClose").onclick = closeShop;
 $("#shopList").addEventListener("click", e => { const b = e.target.closest("[data-buy]"); if(b) command({ buy: b.dataset.buy, n: +b.dataset.n }); });

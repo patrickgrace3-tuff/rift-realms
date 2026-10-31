@@ -370,10 +370,16 @@ const SIM = {
       c.gearVer++;
       SIM.fx(W, { k: "heal", side, v: Math.round(healed) }); return;
     }
-    if(cmd.salvage){
-      const i = c.inv.findIndex(x => x.id === String(cmd.salvage)), it = c.inv[i]; if(!it) return;
-      const val = it.v * (it.q || 1); c.coins += val; c.inv.splice(i, 1); c.gearVer++;
-      SIM.fx(W, { k: "salvage", side, n: it.n, coins: val }); return;
+    // salvage anywhere, or sell to a vendor (within 500 of one); either takes one item id or a list of them
+    if(cmd.salvage || cmd.sell){
+      const selling = !!cmd.sell, raw = selling ? cmd.sell : cmd.salvage;
+      if(selling && !NPCS.some(n => n.shop && Math.hypot(c.x - n.x, c.y - n.y) < 500)){ SIM.fx(W, { k: "msg", side, text: "There's no vendor close enough to sell to." }); return; }
+      const ids = [...new Set((Array.isArray(raw) ? raw : [raw]).slice(0, BAG_SIZE).map(String))];
+      let coins = 0; const names = [];
+      for(const id of ids){ const i = c.inv.findIndex(x => x.id === id); if(i < 0) continue; const it = c.inv[i]; coins += it.v * (it.q || 1); names.push(it.n); c.inv.splice(i, 1); }
+      if(!names.length) return;
+      c.coins += coins; c.gearVer++;
+      SIM.fx(W, { k: selling ? "sold" : "salvage", side, n: names.length === 1 ? names[0] : `${names.length} items`, coins }); return;
     }
     if(cmd.pickup){
       const l = W.loot.find(x => x.id === String(cmd.pickup) && x.side === side);

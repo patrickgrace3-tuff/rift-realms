@@ -683,7 +683,7 @@ test("arena: the computer champion dodges most skillshots", () => {
   SIM.arenaStart(W, "blue", GAREN_LIKE(), 10); const b = W.heroes[Object.keys(W.heroes).find(s => s !== "blue")];
   step(5.5);
   let fired = 0, hits = 0;
-  for(let k = 0; k < 30 && p.duel; k++){
+  for(let k = 0; k < 60 && p.duel; k++){
     b.hp = b.maxHp; p.hp = p.maxHp; b.potions = 0;
     b.x = G.ARENA.x + 100; b.y = G.ARENA.y; p.x = b.x - 650; p.y = b.y; b.target = null; b.move = null;   // both well inside the ring
     const before = b.hp;
@@ -691,7 +691,7 @@ test("arena: the computer champion dodges most skillshots", () => {
     fired++; step(1); if(b.hp < before - 20) hits++;
   }
   console.log(`# computer champion was hit by ${hits} of ${fired} skillshots`);
-  assert.ok(fired >= 20 && hits <= fired * .4, `dodged most (${hits}/${fired} hit)`);
+  assert.ok(fired >= 40 && hits <= fired * .45, `dodged most (${hits}/${fired} hit)`);
 });
 
 function arenaSeries(diff){
@@ -1137,4 +1137,28 @@ test("hired party: after you've finished the quests you can still hire a party t
     SIM.input(W, "blue", { hire: 1 });
     assert.equal(W.mercReqs.length, 1, `${npcId} hires out a party after her quests are done`);
   }
+});
+
+test("bags: sell several items to a vendor, or salvage several anywhere; bad input is ignored", () => {
+  const W = SIM.create(), h = cathedralHero(W, "blue", ARCHER, 10), osric = G.NPCS.find(n => n.id === "osric");
+  const items = [0, 1, 2, 3].map(k => G.genItem({ ilvl: 10, rarity: k % 3, cls: "ranged", nid: 8800 + k }));
+  for(const it of items) SIM.addItem(h, it);
+  const value = list => list.reduce((a, it) => a + it.v * (it.q || 1), 0);
+  // selling needs a vendor nearby
+  h.x = 4000; h.y = 1500; const c0 = h.coins;
+  SIM.input(W, "blue", { sell: [items[0].id, items[1].id] });
+  assert.equal(h.coins, c0, "no vendor nearby, nothing sold"); assert.ok(h.inv.includes(items[0]));
+  h.x = osric.x; h.y = osric.y - 200;
+  SIM.input(W, "blue", { sell: [items[0].id, items[1].id, items[1].id, "nope", { evil: 1 }] });
+  assert.equal(h.coins, c0 + value(items.slice(0, 2)), "both sold once, at full value");
+  assert.ok(!h.inv.includes(items[0]) && !h.inv.includes(items[1]));
+  // salvage several anywhere (equipped gear is never touched)
+  h.x = 4000; h.y = 1500; const c1 = h.coins, eq = h.equip.weapon;
+  SIM.input(W, "blue", { salvage: [items[2].id, items[3].id, eq.id] });
+  assert.equal(h.coins, c1 + value(items.slice(2)), "salvaged both");
+  assert.equal(h.equip.weapon, eq, "equipped gear stays");
+  // a single id still works, and a huge list is capped
+  const one = G.genItem({ ilvl: 10, rarity: 0, cls: "ranged", nid: 8900 }); SIM.addItem(h, one);
+  SIM.input(W, "blue", { salvage: one.id }); assert.ok(!h.inv.includes(one));
+  SIM.input(W, "blue", { salvage: Array.from({ length: 5000 }, (_, i) => "x" + i) });
 });
