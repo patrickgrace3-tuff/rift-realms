@@ -408,7 +408,7 @@ Object.assign(QUESTS, {
   },
   // ---------- The Thornveil Jungle ----------
   frogs: {
-    id: "frogs", lvl: 15, title: "Leaper Season", giver: "ezo", turnin: "ezo", prereq: null, xp: 500, coins: 300, where: [LEAPER_POOLS.x, LEAPER_POOLS.y], whereR: LEAPER_POOLS.r,
+    id: "frogs", lvl: 16, title: "Leaper Season", giver: "ezo", turnin: "ezo", prereq: null, xp: 500, coins: 300, where: [LEAPER_POOLS.x, LEAPER_POOLS.y], whereR: LEAPER_POOLS.r,
     obj: { type: "kill", kind: "frog", count: 10, label: "Jade Leapers slain" },
     offer: "New faces! Through the portal, were you? Welcome to the Thornveil. First lesson: the green frogs by the river spit. Second lesson: they're delicious. Thin them out for me, ten will do, and I'll teach you a third.",
     objective: "Slay 10 Jade Leapers by the river east of Canopy Camp.",
@@ -417,7 +417,7 @@ Object.assign(QUESTS, {
     done: "Leaper stew tonight. You're invited.",
   },
   canopy: {
-    id: "canopy", lvl: 16, title: "Snakes in the Ferns", giver: "tamsin", turnin: "tamsin", prereq: null, xp: 700, coins: 400, where: [FERNREACH.x, FERNREACH.y], whereR: FERNREACH.r,
+    id: "canopy", lvl: 17, title: "Snakes in the Ferns", giver: "tamsin", turnin: "tamsin", prereq: null, xp: 700, coins: 400, where: [FERNREACH.x, FERNREACH.y], whereR: FERNREACH.r,
     obj: { type: "kill", kind: "serpent", count: 8, label: "Vine Serpents slain" },
     offer: "You came through the cathedral? Then you're tougher than you look. The Thornveil is worse. Vine Serpents have been taking my scouts in the Fernreach, south of camp. They hang in the creepers and drop on you. Kill eight and the rest will learn some manners.",
     objective: "Slay 8 Vine Serpents in the Fernreach, south of Canopy Camp.",
@@ -426,7 +426,7 @@ Object.assign(QUESTS, {
     done: "The ferns are quieter. Thanks.",
   },
   vantage: {
-    id: "vantage", lvl: 16, title: "Eyes Above the Canopy", giver: "tamsin", turnin: "tamsin", prereq: "canopy", xp: 600, coins: 400, reward: { item: 2 },
+    id: "vantage", lvl: 17, title: "Eyes Above the Canopy", giver: "tamsin", turnin: "tamsin", prereq: "canopy", xp: 600, coins: 400, reward: { item: 2 },
     obj: { type: "explore", points: VANTAGES, count: 3, label: "Vantage points reached" },
     offer: "I need to know what's out there. Three high places: the Strangler Fig by the river, the Broken Idol in the east, and the Falls Ledge in the far north. Get up there, take a look, and come back alive.",
     objective: "Reach the Strangler Fig, the Broken Idol and the Falls Ledge.",
@@ -435,7 +435,7 @@ Object.assign(QUESTS, {
     done: "The maps are coming along, thanks to you.",
   },
   bloodvine: {
-    id: "bloodvine", lvl: 16, title: "Bloodvine Blossoms", giver: "ezo", turnin: "ezo", prereq: "frogs", xp: 700, coins: 400, reward: { item: 2 },
+    id: "bloodvine", lvl: 17, title: "Bloodvine Blossoms", giver: "ezo", turnin: "ezo", prereq: "frogs", xp: 700, coins: 400, reward: { item: 2 },
     obj: { type: "collect", node: "bloodvine", count: 8, label: "Bloodvine blossoms" },
     where: [BLOODVINE.x, BLOODVINE.y], whereR: 700,
     offer: "Bloodvine. Red blossoms that grow north of the river, past the Strangler Fig. Brewed right, they close a wound in seconds. Brewed wrong... well, we won't brew it wrong. Bring me eight.",
@@ -445,7 +445,7 @@ Object.assign(QUESTS, {
     done: "The bloodvine tonic is bubbling nicely.",
   },
   prowlers: {
-    id: "prowlers", lvl: 17, title: "The Striped Hunters", giver: "ezo", turnin: "ezo", prereq: "bloodvine", xp: 800, coins: 500, where: [THICKET.x, THICKET.y], whereR: THICKET.r,
+    id: "prowlers", lvl: 18, title: "The Striped Hunters", giver: "ezo", turnin: "ezo", prereq: "bloodvine", xp: 800, coins: 500, where: [THICKET.x, THICKET.y], whereR: THICKET.r,
     obj: { type: "kill", kind: "prowler", count: 8, label: "Striped Prowlers slain" },
     offer: "The prowlers in the thicket east of here hunt in packs, and lately they've been hunting us. Something is driving them. Kill eight before they get bolder.",
     objective: "Slay 8 Striped Prowlers in the Prowler Thicket. They hunt in packs.",
@@ -454,7 +454,7 @@ Object.assign(QUESTS, {
     done: "The thicket's quieter now.",
   },
   greyback: {
-    id: "greyback", lvl: 17, title: "The Howler King", giver: "tamsin", turnin: "tamsin", prereq: "vantage", xp: 1000, coins: 700, reward: { item: 3 }, where: [GREYBACK_DEN.x, GREYBACK_DEN.y], whereR: 450,
+    id: "greyback", lvl: 18, title: "The Howler King", giver: "tamsin", turnin: "tamsin", prereq: "vantage", xp: 1000, coins: 700, reward: { item: 3 }, where: [GREYBACK_DEN.x, GREYBACK_DEN.y], whereR: 450,
     obj: { type: "kill", kind: "greyback", count: 1, label: "Greyback slain" },
     offer: "Up on Howler Heights there's an ape twice the size of the rest, with a silver back and a temper to match. Greyback. When he beats his chest, he's about to charge. Step aside and make him pay for it.",
     objective: "Elite: slay Greyback, the Howler King, on Howler Heights in the north-west.",
@@ -463,7 +463,7 @@ Object.assign(QUESTS, {
     done: "The heights are quiet. Strange, after all that howling.",
   },
   venom: {
-    id: "venom", lvl: 17, title: "The Broodmother", giver: "ezo", turnin: "ezo", prereq: "prowlers", xp: 1000, coins: 700, reward: { item: 3 }, where: [BROODHOLLOW.x, BROODHOLLOW.y], whereR: BROODHOLLOW.r,
+    id: "venom", lvl: 18, title: "The Broodmother", giver: "ezo", turnin: "ezo", prereq: "prowlers", xp: 1000, coins: 700, reward: { item: 3 }, where: [BROODHOLLOW.x, BROODHOLLOW.y], whereR: BROODHOLLOW.r,
     obj: { type: "loot", from: "sizzra", item: "venomsac", itemName: "Sizzra's Venom Sac", count: 1, label: "Sizzra's Venom Sac" },
     offer: "There's a spider in the Broodhollow, north of the bloodvine. Sizzra. She spits from far away, so close the distance fast. Her venom sac is the last thing I need for an antidote, and believe me, you'll want the antidote before you face what lives in the ruins.",
     objective: "Elite: slay Sizzra the Broodmother in the Broodhollow and bring Ezo her venom sac.",
@@ -472,7 +472,7 @@ Object.assign(QUESTS, {
     done: "Antidote's ready. Don't make me use it on you.",
   },
   tyrant: {
-    id: "tyrant", lvl: 18, title: "The River Tyrant", giver: "tamsin", turnin: "tamsin", prereq: ["greyback", "venom"], xp: 2200, coins: 2500, raid: true, where: [DELTA.x, DELTA.y], whereR: DELTA.r,
+    id: "tyrant", lvl: 19, title: "The River Tyrant", giver: "tamsin", turnin: "tamsin", prereq: ["greyback", "venom"], xp: 2200, coins: 2500, raid: true, where: [DELTA.x, DELTA.y], whereR: DELTA.r,
     obj: { type: "kill", kind: "mawgrot", count: 1, label: "Mawgrot slain" },
     offer: "Mawgrot. The crocodile in the Sunken Delta. He's dragged three boats under this month. You'll need a raid party: three at least. When he sinks under the water, he's coming up underneath somebody. Keep moving, and kill the crocodiles he calls.",
     objective: "Raid boss: slay Mawgrot, the River Tyrant, in the Sunken Delta. Needs a party of at least 3.",
@@ -481,7 +481,7 @@ Object.assign(QUESTS, {
     done: "Boats on the river again. Thanks to you.",
   },
   queen: {
-    id: "queen", lvl: 18, title: "Queen of the Canopy", giver: "tamsin", turnin: "tamsin", prereq: ["greyback", "venom"], xp: 2200, coins: 2500, raid: true, where: [RUINS.x, RUINS.y], whereR: RUINS.r,
+    id: "queen", lvl: 19, title: "Queen of the Canopy", giver: "tamsin", turnin: "tamsin", prereq: ["greyback", "venom"], xp: 2200, coins: 2500, raid: true, where: [RUINS.x, RUINS.y], whereR: RUINS.r,
     obj: { type: "kill", kind: "shadowmane", count: 1, label: "Shadowmane slain" },
     offer: "The black shape in the Moonlit Ruins is Shadowmane, a jaguar the size of a horse. She's what's been driving the prowlers. She pounces from far away and vanishes into the dark, then strikes from nowhere. Bring a raid party. Stay apart when she's hidden.",
     objective: "Raid boss: slay Shadowmane, Queen of the Canopy, in the Moonlit Ruins. Needs a party of at least 3.",
@@ -495,7 +495,7 @@ const QUEST_ORDER = ["sheep", "tusker", "courier", "scout", "wolves", "herbs", "
   "frogs", "canopy", "vantage", "bloodvine", "prowlers", "greyback", "venom", "tyrant", "queen"];
 /* ---------- Experience ---------- */
 // Each level needs more XP than the last. Creatures and quests well below your level give less.
-const MAX_LEVEL = 20;
+const MAX_LEVEL = 30;
 const ULT_LEVEL = 6; // the ultimate (R) unlocks at this level
 const xpForLevel = lvl => Math.round(40 * Math.pow(lvl, 1.6) + 70);
 // creatures: +10% per level above you (up to +40%), −20% per level below (nothing at 5 below)
@@ -609,16 +609,16 @@ const MOBS = {
   abbess: { name: "Abbess Ysolde", title: "Dungeon Boss", lvl: 17, r: 80, hp: 175000, dmg: 390, atkCd: 1.3, ms: 330, wander: 0, xp: 1200, respawn: 0, leash: 1500, home: [CATHEDRAL.east.x, CATHEDRAL.east.y], roam: 0, count: 0, elite: true, boss: true, script: "abbess", aggroR: 560 },
   saint: { name: "Archprelate Malchar", title: "Final Boss · The Ashen Saint", lvl: 17, r: 120, hp: 420000, dmg: 520, atkCd: 1.8, ms: 270, wander: 0, xp: 2500, respawn: 0, leash: 1700, home: [CATHEDRAL.altar.x, CATHEDRAL.altar.y], roam: 0, count: 0, elite: true, boss: true, script: "saint", aggroR: 600 },
   // The Thornveil Jungle
-  frog: { name: "Jade Leaper", lvl: 15, r: 45, hp: 1300, dmg: 40, atkCd: 1.4, ms: 330, wander: 120, xp: 40, respawn: 30, leash: 1500, home: [LEAPER_POOLS.x, LEAPER_POOLS.y], roam: LEAPER_POOLS.r - 100, count: 9 },
-  serpent: { name: "Vine Serpent", lvl: 16, r: 50, hp: 1500, dmg: 52, atkCd: 1.3, ms: 320, wander: 110, xp: 50, respawn: 30, leash: 1600, home: [FERNREACH.x, FERNREACH.y], roam: FERNREACH.r - 150, count: 9, aggroR: 320 },
-  prowler: { name: "Striped Prowler", lvl: 16, r: 55, hp: 1700, dmg: 60, atkCd: 1.2, ms: 370, wander: 140, xp: 55, respawn: 30, leash: 1800, home: [THICKET.x, THICKET.y], roam: THICKET.r - 100, count: 9, aggroR: 450, pack: true },
-  ape: { name: "Howler Ape", lvl: 17, r: 60, hp: 2100, dmg: 66, atkCd: 1.4, ms: 330, wander: 120, xp: 60, respawn: 30, leash: 1700, home: [HOWLER.x, HOWLER.y], roam: HOWLER.r - 100, count: 9, aggroR: 420, pack: true },
-  croc: { name: "Delta Crocodile", lvl: 17, r: 70, hp: 2400, dmg: 75, atkCd: 1.7, ms: 260, wander: 80, xp: 65, respawn: 30, leash: 1500, home: [DELTA.x - 900, DELTA.y + 700], roam: 350, count: 5, aggroR: 380 },
-  greyback: { name: "Greyback, the Howler King", lvl: 17, r: 100, hp: 9000, dmg: 120, atkCd: 1.7, ms: 320, wander: 60, xp: 250, respawn: 60, leash: 1500, home: [GREYBACK_DEN.x, GREYBACK_DEN.y], roam: 200, count: 1, elite: true, charge: true, aggroR: 500 },
-  sizzra: { name: "Sizzra the Broodmother", lvl: 17, r: 95, hp: 8500, dmg: 105, atkCd: 1.6, ms: 300, wander: 50, xp: 250, respawn: 60, leash: 1400, home: [BROODHOLLOW.x, BROODHOLLOW.y], roam: 150, count: 1, elite: true, ranged: 600, aggroR: 500 },
+  frog: { name: "Jade Leaper", lvl: 16, r: 45, hp: 1300, dmg: 40, atkCd: 1.4, ms: 330, wander: 120, xp: 40, respawn: 30, leash: 1500, home: [LEAPER_POOLS.x, LEAPER_POOLS.y], roam: LEAPER_POOLS.r - 100, count: 9 },
+  serpent: { name: "Vine Serpent", lvl: 17, r: 50, hp: 1500, dmg: 52, atkCd: 1.3, ms: 320, wander: 110, xp: 50, respawn: 30, leash: 1600, home: [FERNREACH.x, FERNREACH.y], roam: FERNREACH.r - 150, count: 9, aggroR: 320 },
+  prowler: { name: "Striped Prowler", lvl: 17, r: 55, hp: 1700, dmg: 60, atkCd: 1.2, ms: 370, wander: 140, xp: 55, respawn: 30, leash: 1800, home: [THICKET.x, THICKET.y], roam: THICKET.r - 100, count: 9, aggroR: 450, pack: true },
+  ape: { name: "Howler Ape", lvl: 18, r: 60, hp: 2100, dmg: 66, atkCd: 1.4, ms: 330, wander: 120, xp: 60, respawn: 30, leash: 1700, home: [HOWLER.x, HOWLER.y], roam: HOWLER.r - 100, count: 9, aggroR: 420, pack: true },
+  croc: { name: "Delta Crocodile", lvl: 18, r: 70, hp: 2400, dmg: 75, atkCd: 1.7, ms: 260, wander: 80, xp: 65, respawn: 30, leash: 1500, home: [DELTA.x - 900, DELTA.y + 700], roam: 350, count: 5, aggroR: 380 },
+  greyback: { name: "Greyback, the Howler King", lvl: 18, r: 100, hp: 9000, dmg: 120, atkCd: 1.7, ms: 320, wander: 60, xp: 250, respawn: 60, leash: 1500, home: [GREYBACK_DEN.x, GREYBACK_DEN.y], roam: 200, count: 1, elite: true, charge: true, aggroR: 500 },
+  sizzra: { name: "Sizzra the Broodmother", lvl: 18, r: 95, hp: 8500, dmg: 105, atkCd: 1.6, ms: 300, wander: 50, xp: 250, respawn: 60, leash: 1400, home: [BROODHOLLOW.x, BROODHOLLOW.y], roam: 150, count: 1, elite: true, ranged: 600, aggroR: 500 },
   // jungle raid bosses (05i-jungle.js): a party of 3+, telegraphs and phases like the cathedral's bosses
-  mawgrot: { name: "Mawgrot, the River Tyrant", title: "Raid Boss · Sunken Delta", lvl: 18, r: 260, hp: 480000, dmg: 600, atkCd: 2, ms: 240, wander: 0, xp: 1500, respawn: 300, leash: 1900, home: [DELTA.x, DELTA.y], roam: 0, count: 1, elite: true, boss: true, script: "mawgrot", aggroR: 700 },
-  shadowmane: { name: "Shadowmane, Queen of the Canopy", title: "Raid Boss · Moonlit Ruins", lvl: 18, r: 170, hp: 430000, dmg: 490, atkCd: 1.2, ms: 380, wander: 0, xp: 1500, respawn: 300, leash: 1900, home: [RUINS.x, RUINS.y], roam: 0, count: 1, elite: true, boss: true, script: "shadowmane", aggroR: 650 },
+  mawgrot: { name: "Mawgrot, the River Tyrant", title: "Raid Boss · Sunken Delta", lvl: 19, r: 260, hp: 480000, dmg: 600, atkCd: 2, ms: 240, wander: 0, xp: 1500, respawn: 300, leash: 1900, home: [DELTA.x, DELTA.y], roam: 0, count: 1, elite: true, boss: true, script: "mawgrot", aggroR: 700 },
+  shadowmane: { name: "Shadowmane, Queen of the Canopy", title: "Raid Boss · Moonlit Ruins", lvl: 19, r: 170, hp: 430000, dmg: 490, atkCd: 1.2, ms: 380, wander: 0, xp: 1500, respawn: 300, leash: 1900, home: [RUINS.x, RUINS.y], roam: 0, count: 1, elite: true, boss: true, script: "shadowmane", aggroR: 650 },
   bandit: { name: "Vale Bandit", lvl: 6, r: 55, hp: 400, dmg: 19, atkCd: 1.4, ms: 300, wander: 100, xp: 60, respawn: 0, leash: 99999, home: [TOWER.x, TOWER.y], roam: 300, count: 0, aggroR: 900 },
 };
 const clampX = v => Math.max(ZMIN, Math.min(ZS * 2 - ZMIN, v)); // (each zone's own edges are enforced by SIM.bound)
@@ -662,15 +662,15 @@ const LOOT = {
   deacon: { dungeon: "mini", coins: [400, 600], ilvl: 17 },   // see SIM.dungeonLoot
   abbess: { dungeon: "mini", coins: [400, 600], ilvl: 17 },
   saint: { dungeon: "final", coins: [900, 1300], ilvl: 18 },
-  frog: { coins: [24, 44], mat: ["junglehide", .35], gear: .25, ilvl: 16 },
-  serpent: { coins: [26, 46], mat: ["junglehide", .45], gear: .28, ilvl: 16 },
-  prowler: { coins: [28, 50], mat: ["junglehide", .55], gear: .3, ilvl: 17 },
-  ape: { coins: [30, 52], mat: ["junglehide", .5], gear: .3, ilvl: 17 },
-  croc: { coins: [32, 56], mat: ["junglehide", .6], gear: .32, ilvl: 17 },
-  greyback: { coins: [140, 220], mat: ["junglehide", 1], gear: 1, minRarity: 2, epic: .35, ilvl: 18 },
-  sizzra: { coins: [140, 220], mat: ["junglehide", 1], gear: 1, minRarity: 2, epic: .35, ilvl: 18 },
-  mawgrot: { dungeon: "raid", coins: [900, 1300], ilvl: 19, mat: "junglehide" },
-  shadowmane: { dungeon: "raid", coins: [900, 1300], ilvl: 19, mat: "junglehide" },
+  frog: { coins: [24, 44], mat: ["junglehide", .35], gear: .25, ilvl: 17 },
+  serpent: { coins: [26, 46], mat: ["junglehide", .45], gear: .28, ilvl: 17 },
+  prowler: { coins: [28, 50], mat: ["junglehide", .55], gear: .3, ilvl: 18 },
+  ape: { coins: [30, 52], mat: ["junglehide", .5], gear: .3, ilvl: 18 },
+  croc: { coins: [32, 56], mat: ["junglehide", .6], gear: .32, ilvl: 18 },
+  greyback: { coins: [140, 220], mat: ["junglehide", 1], gear: 1, minRarity: 2, epic: .35, ilvl: 19 },
+  sizzra: { coins: [140, 220], mat: ["junglehide", 1], gear: 1, minRarity: 2, epic: .35, ilvl: 19 },
+  mawgrot: { dungeon: "raid", coins: [900, 1300], ilvl: 20, mat: "junglehide" },
+  shadowmane: { dungeon: "raid", coins: [900, 1300], ilvl: 20, mat: "junglehide" },
   boar: { coins: [40, 70], mat: ["hide", 1], gear: 1, minRarity: 2, epic: .15, ilvl: 5 },
 };
 function rollRarity(min, epic){ const r = Math.random(); const v = r < .01 + (epic || 0) ? 3 : r < .12 ? 2 : r < .45 ? 1 : 0; return Math.max(min || 0, v); }
