@@ -47,11 +47,19 @@ Object.assign(SIM, {
     c.gearVer++;
     SIM.fx(W, { k: "crafted", side: c.side, n: recipeName(R), q: made, set: R.out.set || "", x: c.x, y: c.y });
   },
-  // a node: quest progress if a collect quest wants it, and materials if you have the profession
-  gather(W, c, n){
+  // walking up to a node starts gathering it: a pickaxe for rocks, a quick pick for flowers (moving cancels)
+  startGather(W, c, n){
     const qid = SIM.collectQuest(c, n.kind), G2 = GATHER[n.kind], can = G2 && SIM.hasProf(c, G2.prof);
     if(!qid && !can){ SIM.fx(W, { k: "msg", side: c.side, text: G2 ? `${NODE_INFO[n.kind].idle} (Learn ${PROFS[G2.prof].name} from Master Artisan Brenna.)` : NODE_INFO[n.kind].idle }); return; }
     if(!qid && c.prof[G2.prof] < G2.req){ SIM.fx(W, { k: "msg", side: c.side, text: `${NODE_INFO[n.kind].name} needs ${PROFS[G2.prof].name} ${G2.req}.` }); return; }
+    const rock = NODE_LOOK[n.kind] && NODE_LOOK[n.kind].rock;
+    c.channel = { node: n.id, t: 0, dur: rock ? GATHER_TIME.rock : GATHER_TIME.flower, k: rock ? "mine" : "pick", x: n.x, y: n.y, name: `${rock ? "Mining" : "Picking"} ${NODE_INFO[n.kind].name}` };
+    c.move = c.target = null; c.face = Math.atan2(n.x - c.x, n.y - c.y);
+  },
+  // the gather lands: quest progress if a collect quest wants it, and materials if you have the profession
+  gather(W, c, n){
+    const qid = SIM.collectQuest(c, n.kind), G2 = GATHER[n.kind], can = G2 && SIM.hasProf(c, G2.prof);
+    if(!qid && !(can && c.prof[G2.prof] >= G2.req)) return;
     n.ready = false; n.respawnAt = W.t + 25;
     SIM.fx(W, { k: "pick", x: n.x, y: n.y });
     if(qid){

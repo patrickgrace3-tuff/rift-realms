@@ -65,7 +65,7 @@ function buildJungle(g){
   const water = new THREE.Mesh(new THREE.PlaneGeometry(ZONE_W, ZONE_W), new THREE.MeshStandardMaterial({ color: 0x3f7a6a, roughness: .25, metalness: .1, transparent: true, opacity: .82 }));
   water.rotation.x = -Math.PI / 2; water.position.set(ctr.x, -.55, ctr.z); grp.add(water);
   // trees, palms and ferns (instanced), kept off the water, paths, camp and fighting grounds
-  const free = (x, y, pad = 0) => { const f = fields(x, y); return f.river < .05 && f.delta < .05 && f.path < .2 && f.camp < .1 && f.ruins < .2 && f.brood < .2 && f.edge < .9 && f.south < .5 && f.clear < .7 - pad && !KAPOKS.some(k => D(x, y, k) < 350) && D(x, y, WAYSTONES.jungle) > 300 && D(x, y, OLD_GATE) > 600; };
+  const free = (x, y, pad = 0) => { const f = fields(x, y); return f.river < .05 && f.delta < .05 && f.path < .2 && f.camp < .1 && f.ruins < .2 && f.brood < .2 && f.edge < .9 && f.south < .5 && f.clear < .7 - pad && !KAPOKS.some(k => D(x, y, k) < 350) && D(x, y, WAYSTONES.jungle) > 300 && D(x, y, OLD_GATE) > 600 && clearOfOre(x, y); };
   const pick = (n, pad) => { const out = []; for(let k = 0; k < n * 6 && out.length < n; k++){ const x = JX + 500 + rnd() * (ZS - 1000), y = JY + 500 + rnd() * (ZS - 1000); if(free(x, y, pad)) out.push([x, y]); } return out; };
   const inst = (geom, mat, list, setup) => { const im = new THREE.InstancedMesh(geom, mat, list.length), d = new THREE.Object3D(); list.forEach((p, i) => { setup(d, p, i); d.updateMatrix(); im.setMatrixAt(i, d.matrix); }); grp.add(im); return im; };
   const trees = pick(430, 0), palms = pick(160, .2), ferns = pick(1100, .45);

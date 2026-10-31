@@ -44,6 +44,7 @@ class CharArt {
     const g = this.g, b = Object.assign({}, BODY[this.o.style] || BODY.melee, this.o.gear || {});
     g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 128, 192); g.imageSmoothingEnabled = false;
     if(flip){ g.translate(128, 0); g.scale(-1, 1); }
+    const dip = pose === "pick" ? 14 : 0; if(dip) g.translate(0, dip);   // kneeling to pick a flower
     const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x / 4) * 4, Math.round(y / 4) * 4, Math.round(w / 4) * 4, Math.round(h / 4) * 4); };
     const step = [0, 1, 0, -1][frame % 4], down = pose === "dead";
     const SL = this.o.setKey && typeof SETS !== "undefined" ? SETS[this.o.setKey] : null, setN = SL ? this.o.setN : 0;
@@ -63,7 +64,17 @@ class CharArt {
     // arms and weapon
     const armSwing = -step * 5;
     const arm = (x, y, w, h) => { R(x, y, w, h, b.dark); R(x, y + h - 8, w, 8, b.gloves || "#e8b88a"); };
-    if(pose === "cast"){
+    if(pose === "mine0" || pose === "mine1"){   // swinging a pickaxe: raised, then striking the rock
+      arm(28, 108, 12, 32);
+      if(pose === "mine0"){   // raised up and out past the head, so it shows
+        R(88, 80, 12, 32, b.dark); R(92, 72, 12, 10, b.gloves || "#e8b88a");
+        for(let i = 0; i < 7; i++) R(100 + i * 3, 70 - i * 8, 6, 10, "#7a5232");
+        R(102, 8, 26, 8, "#9aa6b8"); R(98, 12, 6, 6, "#c8d0dc"); R(124, 14, 4, 10, "#c8d0dc");
+      }
+      else { R(88, 112, 28, 10, b.dark); R(112, 112, 8, 10, b.gloves || "#e8b88a"); R(110, 116, 18, 6, "#7a5232"); R(122, 104, 6, 34, "#9aa6b8"); R(120, 136, 8, 6, "#c8d0dc"); }
+    }else if(pose === "pick"){   // kneeling, one hand reaching down
+      arm(28, 108, 12, 32); R(88, 116, 12, 36, b.dark); R(88, 148, 12, 8, b.gloves || "#e8b88a");
+    }else if(pose === "cast"){
       arm(28, 80, 12, 32); arm(88, 80, 12, 32);
       g.fillStyle = "rgba(255,230,140,.85)"; g.beginPath(); g.arc(34, 76, 7, 0, 7); g.arc(94, 76, 7, 0, 7); g.fill();
     }else if(pose === "attack"){
@@ -83,7 +94,7 @@ class CharArt {
     }
     // head (never mirrored, so the portrait reads correctly)
     g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = true;
-    const hx = 64, hy = 56, hr = 46;
+    const hx = 64, hy = 56 + dip, hr = 46;
     if(this.o.drawHead) this.o.drawHead(g, hx, hy, hr);
     else {
       g.save(); g.beginPath(); g.arc(hx, hy, hr, 0, Math.PI * 2); g.clip();

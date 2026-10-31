@@ -109,7 +109,7 @@ function buildZone(){
   const trees = [];
   for(let k = 0; k < 4200; k++){
     const x = 300 + rnd() * (ZS - 600), y = 300 + rnd() * (ZS - 600), f = fields(x, y);
-    if(f.dAr < ARENA.r + 250 || f.dP < 260 || f.dV < VILLAGE.r + 250 || f.dPa < PASTURE.r + 260 || f.dPo < POND.r + 220 || f.dDen < DEN.r + 120 || f.dCamp < 420 || inClear(x, y)) continue;
+    if(f.dAr < ARENA.r + 250 || f.dP < 260 || f.dV < VILLAGE.r + 250 || f.dPa < PASTURE.r + 260 || f.dPo < POND.r + 220 || f.dDen < DEN.r + 120 || f.dCamp < 420 || inClear(x, y) || !clearOfOre(x, y)) continue;
     const h = height(x, y, f); if(h > 7.5) continue;
     const dens = .12 + .75 * Math.max(f.edge, ss(.2, 1, noise(x * .8 + 500, y * .8 - 300))) + (Math.hypot(x - PINES.x, y - PINES.y) < PINES.r + 450 ? .45 : 0);
     if(rnd() < dens) trees.push([x, y, h]);

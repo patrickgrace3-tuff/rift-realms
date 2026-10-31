@@ -90,7 +90,7 @@ function worldToScreen(x, y, z){ projV.set(x, y, z).project(camera); return [(pr
 function command(cmd){ if(!G) return; if(G.role === "host") SIM.input(G.W, G.myTeam, cmd); else send(Object.assign({ t: "in" }, cmd)); }
 function thingUnderCursor(cx, cy){
   for(let i = 0; i < USE_POINTS.length; i++){ const b = USE_POINTS[i], w = XF(b.x, b.y), [sx, sy] = worldToScreen(w.x, hAt(w.x, w.z) + 1.3, w.z); if(Math.abs(sx - cx) < 40 && Math.abs(sy - cy) < 60) return { use: i }; }
-  for(const [id, nv] of G.nodeVis){ if(!nv.spr.visible) continue; const [sx, sy] = worldToScreen(nv.spr.position.x, nv.spr.position.y, nv.spr.position.z); if(Math.hypot(sx - cx, sy - cy) < 36) return { gather: id }; }
+  for(const [id, nv] of G.nodeVis){ if(!nv.clickable || !nv.at) continue; const [sx, sy] = worldToScreen(nv.at.x, nv.at.y, nv.at.z); if(Math.hypot(sx - cx, sy - cy) < 44) return { gather: id }; }
   for(const [, lv] of G.lootVis){ if(!lv.pos) continue; const [sx, sy] = worldToScreen(lv.pos.x, lv.pos.y + .7, lv.pos.z); if(Math.hypot(sx - cx, sy - cy) < 40) return { pickup: lv.pos.id }; }
   for(const nv of G.npcVis){ const [sx, sy] = worldToScreen(nv.pos.x, nv.pos.y + 1.4, nv.pos.z); if(Math.abs(sx - cx) < 40 && Math.abs(sy - cy) < 70) return { npc: nv.n.id }; }
   // your duel opponent can be attacked like a creature

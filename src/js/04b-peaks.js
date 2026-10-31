@@ -62,7 +62,7 @@ function buildPeaks(g, valeH, T){
   for(let k = 0; k < 3600; k++){
     const x = 300 + rnd() * (ZS - 600), y = ZS + 400 + rnd() * (ZS - 700), f = fields(x, y);
     if(f.dP < 280 || f.dOut < OUTPOST.r + 250 || f.dMead < RAM_MEADOW.r - 200 || f.crag > .25 || f.dRidge < LYNX_RIDGE.r * .9 || Math.hypot(x - SUMMIT.x, y - SUMMIT.y) < 500) continue;
-    if(f.dMine < MINE.r + 200 || f.dLake < LAKE.r + 450 || f.dLair < LAIR.r + 300 || f.dYeti < YETI_DEN.r + 150 || f.dCamps < 450 || RUNES.some(r => Math.hypot(r.x - x, r.y - y) < 300)) continue;
+    if(f.dMine < MINE.r + 200 || f.dLake < LAKE.r + 450 || f.dLair < LAIR.r + 300 || f.dYeti < YETI_DEN.r + 150 || f.dCamps < 450 || RUNES.some(r => Math.hypot(r.x - x, r.y - y) < 300) || !clearOfOre(x, y)) continue;
     const h = height(x, y, f); if(h > 8) continue;
     if(rnd() < .25 + .6 * ss(.1, .9, noise(x * .7 - 200, y * .7 + 400))) trees.push([x, y, h]);
   }

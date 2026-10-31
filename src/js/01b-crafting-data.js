@@ -21,6 +21,29 @@ const GATHER = {
 // beasts you can skin after a kill
 const SKIN = { wolf: ["lighthide", 0, 1], boar: ["lighthide", 0, 3], ram: ["frostfur", 50, 1], lynx: ["frostfur", 50, 1], yeti: ["frostfur", 50, 3],
   prowler: ["primalhide", 100, 1], ape: ["primalhide", 100, 1], croc: ["primalhide", 100, 1], greyback: ["primalhide", 100, 3] };
+// how each node looks and how long it takes: rocks are mined (pickaxe swings), flowers are picked
+const NODE_LOOK = {
+  copper: { rock: true, col: 0xd8823a }, ore: { rock: true, col: 0x9fe6ff }, emberite: { rock: true, col: 0xff5a1a, hot: true },
+  herb: { col: 0xffe066, core: 0xff9a30 }, frostbloom: { col: 0x9fd8ff, core: 0xffffff }, bloodvine: { col: 0xd01a2a, core: 0xffcf40 },
+};
+const GATHER_TIME = { rock: 2, flower: 1 };
+// ore around the outskirts of each outdoor zone: a band 1150–1450 in from the north, east and west edges
+// (not the south, where the camera looks in from). Fixed spots, so the scenery keeps trees clear of them.
+function outskirts([x0, y0, w, h], n, seed){
+  let s = seed; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647, out = [];
+  for(let tries = 0; out.length < n && tries < 4000; tries++){
+    const d = 1150 + rnd() * 300, along = 1300 + rnd() * (w - 2600), side = Math.floor(rnd() * 3);
+    const [x, y] = [[x0 + along, y0 + h - d], [x0 + d, y0 + 1500 + rnd() * (h - 2400)], [x0 + w - d, y0 + 1500 + rnd() * (h - 2400)]][side];
+    if(OBSTACLES.some(o => Math.hypot(o.x - x, o.y - y) < o.r + 160) || out.some(p => Math.hypot(p.x - x, p.y - y) < 600)) continue;
+    out.push({ x, y });
+  }
+  return out;
+}
+const ORE_OUTSKIRTS = { copper: outskirts([0, 0, ZS, ZS], 16, 101), ore: outskirts([0, ZS, ZS, ZS], 16, 202), emberite: outskirts([ZS, DZ, ZS, ZS], 16, 303) };
+for(const kind in ORE_OUTSKIRTS) NODE_SPOTS.push({ kind, points: ORE_OUTSKIRTS[kind] });
+// scenery stays clear of the outskirts ore, most of all on the camera's side (south) of it
+const ORE_POINTS = Object.values(ORE_OUTSKIRTS).flat();
+const clearOfOre = (x, y) => ORE_POINTS.every(p => { const dx = Math.abs(p.x - x), dy = p.y - y; return Math.hypot(dx, dy) > 380 && !(dx < 420 && dy > 0 && dy < 1100); });
 // new gathering spots
 const COPPER_HILLS = { x: 2300, y: 2100 }, EMBER_HOLLOW = { x: ZS + 5300, y: DZ + 5500 };
 NODE_SPOTS.push({ kind: "copper", x: COPPER_HILLS.x, y: COPPER_HILLS.y, rmin: 150, rmax: 650, n: 10 }, { kind: "emberite", x: EMBER_HOLLOW.x, y: EMBER_HOLLOW.y, rmin: 150, rmax: 650, n: 10 });

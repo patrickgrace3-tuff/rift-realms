@@ -159,3 +159,45 @@ function updateSetAura(v, c, w, y, t, hidden){
   }
   if(fx.key === "void") for(const e of fx.extras){ if(e.userData.disc){ e.scale.setScalar(1.4 + Math.sin(t * 2) * .15); continue; } const a = e.userData.a + t * 1.8; e.position.set(Math.cos(a) * 1.1, 1.4 + Math.sin(t * 3 + a) * .4, Math.sin(a) * 1.1); }
 }
+
+/* ---------- Gathering nodes in the world: rocks to mine, flowers to pick ---------- */
+const NODE_MATS = {};
+function nodeMat(col, opts = {}){ const k = col + JSON.stringify(opts); return NODE_MATS[k] || (NODE_MATS[k] = new (opts.basic ? THREE.MeshBasicMaterial : THREE.MeshStandardMaterial)(Object.assign({ color: col, flatShading: true }, opts.basic ? {} : { roughness: .8 }, opts.emissive ? { emissive: col, emissiveIntensity: .6 } : {}))); }
+function buildNodeVis(kind, x, y){
+  const L = NODE_LOOK[kind] || { col: 0xffffff }, grp = new THREE.Group(), seed = (x * 7 + y * 13) % 1000 / 1000;
+  const nv = { grp, kind, rock: !!L.rock, parts: [] };
+  if(L.rock){
+    // a boulder cluster with glowing crystal veins
+    const stone = nodeMat(kind === "emberite" ? 0x4a3a34 : kind === "ore" ? 0x6a6e78 : 0x7a6a5a);
+    for(const [dx, dz, s] of [[0, 0, 1], [.55, .2, .65], [-.45, .3, .55]]){ const b = new THREE.Mesh(new THREE.IcosahedronGeometry(.55, 0), stone); b.position.set(dx, .3 * s, dz); b.scale.set(s, s * .8, s); b.rotation.set(seed * 6, seed * 9 + dx, 0); grp.add(b); }
+    for(let i = 0; i < 5; i++){ const a = i / 5 * Math.PI * 2 + seed * 3, cr = new THREE.Mesh(new THREE.ConeGeometry(.09, .45 + (i % 2) * .2, 5), nodeMat(L.col, { emissive: true })); cr.position.set(Math.cos(a) * .32, .45, Math.sin(a) * .32); cr.rotation.set(Math.sin(a) * .6, 0, -Math.cos(a) * .6); grp.add(cr); nv.parts.push(cr); }
+  }else{
+    // a little clump of flowers
+    for(let f = 0; f < 3; f++){
+      const fx = (f - 1) * .28 + seed * .1, fz = (f % 2) * .2 - .1, h = .35 + f * .08, stem = new THREE.Mesh(new THREE.CylinderGeometry(.025, .03, h, 4), nodeMat(0x3f7a2a)); stem.position.set(fx, h / 2, fz); grp.add(stem);
+      const head = new THREE.Group(); head.position.set(fx, h, fz);
+      for(let p = 0; p < 5; p++){ const a = p / 5 * Math.PI * 2, petal = new THREE.Mesh(new THREE.SphereGeometry(.08, 5, 4), nodeMat(L.col)); petal.scale.set(1.3, .45, .8); petal.position.set(Math.cos(a) * .09, 0, Math.sin(a) * .09); petal.rotation.y = -a; head.add(petal); }
+      const core = new THREE.Mesh(new THREE.SphereGeometry(.05, 5, 4), nodeMat(L.core || 0xffffff)); head.add(core); grp.add(head); nv.parts.push(head);
+    }
+    for(let l = 0; l < 3; l++){ const leaf = new THREE.Mesh(new THREE.SphereGeometry(.12, 5, 3), nodeMat(0x4f8a3a)); leaf.scale.set(1.6, .25, .6); leaf.position.set((l - 1) * .2, .05, .12); leaf.rotation.y = l; grp.add(leaf); }
+  }
+  nv.glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowMat.map, color: L.col, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); nv.glow.scale.set(L.rock ? 2.2 : 1.4, L.rock ? 2.2 : 1.4, 1); nv.glow.position.y = L.rock ? .5 : .4; grp.add(nv.glow);
+  return nv;
+}
+// ready nodes show for everyone (they're scenery); the ones you can gather glow and can be clicked
+function updateNodeVis(nv, x, y, ready, want, t){
+  const w = XF(x, y), gy = hAt(w.x, w.z);
+  nv.grp.position.set(w.x, gy, w.z); nv.at = { x: w.x, y: gy + .4, z: w.z };
+  nv.clickable = !!ready && want;
+  if(nv.rock){ for(const p of nv.parts) p.visible = !!ready; nv.grp.scale.setScalar(ready ? 1 : .75); nv.grp.visible = true; }
+  else nv.grp.visible = !!ready;
+  nv.glow.visible = nv.clickable; nv.glow.material.opacity = .45 + Math.sin(t * 4 + x) * .25;
+  if(!nv.rock && ready) nv.parts.forEach((h, i) => { h.rotation.z = Math.sin(t * 2 + i + x) * .12; });
+}
+// pickaxe strikes: chips of rock fly from the node
+function miningChips(c, v, t){
+  if(!c.chan || c.chan.k !== "mine") return;
+  const beat = Math.floor(t / .45); if(beat === v.mineBeat) return; v.mineBeat = beat;
+  G.fx.push({ k: "pop", x: c.chan.x, y: c.chan.y, t: 0, dur: .35 }); G.fx.push({ k: "hit", x: c.chan.x, y: c.chan.y, t: 0, dur: .25 });
+  playSound(() => sfxAt("hit-flesh", c.x, c.y));
+}

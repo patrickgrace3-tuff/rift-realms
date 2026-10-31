@@ -437,7 +437,7 @@ test("Peaks: all ten quests after Claws on the Ridge can be completed", () => {
     for(let k = 0; k < 30 && h.quests[qid].state === "active"; k++){
       const n = W.nodes.filter(n => n.ready && n.kind === kind).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
       if(!n){ t.step(5); continue; }
-      t.travel(n.x, n.y, 120); SIM.input(W, "blue", { gather: n.id }); t.step(2);
+      t.travel(n.x, n.y, 120); SIM.input(W, "blue", { gather: n.id }); t.step(3);
     }
   };
   acceptAt("halvard", "rams"); t.travel(G.QUESTS.rams.where[0], G.QUESTS.rams.where[1]); t.fightUntil("rams", "ram", 400); turnInAt("halvard", "rams");
@@ -1082,7 +1082,7 @@ test("jungle: a level 17 player can do every quest before the raids alone", () =
   accept("tamsin", "canopy"); hunt("canopy", "serpent"); turnIn("tamsin", "canopy");
   accept("tamsin", "vantage"); G.VANTAGES.forEach((p, i) => { for(let k = 0; k < 3 && !h.quests.vantage.flags[i]; k++) travel(p.x, p.y, 200); }); turnIn("tamsin", "vantage");
   accept("ezo", "bloodvine");
-  for(let k = 0; k < 30 && h.quests.bloodvine.state === "active"; k++){ const n = near(W.nodes.filter(n => n.ready && n.kind === "bloodvine")); if(!n){ step(5); continue; } travel(n.x, n.y); SIM.input(W, "blue", { gather: n.id }); step(2); }
+  for(let k = 0; k < 30 && h.quests.bloodvine.state === "active"; k++){ const n = near(W.nodes.filter(n => n.ready && n.kind === "bloodvine")); if(!n){ step(5); continue; } travel(n.x, n.y); SIM.input(W, "blue", { gather: n.id }); step(3); }
   turnIn("ezo", "bloodvine");
   accept("ezo", "prowlers"); hunt("prowlers", "prowler"); turnIn("ezo", "prowlers");
   accept("tamsin", "greyback"); travel(G.GREYBACK_DEN.x, G.GREYBACK_DEN.y - 500, 200); hunt("greyback", "greyback", 400); turnIn("tamsin", "greyback");
@@ -1240,4 +1240,27 @@ test("sets: 2, 4 and 6 piece bonuses, and each set's six-piece effect", () => {
   const s = JSON.parse(JSON.stringify(G.saveRecord(SIM.snapshot(W).h.find(x => x.side === "green"), c.champId)));
   const W2 = SIM.create(), c2 = SIM.addHero(W2, "green", MAGE()); SIM.loadSave(W2, c2, s);
   assert.equal(c2.setN, 6, "all six pieces back"); assert.equal(c2.equip.weapon.set, "void");
+});
+
+test("gathering: ore rings each zone's outskirts; mining and picking take time, and moving cancels them", () => {
+  const { W, h } = craftHero();
+  h.prof = { mining: 1, herbalism: 1 };
+  for(const [kind, x0, y0] of [["copper", 0, 0], ["ore", 0, G.ZS], ["emberite", G.ZS, G.DZ]]){
+    const ring = W.nodes.filter(n => n.kind === kind && Math.min(n.x - x0, x0 + G.ZS - n.x, n.y - y0, y0 + G.ZS - n.y) < 1500);
+    assert.ok(ring.length >= 12, `${kind} around the edges (${ring.length})`);
+    assert.ok(ring.every(n => n.y - y0 > 1500 || n.x - x0 < 1500 || x0 + G.ZS - n.x < 1500), `${kind}: not on the south edge`);
+    assert.ok(ring.every(n => Math.min(n.x - x0, x0 + G.ZS - n.x, n.y - y0, y0 + G.ZS - n.y) >= 700), `${kind} nodes are reachable`);
+  }
+  const rock = W.nodes.find(n => n.kind === "copper"); h.x = rock.x; h.y = rock.y - 200;
+  SIM.input(W, "blue", { gather: rock.id }); runFor(W, 1);
+  assert.ok(h.channel && h.channel.k === "mine" && !h.inv.some(i => i.key === "copperore"), "mining takes a moment");
+  SIM.input(W, "blue", { gather: rock.id }); runFor(W, 1.5);
+  assert.ok(h.inv.some(i => i.key === "copperore") && !rock.ready, "then the ore comes out");
+  const flower = W.nodes.find(n => n.kind === "herb" && n.ready); h.x = flower.x; h.y = flower.y - 200;
+  SIM.input(W, "blue", { gather: flower.id }); runFor(W, .6);
+  assert.equal(h.channel && h.channel.k, "pick");
+  SIM.input(W, "blue", { move: [h.x + 500, h.y] }); runFor(W, 1.5);
+  assert.ok(!h.inv.some(i => i.key === "sunpetal") && flower.ready, "walking away cancels the pick");
+  SIM.input(W, "blue", { gather: flower.id }); runFor(W, 4);
+  assert.ok(h.inv.some(i => i.key === "sunpetal"), "picked on the second try");
 });

@@ -35,7 +35,10 @@ function render(dt){
     const tier = c.wglow ? 1 : 0;
     applyLook(v.art, c.gear && c.gear.equip);
     if((v.art.o.tier || 0) !== tier){ v.art.o.tier = tier; v.art.key = ""; }
-    const pose = c.dead ? "dead" : t < v.castUntil ? "cast" : t < v.atkUntil ? "attack" : "idle";
+    // mining swings a pickaxe up and down; picking kneels and reaches for the flower
+    const gathering = c.chan && !c.dead ? c.chan.k : "";
+    if(gathering === "mine") miningChips(c, v, t);
+    const pose = c.dead ? "dead" : gathering === "mine" ? (t % .45 < .25 ? "mine0" : "mine1") : gathering === "pick" ? "pick" : t < v.castUntil ? "cast" : t < v.atkUntil ? "attack" : "idle";
     const frame = c.moving && !c.dead ? Math.floor(t * 9) % 4 : 0;
     if(v.art.draw(frame, v.flip, pose)) v.tex.needsUpdate = true;
     const hidden = !!c.stealth && c.side !== G.myTeam;
@@ -144,13 +147,8 @@ function render(dt){
   for(const n of (s.n || [])){
     const [id, x, y, ready, kind] = n;
     let nv = G.nodeVis.get(id);
-    if(!nv){
-      nv = { spr: new THREE.Sprite(new THREE.SpriteMaterial({ map: nodeTexture(kind), transparent: true, depthWrite: false })), glow: new THREE.Sprite(glowMat) };
-      nv.spr.scale.set(.8, .8, 1); nv.glow.scale.set(1.6, 1.6, 1); G.root.add(nv.spr, nv.glow); G.nodeVis.set(id, nv);
-    }
-    const w = XF(x, y), gy = hAt(w.x, w.z), vis = want.has(kind) && !!ready;
-    nv.spr.visible = nv.glow.visible = vis;
-    nv.spr.position.set(w.x, gy + .45, w.z); nv.glow.position.set(w.x, gy + .5, w.z); nv.glow.material.opacity = .5 + Math.sin(t * 4 + x) * .3;
+    if(!nv){ nv = buildNodeVis(kind, x, y); G.root.add(nv.grp); G.nodeVis.set(id, nv); }
+    updateNodeVis(nv, x, y, ready, want.has(kind), t);
   }
   // things to use (beacons, runes): lit once done, a glowing hint while the quest is active
   USE_POINTS.forEach((pt, i) => {

@@ -15,6 +15,7 @@ const SIM = {
     let nid = 0;
     for(const sp of NODE_SPOTS){
       const mine = [];
+      if(sp.points){ for(const p of sp.points) mine.push({ id: "n" + nid++, kind: sp.kind, x: p.x, y: p.y, ready: true, respawnAt: 0 }); W.nodes.push(...mine); continue; }   // fixed spots
       for(let tries = 0; mine.length < sp.n && tries < 600; tries++){
         const a = Math.random() * Math.PI * 2, r = sp.rmin + Math.random() * (sp.rmax - sp.rmin), x = clampX(sp.x + Math.cos(a) * r), y = clampY(sp.y + Math.sin(a) * r);
         if(OBSTACLES.some(o => Math.hypot(o.x - x, o.y - y) < o.r + 140) || mine.some(n => Math.hypot(n.x - x, n.y - y) < 220)) continue;
@@ -275,7 +276,7 @@ const SIM = {
     for(const qid in c.quests){
       const qs = c.quests[qid], Q = QUESTS[qid], o = Q.obj;
       if(qs.state !== "active") continue;
-      if(o.type === "collect"){ for(const n of W.nodes) if(n.ready && n.kind === o.node && Math.hypot(n.x - c.x, n.y - c.y) < 90){ SIM.gather(W, c, n); break; } }
+      if(o.type === "collect"){ if(!c.channel && !c.move && !c.target) for(const n of W.nodes) if(n.ready && n.kind === o.node && Math.hypot(n.x - c.x, n.y - c.y) < 90){ SIM.startGather(W, c, n); break; } }
       else if(o.type === "explore"){
         o.points.forEach((p, i) => {
           if(qs.state !== "active" || qs.flags[i] || Math.hypot(p.x - c.x, p.y - c.y) > 380) return;
@@ -391,6 +392,7 @@ const SIM = {
       return;
     }
     if(c.dead) return;
+    if(cmd.gather && c.channel && c.channel.node === String(cmd.gather)) return;   // already gathering that one
     if(cmd.move || cmd.atk || cmd.talk || cmd.gather || cmd.use !== undefined){ c.lootTo = null; c.gatherTo = null; c.useTo = null; c.channel = null; }
     if(cmd.gather){ const n = W.nodes.find(x => x.id === String(cmd.gather)); if(n){ c.gatherTo = n.id; c.move = c.target = c.talkTo = null; } return; }
     if(cmd.use !== undefined){ const i = Math.floor(+cmd.use); if(USE_POINTS[i]){ c.useTo = i; c.move = c.target = c.talkTo = null; } return; }
@@ -516,11 +518,11 @@ const SIM = {
         if(c.target && !tgt) c.target = null;
         if(c.channel){
           c.channel.t += dt;
-          if(c.channel.t >= c.channel.dur){ const ch = c.channel; c.channel = null; SIM.finishUse(W, c, ch.i); }
+          if(c.channel.t >= c.channel.dur){ const ch = c.channel; c.channel = null; if(ch.node){ const n = W.nodes.find(x => x.id === ch.node); if(n && n.ready) SIM.gather(W, c, n); } else SIM.finishUse(W, c, ch.i); }
         }else if(c.gatherTo){
           const n = W.nodes.find(x => x.id === c.gatherTo);
           if(!n || !n.ready) c.gatherTo = null;
-          else if(Math.hypot(n.x - c.x, n.y - c.y) < 130){ SIM.gather(W, c, n); c.gatherTo = null; }
+          else if(Math.hypot(n.x - c.x, n.y - c.y) < 130){ SIM.startGather(W, c, n); c.gatherTo = null; }
           else goal = [n.x, n.y];
         }else if(c.useTo !== null && c.useTo !== undefined){
           const b = USE_POINTS[c.useTo];
@@ -704,7 +706,7 @@ const SIM = {
         talents: c.talents, points: talentPoints(c.lvl, c.talents), orbN: c.orbN || 3, ad: Math.round(c.ad),
         wglow: c.weapon && c.weapon.glow ? 1 : 0, coins: c.coins, ap: Math.round(c.ap), armor: Math.round(c.armor), haste: Math.round(c.hasteG), msPct: Math.round(c.msPct),
         pot: c.potT > W.t ? Math.ceil(c.potT - W.t) : 0, prof: c.prof, sk: c.setKey || "", sn: c.setN || 0, aw: c.arenaWins || 0, ab: c.arenaBest || 0, bot: c.bot ? 1 : 0, merc: c.merc ? c.merc.role : "",
-        chan: c.channel ? { n: c.channel.name, p: Math.round(c.channel.t / c.channel.dur * 100) / 100 } : null, party: c.party || "",
+        chan: c.channel ? { n: c.channel.name, p: Math.round(c.channel.t / c.channel.dur * 100) / 100, k: c.channel.k || "", x: c.channel.x || 0, y: c.channel.y || 0 } : null, party: c.party || "",
         gear: { ver: c.gearVer, inv: c.inv, equip: c.equip } })),
       m: W.mobs.map(m => [m.id, m.kind, r(m.x), r(m.y), r(m.hp), r(m.maxHp), Math.round(m.face * 10) / 10, (m.moving ? 1 : 0) | (m.aggro ? 2 : 0) | (m.charging ? 4 : 0) | (m.windup > 0 || m.cast ? 8 : 0) | (m.hidden ? 16 : 0)]),
       l: W.loot.map(l => [l.id, l.side, l.item, r(l.x), r(l.y), l.rar || 0]),
