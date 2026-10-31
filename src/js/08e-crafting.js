@@ -14,10 +14,15 @@ function renderProf(){
   const key = [JSON.stringify(prof), me.gear && me.gear.ver, G.profTab, atTrainer, atForge].join("|"); if(key === G.profKey) return; G.profKey = key;
   $("#profForge").textContent = atForge ? "At an Artisan's Forge" : "Crafting needs an Artisan's Forge";
   $("#profForge").className = atForge ? "coins" : "lobbymsg";
-  $("#profSkills").innerHTML = PROF_KEYS.map(p => {
+  const guide = PROF_KEYS.some(p => prof[p]) ? "" : `<div class="setinfo" style="--sc:#f0d58e"><b>How to start</b>
+    <div><span>1.</span> Go to <b>Master Artisan Brenna</b> in Sunhollow village, by the stone forge just west of the well (she's marked on your map).</div>
+    <div><span>2.</span> Talk to her (T or right-click) and learn the professions you want here. They're free.</div>
+    <div><span>3.</span> Gather: with Mining or Herbalism, ore and herbs show up in the world; with Skinning, beasts you kill give hides.</div>
+    <div><span>4.</span> Refine and forge with Artisanry at any Artisan's Forge (village, Highwatch Outpost, Canopy Camp).</div></div>`;
+  $("#profSkills").innerHTML = guide + PROF_KEYS.map(p => {
     const P = PROFS[p], v = prof[p];
     const right = v ? `<div class="pbar"><i style="width:${v / PROF_MAX * 100}%"></i><span>${v} / ${PROF_MAX}</span></div>`
-      : `<button class="btn small" data-learn="${p}" ${atTrainer ? "" : "disabled"} title="${atTrainer ? "" : "Learn from Master Artisan Brenna in Sunhollow village"}">Learn</button>`;
+      : `<button class="btn small${atTrainer ? " primary" : ""}" data-learn="${p}" title="${atTrainer ? "" : "Learn from Master Artisan Brenna in Sunhollow village"}">${atTrainer ? "Learn" : "Learn (at Brenna)"}</button>`;
     return `<div class="profrow"><div><b>${P.name}</b><span>${esc(P.hint)}</span></div>${right}</div>`;
   }).join("") + (atTrainer ? "" : `<p class="lobbymsg" style="text-align:left">Learn professions from <b>Master Artisan Brenna</b> in Sunhollow village, by the Artisan's Forge.</p>`);
   $("#profTabs").innerHTML = RECIPE_GROUPS.map(([g, label]) => `<button class="chip" data-ptab="${g}" aria-pressed="${G.profTab === g}">${label}</button>`).join("");
@@ -25,17 +30,22 @@ function renderProf(){
   let html = S ? `<div class="setinfo" style="--sc:${S.color}"><b>${S.name}</b> · six pieces for ${S.cls} champions${S.bonus.map(([n, t]) => `<div><span>(${n})</span> ${esc(t)}</div>`).join("")}</div>` : "";
   html += Object.values(RECIPES).filter(R => R.group === G.profTab).map(R => {
     const ok = Object.keys(R.need).every(m => have(m) >= R.need[m]), can = !!prof.artisanry && atForge && skill >= R.req && ok;
+    const why = !prof.artisanry ? "Learn Artisanry from Brenna first" : skill < R.req ? `Needs Artisanry ${R.req}` : !atForge ? "Go to an Artisan's Forge" : !ok ? "Missing materials" : "";
     const icon = R.out.mat ? makeMat(R.out.mat, 0) : makeSetItem(R.out.set, R.out.slot, 0);
     const mats = Object.keys(R.need).map(m => `<span style="color:${have(m) >= R.need[m] ? "#cfe8c8" : "#ff8a70"}">${esc(MATERIALS[m].n)} ${have(m)}/${R.need[m]}</span>`).join(" · ");
     return `<div class="rrow"><img alt="" src="${itemIconURL(icon)}"><div class="ri"><b style="color:${R.out.set ? RARITY[SET_RARITY].c : "#f3ead2"}">${esc(recipeName(R))}</b>
-      <span style="color:${profSkillColor(skill, R.req)}">Artisanry ${R.req}</span><span class="rm">${mats}</span></div>
+      <span style="color:${profSkillColor(skill, R.req)}">Artisanry ${R.req}</span><span class="rm">${mats}</span>${why ? `<span class="why">${why}</span>` : ""}</div>
       <div class="row"><button class="btn${R.out.set ? " primary" : ""}" data-craft="${R.id}" data-n="1" ${can ? "" : "disabled"}>${R.out.set ? "Forge" : "Craft"}</button>${R.out.mat ? `<button class="btn" data-craft="${R.id}" data-n="5" ${can ? "" : "disabled"}>×5</button>` : ""}</div></div>`;
   }).join("");
   $("#profRecipes").innerHTML = html;
 }
 $("#profWin").addEventListener("click", e => {
   const b = e.target.closest("[data-learn],[data-ptab],[data-craft]"); if(!b || !G) return;
-  if(b.dataset.learn) command({ learn: b.dataset.learn });
+  if(b.dataset.learn){
+    const me = G.snap.h.find(h => h.side === G.myTeam), br = NPCS.find(n => n.profs);
+    if(me && Math.hypot(me.x - br.x, me.y - br.y) > 450){ toast("Go to Master Artisan Brenna in Sunhollow village (by the forge west of the well) to learn professions."); return; }
+    command({ learn: b.dataset.learn });
+  }
   else if(b.dataset.ptab){ G.profTab = b.dataset.ptab; }
   else if(b.dataset.craft) command({ craft: b.dataset.craft, n: +b.dataset.n });
   G.profKey = ""; renderProf();

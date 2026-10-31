@@ -90,3 +90,4 @@ NPCS.push({ id: "brenna", profs: true, name: "Master Artisan Brenna", title: "Pr
 OBSTACLES.push({ x: 3600, y: 3720, r: 55 });
 const FORGES = [{ x: 3440, y: 3930, name: "Artisan's Forge" }, { x: OUTPOST.x + 520, y: OUTPOST.y - 320, name: "Artisan's Forge" }, { x: CANOPY.x - 470, y: CANOPY.y + 470, name: "Artisan's Forge" }];
 const FORGE_RANGE = 450;
+POIS.push({ name: "Master Artisan Brenna", x: 3600, y: 3720 - 420 }, ...FORGES.slice(1).map(f => ({ name: "Artisan's Forge", x: f.x, y: f.y - 380 })));
