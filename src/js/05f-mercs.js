@@ -36,7 +36,8 @@ Object.assign(SIM, {
     const npc = NPCS.filter(n => n.mercs).sort((a, b) => Math.hypot(a.x - c.x, a.y - c.y) - Math.hypot(b.x - c.x, b.y - c.y))[0];
     if(c.dead || c.mercPending) return true;
     if(Math.hypot(c.x - npc.x, c.y - npc.y) > 500){ SIM.tell(W, c, `Talk to ${npc.name} to hire a party.`); return true; }
-    if(!npc.mercs.some(q => c.quests[q] && c.quests[q].state === "active")){ SIM.tell(W, c, `${npc.name} only hires out a party while you're on ${npc.id === "yrsa" ? "the hunt for Skarnvir" : "her quests in the cathedral"}.`); return true; }
+    // anyone who has taken on one of this NPC's quests (finished or not) can hire, so you can come back and clear it again
+    if(!npc.mercs.some(q => c.quests[q] && c.quests[q].state !== "failed")){ SIM.tell(W, c, `${npc.name} only hires out a party once you've taken on ${npc.id === "yrsa" ? "the hunt for Skarnvir" : "her quests"}.`); return true; }
     const members = SIM.partyMembers(W, c);
     if(members.some(h => h.merc)){ SIM.tell(W, c, "You already have a hired party."); return true; }
     const p = SIM.party(W, c);

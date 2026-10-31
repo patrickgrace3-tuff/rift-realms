@@ -190,7 +190,7 @@ function openDialog(f){
   // Scout Yrsa rents out a raid party while you hunt Skarnvir
   const me = G.snap && G.snap.h.find(h => h.side === G.myTeam), p = myParty();
   const hired = p && p[2].some(s => { const h = heroBySide(s); return h && h.merc; });
-  const hire = $("#dlgHire"), onQuest = npc.mercs && me && npc.mercs.some(q => me.quests[q] && me.quests[q].state === "active");
+  const hire = $("#dlgHire"), onQuest = npc.mercs && me && npc.mercs.some(q => me.quests[q] && me.quests[q].state !== "failed");
   hire.hidden = !(onQuest && !hired && (!p || p[1] === G.myTeam));
   if(!hire.hidden){
     const free = PARTY_MAX - (p ? p[2].length : 1), price = MERCS.price * ((me && me.lvl) || 1);

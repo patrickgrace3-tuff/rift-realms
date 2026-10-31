@@ -767,8 +767,9 @@ test("hired party: roles come from tags and abilities, and the plan fills a part
 
 test("hired party: only from Yrsa, only during the Skarnvir hunt, paid for, and only once", () => {
   const { W, h, yrsa } = hireWorld();
-  h.quests.rimewyrm.state = "ready"; SIM.input(W, "blue", { hire: 1 }); assert.equal(W.mercReqs.length, 0, "not after the hunt");
-  h.quests.rimewyrm.state = "active"; h.x = yrsa.x + 2000; SIM.input(W, "blue", { hire: 1 }); assert.equal(W.mercReqs.length, 0, "not from far away");
+  const was = h.quests.rimewyrm; delete h.quests.rimewyrm; SIM.input(W, "blue", { hire: 1 }); assert.equal(W.mercReqs.length, 0, "not before you've taken the hunt");
+  h.quests.rimewyrm = was;
+  h.x = yrsa.x + 2000; SIM.input(W, "blue", { hire: 1 }); assert.equal(W.mercReqs.length, 0, "not from far away");
   h.x = yrsa.x + 100; h.coins = 5; SIM.input(W, "blue", { hire: 1 }); assert.equal(W.mercReqs.length, 0, "not without the coins");
   h.coins = 10000;
   const mercs = hireNow(W, h);
@@ -1125,5 +1126,15 @@ test("jungle: Mawgrot dives and Shadowmane vanishes; a hired party kills both fo
     const mine = [...h.inv, ...W.loot.filter(l => l.side === "blue").flatMap(l => l.items || [])];
     assert.equal(mine.filter(i => i.r === 4).length, 1, "a Legendary"); assert.ok(mine.some(i => i.r === 3), "and an Epic");
     assert.ok(!W.loot.some(l => l.side && l.side.startsWith("merc")), "nothing for the hired party");
+  }
+});
+
+test("hired party: after you've finished the quests you can still hire a party to go back", () => {
+  for(const [npcId, quests] of [["yrsa", ["rimewyrm"]], ["elowen", ["censer", "silentvow", "ashensaint"]], ["tamsin", ["tyrant", "queen"]]]){
+    const W = SIM.create(), h = cathedralHero(W, "blue", ARCHER, 18), npc = G.NPCS.find(n => n.id === npcId);
+    h.coins = 99999; h.x = npc.x + 100; h.y = npc.y;
+    for(const q of quests) h.quests[q] = { state: "done", count: 1, flags: [] };
+    SIM.input(W, "blue", { hire: 1 });
+    assert.equal(W.mercReqs.length, 1, `${npcId} hires out a party after her quests are done`);
   }
 });
