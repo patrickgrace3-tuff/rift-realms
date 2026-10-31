@@ -336,6 +336,7 @@ function buildZone(){
   buildPeaks(g, ZH, { ss, noise, polyD, rnd, d, c, t2, stone, beamM });
   buildCathedral(g);
   buildJungle(g);
+  buildForges(g);
   zone = g; zone.visible = false; scene.add(zone);
 }
 function hAt(x, z){ const [zx, zy] = XF.inv(x, z); return ZH ? ZH(zx, zy) : 0; }

@@ -46,6 +46,9 @@ class CharArt {
     if(flip){ g.translate(128, 0); g.scale(-1, 1); }
     const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x / 4) * 4, Math.round(y / 4) * 4, Math.round(w / 4) * 4, Math.round(h / 4) * 4); };
     const step = [0, 1, 0, -1][frame % 4], down = pose === "dead";
+    const SL = this.o.setKey && typeof SETS !== "undefined" ? SETS[this.o.setKey] : null, setN = SL ? this.o.setN : 0;
+    // a flowing cape behind the body (4+ set pieces)
+    if(setN >= 4){ const sway = step * 2; R(34 - sway, 100, 60, 70, shade(SL.color, .55)); R(34 - sway, 164, 60, 8, SL.color); R(30 - sway, 168, 8, 8, SL.trim); R(90 - sway, 168, 8, 8, SL.trim); }
     // legs
     const lOff = step * 6, rOff = -step * 6;
     R(48 + lOff * .4, 148 - Math.max(0, lOff) * .5, 12, 32, b.pants); R(46 + lOff * .4, 176 - Math.max(0, lOff) * .5, 16, 8, b.boots);
@@ -70,6 +73,14 @@ class CharArt {
       arm(28, 108 + armSwing, 12, 32); arm(88, 108 - armSwing, 12, 32);
       this.weapon(R, b, 96, 120 - armSwing, false);
     }
+    // set armor: glowing pauldrons (2+), a trim belt (4+) and a blazing chest emblem (6)
+    if(setN >= 2){
+      g.save(); g.shadowColor = SL.glow; g.shadowBlur = setN >= 6 ? 14 : 8;
+      R(28, 98, 22, 16, SL.color); R(78, 98, 22, 16, SL.color); R(28, 98, 22, 4, SL.trim); R(78, 98, 22, 4, SL.trim);
+      if(setN >= 4){ R(40, 134, 48, 6, SL.trim); R(60, 132, 8, 10, SL.color); }
+      if(setN >= 6){ g.fillStyle = SL.trim; g.beginPath(); g.moveTo(64, 108); g.lineTo(72, 118); g.lineTo(64, 128); g.lineTo(56, 118); g.closePath(); g.fill(); g.fillStyle = SL.glow; g.beginPath(); g.moveTo(64, 112); g.lineTo(68, 118); g.lineTo(64, 124); g.lineTo(60, 118); g.closePath(); g.fill(); }
+      g.restore();
+    }
     // head (never mirrored, so the portrait reads correctly)
     g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = true;
     const hx = 64, hy = 56, hr = 46;
@@ -93,6 +104,14 @@ class CharArt {
     return true;
   }
   weapon(R, b, x, y, swing){
+    // the crafted sets' weapons: over the top
+    if(this.o.setWeapon && typeof SETS !== "undefined" && SETS[this.o.setWeapon]){
+      const S = SETS[this.o.setWeapon], g = this.g; g.save(); g.shadowColor = S.glow; g.shadowBlur = 20;
+      if(this.o.setWeapon === "dawn"){ R(x - 4, y - 60, 14, 64, S.trim); R(x - 1, y - 56, 8, 56, "#ffffff"); R(x - 2, y - 72, 10, 12, S.color); R(x - 14, y + 2, 34, 8, S.color); R(x - 18, y - 2, 8, 14, S.trim); R(x + 18, y - 2, 8, 14, S.trim); R(x, y + 10, 6, 14, "#7a4a1a"); R(x - 2, y + 24, 10, 6, S.color); }
+      else if(this.o.setWeapon === "storm"){ R(x, y - 40, 6, 80, S.color); R(x - 6, y - 46, 8, 10, S.trim); R(x - 6, y + 36, 8, 10, S.trim); R(x - 10, y - 36, 2, 72, "#ffffff"); for(let i = 0; i < 4; i++) R(x - 16 + (i % 2) * 6, y - 30 + i * 16, 4, 10, S.glow); }
+      else { R(x, y - 56, 6, 88, "#2a1a3a"); R(x - 8, y - 76, 22, 22, S.color); R(x - 4, y - 72, 14, 14, "#ffffff"); for(const [dx, dy] of [[-14, -80], [16, -70], [-12, -56]]) R(x + dx, y + dy, 4, 4, S.trim); }
+      g.restore(); return;
+    }
     if(this.o.tier){
       const g = this.g, glow = { sword: "#ffb347", staff: "#c98cff", bow: "#8cff9a" }[b.weapon] || "#ffd27a";
       g.save(); g.shadowColor = glow; g.shadowBlur = 16;

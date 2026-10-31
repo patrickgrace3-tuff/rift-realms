@@ -13,7 +13,7 @@ function saveRecord(h, champ){
   for(const id in h.quests || {}){ const q = h.quests[id]; quests[id] = { state: q.state, count: q.count || 0, flags: (q.flags || []).slice() }; }
   return { v: SAVE_VERSION, champ, lvl: h.lvl, xp: Math.round(h.xp), coins: h.coins, quests,
     inv: gear.inv || [], equip: gear.equip || {}, talents: h.talents, x: Math.round(h.x), y: Math.round(h.y),
-    arenaWins: h.arenaWins ?? h.aw ?? 0, arenaBest: h.arenaBest ?? h.ab ?? 0, at: Date.now() };
+    arenaWins: h.arenaWins ?? h.aw ?? 0, arenaBest: h.arenaBest ?? h.ab ?? 0, prof: Object.assign({}, h.prof || {}), at: Date.now() };
 }
 
 const int = (v, lo, hi, dflt = lo) => { v = Math.floor(+v); return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : dflt; };
@@ -29,8 +29,8 @@ Object.assign(SIM, {
     if(!EQ_SLOTS.includes(it.s)) return null;
     const st = {};
     for(const k in it.st || {}) if(Object.hasOwn(STAT, k)) st[k] = int(it.st[k], 0, 5000);
-    return { id, n: str(it.n, 80) || "Item", s: it.s, r: int(it.r, 0, 4), m: Object.hasOwn(MATERIAL, it.m) ? it.m : null, st, il: int(it.il, 1, 40, 1), v: int(it.v, 0, 1e6),
-      color: /^#[0-9a-f]{6}$/i.test(it.color) ? it.color : "#b8a68a", wt: ["sword", "staff", "bow"].includes(it.wt) ? it.wt : null, glow: !!it.glow };
+    return { id, n: str(it.n, 80) || "Item", s: it.s, r: Object.hasOwn(SETS, it.set) ? SET_RARITY : int(it.r, 0, 4), m: Object.hasOwn(MATERIAL, it.m) ? it.m : null, st, il: int(it.il, 1, 40, 1), v: int(it.v, 0, 1e6),
+      color: /^#[0-9a-f]{6}$/i.test(it.color) ? it.color : "#b8a68a", wt: ["sword", "staff", "bow"].includes(it.wt) ? it.wt : null, glow: !!it.glow, ...(Object.hasOwn(SETS, it.set) ? { set: it.set } : {}) };
   },
   // put a saved record back on a hero that was just added (only the host calls this, once, when the hero joins)
   loadSave(W, c, save){
@@ -39,6 +39,7 @@ Object.assign(SIM, {
     c.xp = c.lvl >= MAX_LEVEL ? 0 : int(save.xp, 0, SIM.xpNext(c.lvl) - 1);
     c.coins = int(save.coins, 0, 1e9);
     c.arenaWins = int(save.arenaWins, 0, 1e6); c.arenaBest = int(save.arenaBest, 0, 10);
+    c.prof = {}; for(const p of PROF_KEYS) if(save.prof && save.prof[p] !== undefined && save.prof[p] !== null) c.prof[p] = int(save.prof[p], 1, PROF_MAX, 1);   // professions you've learned, and their skill
     // quests: known ids and states only; timers and defenses start over
     c.quests = {};
     for(const id in save.quests || {}){

@@ -57,7 +57,7 @@ test("full quest chain can be completed in order", () => {
   t.accept("kaela", "wolves"); t.walk(G.PINES.x, G.PINES.y - 300, 16); t.fightUntil("wolves", "wolf"); t.turnIn("kaela", "wolves");
   t.accept("merrin", "herbs");
   for(let k = 0; k < 10 && h.quests.herbs.state === "active"; k++){
-    const n = W.nodes.filter(n => n.ready).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
+    const n = W.nodes.filter(n => n.ready && n.kind === "herb").sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
     SIM.input(W, "blue", { gather: n.id }); t.step(15);
   }
   t.turnIn("merrin", "herbs");
@@ -1161,4 +1161,83 @@ test("bags: sell several items to a vendor, or salvage several anywhere; bad inp
   const one = G.genItem({ ilvl: 10, rarity: 0, cls: "ranged", nid: 8900 }); SIM.addItem(h, one);
   SIM.input(W, "blue", { salvage: one.id }); assert.ok(!h.inv.includes(one));
   SIM.input(W, "blue", { salvage: Array.from({ length: 5000 }, (_, i) => "x" + i) });
+});
+
+/* ---------- Professions and crafted sets ---------- */
+function craftHero(lvl = 20){
+  const W = SIM.create(), h = cathedralHero(W, "blue", GAREN_LIKE, lvl), br = G.NPCS.find(n => n.id === "brenna");
+  h.inv = []; h.x = br.x + 100; h.y = br.y;
+  return { W, h, br };
+}
+const give = (W, h, key, q) => { while(q > 0){ const n = Math.min(20, q); SIM.addItem(h, Object.assign(G.makeMat(key, W.nid++), { q: n })); q -= n; } };
+
+test("professions: learn from Brenna, gather nodes and skin beasts, with skill tiers", () => {
+  const { W, h, br } = craftHero();
+  h.x = 4000; h.y = 1500; SIM.input(W, "blue", { learn: "mining" }); assert.ok(!h.prof.mining, "only from Brenna");
+  h.x = br.x + 100; h.y = br.y;
+  for(const p of ["mining", "herbalism", "skinning", "artisanry", "nope", "__proto__"]) SIM.input(W, "blue", { learn: p });
+  assert.deepEqual(Object.keys(h.prof).sort(), ["artisanry", "herbalism", "mining", "skinning"]);
+  // copper: anyone with Mining; glimmerstone needs 50
+  const node = kind => W.nodes.find(n => n.kind === kind && n.ready);
+  const gather = n => { h.x = n.x; h.y = n.y - 60; SIM.gather(W, h, n); };
+  gather(node("copper")); assert.ok(h.inv.some(i => i.key === "copperore") && h.prof.mining > 1, "mined copper and gained skill");
+  gather(node("ore")); assert.ok(!h.inv.some(i => i.key === "glimore"), "glimmerstone needs Mining 50");
+  h.prof.mining = 50; gather(node("ore")); assert.ok(h.inv.some(i => i.key === "glimore"));
+  // skill gains shrink as you outgrow a node, and stop at the cap
+  assert.equal(G.skillGain(10, 0), 3); assert.equal(G.skillGain(30, 0), 2); assert.equal(G.skillGain(60, 0), 1); assert.equal(G.skillGain(80, 0), 0); assert.equal(G.skillGain(G.PROF_MAX, 140), 0);
+  // skinning: the killer skins the beast
+  const wolf = W.mobs.find(m => m.kind === "wolf"); h.x = wolf.x; h.y = wolf.y - 100;
+  wolf.hp = 1; SIM.damage(W, wolf, 1e9, h);
+  assert.ok(h.inv.some(i => i.key === "lighthide"), "skinned a light hide");
+  const lynx = W.mobs.find(m => m.kind === "lynx"); lynx.hp = 1; SIM.damage(W, lynx, 1e9, h);
+  assert.ok(!h.inv.some(i => i.key === "frostfur"), "frostfur needs Skinning 50");
+});
+
+test("artisanry: refine at a forge, then forge a set piece; skill and materials are checked", () => {
+  const { W, h } = craftHero();
+  h.prof = { artisanry: 1 };
+  give(W, h, "copperore", 10);
+  h.x = 4000; h.y = 1500; SIM.input(W, "blue", { craft: "copperbar", n: 5 }); assert.ok(!h.inv.some(i => i.key === "copperbar"), "needs a forge");
+  const f = G.FORGES[0]; h.x = f.x + 50; h.y = f.y;
+  SIM.input(W, "blue", { craft: "copperbar", n: 5 });
+  assert.equal(h.inv.filter(i => i.key === "copperbar").reduce((a, i) => a + i.q, 0), 5, "five bars"); assert.ok(!h.inv.some(i => i.key === "copperore"), "ore used up");
+  assert.ok(h.prof.artisanry > 10, "skill went up");
+  SIM.input(W, "blue", { craft: "dawn_head" }); assert.ok(!h.inv.some(i => i.set), "a set piece needs Artisanry 100 and its materials");
+  h.prof.artisanry = 100;
+  const R = G.RECIPES.dawn_head; for(const m in R.need) give(W, h, m, R.need[m]);
+  SIM.input(W, "blue", { craft: "dawn_head" });
+  const helm = h.inv.find(i => i.set === "dawn");
+  assert.ok(helm && helm.s === "head" && helm.r === 5, "forged the Dawnforged Crown (Set rarity)");
+  for(const m in R.need) assert.ok(!h.inv.some(i => i.key === m), `${m} used up`);
+  SIM.input(W, "blue", { craft: "nope" }); SIM.input(W, "blue", { craft: "__proto__" }); SIM.input(W, "blue", { craft: { x: 1 } });
+  // every set piece is craftable at or below the cap, and gathering to the cap takes a sensible number of trips
+  for(const id in G.RECIPES) assert.ok(G.RECIPES[id].req < G.PROF_MAX);
+  let skill = 1, n = 0; for(const req of [0, 50, 100]) while(skill < req + 50 && skill < G.PROF_MAX){ skill += G.skillGain(skill, req) || 1; n++; }
+  assert.ok(n < 90, `about ${n} gathers from 1 to ${G.PROF_MAX}`);
+});
+
+test("sets: 2, 4 and 6 piece bonuses, and each set's six-piece effect", () => {
+  const W = SIM.create(), a = cathedralHero(W, "blue", GAREN_LIKE, 20), b = cathedralHero(W, "red", ARCHER, 20), c = cathedralHero(W, "green", MAGE, 20);
+  const wear = (h, key, n) => { for(const sl of G.EQ_SLOTS) delete h.equip[sl]; G.EQ_SLOTS.slice(0, n).forEach((sl, i) => { h.equip[sl] = G.makeSetItem(key, sl, 6000 + i + h.side.length * 10); }); SIM.recalc(h); };
+  wear(a, "dawn", 1); const hp1 = a.maxHp, ad1 = a.ad;
+  wear(a, "dawn", 2); assert.equal(a.setN, 2); assert.ok(a.maxHp > hp1 * 1.08, "2 pieces: +10% health");
+  const ad2 = a.ad; wear(a, "dawn", 4); assert.ok(a.ad > ad2 * 1.14, "4 pieces: +15% attack damage");
+  wear(a, "dawn", 6); assert.equal(a.setN, 6); assert.equal(a.setKey, "dawn");
+  // Dawnforged 6: every 4th basic attack hits everything around the target; you take 10% less damage
+  const pack = W.mobs.filter(m => m.kind === "wolf").slice(0, 3); pack.forEach((m, i) => { m.x = 5000 + i * 80; m.y = 5000; m.hp = m.maxHp = 1e6; });
+  for(let i = 0; i < 4; i++){ SIM.damage(W, pack[0], 10, a); SIM.setOnHit(W, a, pack[0], 10); }
+  assert.ok(pack[1].hp < 1e6 && pack[2].hp < 1e6, "Radiant Wrath hit the others");
+  const hp = a.hp; SIM.damage(W, a, 100, pack[0]); const took6 = hp - a.hp;
+  wear(a, "dawn", 4); a.hp = a.maxHp; const hp4 = a.hp; SIM.damage(W, a, 100, pack[0]); assert.ok(took6 < hp4 - a.hp, "less damage with six pieces");
+  // Stormwing 6: basic attacks chain to two more enemies
+  wear(b, "storm", 6); for(const m of pack) m.hp = 1e6;
+  SIM.setOnHit(W, b, pack[0], 100); assert.ok(pack[1].hp < 1e6 && pack[2].hp < 1e6, "Chain Lightning arced");
+  // Voidweave 6: every 3rd ability doesn't go on cooldown
+  wear(c, "void", 6); c.x = 5000; c.y = 4600; let free = 0;
+  for(let i = 0; i < 6; i++){ c.cds.Q = 0; SIM.cast(W, c, "Q", [5000, 5000]); if(c.cds.Q === 0) free++; }
+  assert.equal(free, 2, "two of six casts were free");
+  // a set piece survives a save
+  const s = JSON.parse(JSON.stringify(G.saveRecord(SIM.snapshot(W).h.find(x => x.side === "green"), c.champId)));
+  const W2 = SIM.create(), c2 = SIM.addHero(W2, "green", MAGE()); SIM.loadSave(W2, c2, s);
+  assert.equal(c2.setN, 6, "all six pieces back"); assert.equal(c2.equip.weapon.set, "void");
 });

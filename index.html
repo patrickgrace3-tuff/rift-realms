@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build" content="9efe6c374f">
+<meta name="build" content="c27d4d1fcd">
 <script>
 // If this copy of the page is out of date (a browser can hold on to an old one), load the latest.
 // The build code changes whenever any game file does (scripts/stamp.mjs writes it).
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=75fcb52703">
+<link rel="stylesheet" href="src/styles.css?v=548af7634a">
 </head>
 <body>
 
@@ -132,6 +132,7 @@
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
       <button class="hudbtn" id="charBtn">Character (C)</button>
+      <button class="hudbtn" id="profBtn">Professions (O)</button>
       <button class="hudbtn" id="skillsBtn">Skills (K)<span class="badge" id="skillBadge" hidden>0</span></button>
       <button class="hudbtn" id="socialBtn">Players (P)</button>
       <button class="hudbtn" id="inviteBtn">Invite friends</button>
@@ -293,6 +294,18 @@
   </div>
 </div>
 
+<div id="profWin" class="modal" hidden>
+  <div class="card profcard">
+    <div class="row" style="justify-content:space-between;align-items:flex-start">
+      <div><div class="eyebrow">Professions</div><h2>Gathering &amp; Artisanry</h2></div>
+      <div class="row"><span id="profForge"></span><button class="btn" id="profClose">Close</button></div>
+    </div>
+    <div id="profSkills"></div>
+    <div class="chips" id="profTabs"></div>
+    <div id="profRecipes"></div>
+  </div>
+</div>
+
 <div id="menu" class="modal" hidden>
   <div class="card" style="width:min(400px,100%)">
     <h2>Menu</h2>
@@ -318,14 +331,15 @@
 </div>
 
 <script src="src/js/00-core.js?v=a75aa8578d"></script>
-<script src="src/js/01-world-data.js?v=88361a7f92"></script>
+<script src="src/js/01-world-data.js?v=a4f7763858"></script>
+<script src="src/js/01b-crafting-data.js?v=230829641f"></script>
 <script src="src/js/02-boot-select.js?v=d35f364214"></script>
-<script src="src/js/03-art.js?v=39547c1bf8"></script>
-<script src="src/js/04-scene.js?v=b65c7f4637"></script>
+<script src="src/js/03-art.js?v=a95fa4dda8"></script>
+<script src="src/js/04-scene.js?v=08691b97b0"></script>
 <script src="src/js/04b-peaks.js?v=cd9794d119"></script>
 <script src="src/js/04c-cathedral.js?v=9e86172d22"></script>
 <script src="src/js/04d-jungle.js?v=778109c54b"></script>
-<script src="src/js/05-sim.js?v=77e825f51c"></script>
+<script src="src/js/05-sim.js?v=64baf9835b"></script>
 <script src="src/js/05b-party.js?v=31caaeb5d8"></script>
 <script src="src/js/05c-raid.js?v=a30e6dd7dc"></script>
 <script src="src/js/05d-duel.js?v=e320fa34cf"></script>
@@ -333,13 +347,15 @@
 <script src="src/js/05f-mercs.js?v=262920fe91"></script>
 <script src="src/js/05g-dungeon.js?v=1fbc5eaf9f"></script>
 <script src="src/js/05i-jungle.js?v=56ec04a0ba"></script>
-<script src="src/js/05h-save.js?v=31e53a8852"></script>
+<script src="src/js/05j-crafting.js?v=640552430f"></script>
+<script src="src/js/05h-save.js?v=c6e04bfdb6"></script>
 <script src="src/js/06-net.js?v=1bcdd7cefc"></script>
-<script src="src/js/07-world.js?v=e17c4a60de"></script>
-<script src="src/js/08-ui.js?v=b72caf7bba"></script>
+<script src="src/js/07-world.js?v=bae2b00c25"></script>
+<script src="src/js/08-ui.js?v=1fb433b119"></script>
 <script src="src/js/08b-social.js?v=ea060b3aaf"></script>
 <script src="src/js/08c-audio.js?v=0ca595c380"></script>
 <script src="src/js/08d-save.js?v=6e363ac65a"></script>
-<script src="src/js/09-render.js?v=5f84931aad"></script>
+<script src="src/js/08e-crafting.js?v=c6657638e3"></script>
+<script src="src/js/09-render.js?v=9ac9eecf0b"></script>
 </body>
 </html>

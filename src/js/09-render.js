@@ -51,6 +51,7 @@ function render(dt){
     v.shadow.position.set(w.x, y + .02, w.z); v.ring.position.set(w.x, y + .03, w.z);
     v.bubble.visible = c.shield > 0 && !c.dead && !hidden; v.bubble.position.set(w.x, y + 1.25, w.z);
     v.aura.visible = !!c.buff && !c.dead && !hidden; v.aura.position.set(w.x, y + .06, w.z); v.aura.scale.setScalar(1 + Math.sin(t * 8) * .08);
+    guarded("set aura", () => updateSetAura(v, c, w, y, t, hidden));
     v.orbs.forEach((o, i) => {
       const on = c.orbN || 3;
       o.visible = !!c.orbT && !c.dead && !hidden && i < on;
@@ -244,10 +245,12 @@ function render(dt){
     else if(f.k === "cone"){ f.mesh.position.set(w.x, fy + .02, w.z); f.mesh.scale.setScalar(R * (.7 + .3 * k)); f.mesh.material.opacity = .45 * (1 - k); }
     else if(f.k === "warn"){ f.mesh.position.set(w.x, fy + .03, w.z); f.mesh.scale.setScalar(R); f.mesh.material.opacity = .22 + .2 * Math.abs(Math.sin(t * 9)) + .2 * k; }
     else if(f.k === "blink"){ const w2 = XF(f.x2, f.y2); f.mesh.position.set(w.x, fy, w.z); f.mesh.scale.setScalar(.4 + k * .8); f.mesh.material.opacity = 1 - k; f.edge.position.set(w2.x, hAt(w2.x, w2.z) + .05, w2.z); f.edge.scale.setScalar(1.2 - k * .8); f.edge.material.opacity = 1 - k; }
+    else if(f.k === "zap"){ f.mesh.material.opacity = 1 - k; }
     else if(f.k === "nova"){ const rr = R * (.4 + .6 * k); f.mesh.position.set(w.x, fy, w.z); f.mesh.scale.setScalar(rr); f.mesh.material.opacity = .32 * (1 - k); f.edge.position.set(w.x, fy + .01, w.z); f.edge.scale.setScalar(rr); f.edge.material.opacity = 1 - k; }
   }
   // campfire flicker
   fireLight.intensity = 1.2 + Math.sin(t * 13) * .15 + Math.sin(t * 7.3) * .1;
+  for(const [i, co] of FORGE_FX.entries()) co.material.opacity = .7 + Math.sin(t * 7 + i) * .25;
   fireFlames.forEach((fl, i) => { fl.scale.set(1, 1 + Math.sin(t * (10 + i * 3)) * .15, 1); });
 
   // camera

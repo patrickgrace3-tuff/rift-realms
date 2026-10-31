@@ -34,7 +34,8 @@ function slotBtn(it, attrs, label, sel){
   return `<button class="islot${sel ? " sel" : ""}" ${attrs} style="border-color:${border}" aria-label="${it ? esc(it.n) : label}">${it ? `<img alt="" src="${itemIconURL(it)}">${(it.q || 1) > 1 ? `<span class="qty">${it.q}</span>` : ""}` : `<span class="ph">${label}</span>`}</button>`;
 }
 function itemMeta(it){
-  if(it.s === "mat") return "Trade good · salvage for coin";
+  if(it.s === "mat") return MATERIALS[it.key] && MATERIALS[it.key].icon ? "Crafting material · used at an Artisan's Forge" : "Trade good · salvage for coin";
+  if(it.set) return `Set item · ${SETS[it.set].name} · Item level ${it.il}`;
   if(it.s === "use") return `Use: ${SHOP_ITEMS[it.key] ? SHOP_ITEMS[it.key].desc : ""}`;
   const kind = it.s === "weapon" ? ({ sword: "Sword", staff: "Staff", bow: "Bow" }[it.wt] || "Weapon") : `${MATERIAL[it.m].label} ${SLOT_NAME[it.s]}`;
   return `${RARITY[it.r].n} ${kind} · Item level ${it.il}`;
@@ -83,7 +84,7 @@ function renderChar(){
     const btns = fromBag
       ? `${isGear(sel) ? `<button class="btn primary" data-act="equip">Equip</button>` : sel.key === "hpot" ? `<button class="btn primary" data-act="drink">Drink (F)</button>` : ""}<button class="btn" data-act="salvage">${armed ? "Click again to salvage" : `Salvage for ${val}`}</button>`
       : `<button class="btn" data-act="unequip">Unequip</button>`;
-    det.innerHTML = `<div class="in" style="color:${RARITY[sel.r].c}">${esc(sel.n)}${(sel.q || 1) > 1 ? ` ×${sel.q}` : ""}</div><div class="im">${itemMeta(sel)}</div>${stats ? `<div class="ist">${stats}</div>` : ""}${cmpHtml}<div class="row">${btns}</div>`;
+    det.innerHTML = `<div class="in" style="color:${RARITY[sel.r].c}">${esc(sel.n)}${(sel.q || 1) > 1 ? ` ×${sel.q}` : ""}</div><div class="im">${itemMeta(sel)}</div>${stats ? `<div class="ist">${stats}</div>` : ""}${cmpHtml}${sel.set ? setTooltip(sel, gear.equip) : ""}<div class="row">${btns}</div>`;
   }
   // paper doll
   if(!G.dollArt){ G.dollArt = new CharArt({ style: G.myKit.cls, headUrl: champIcon(d.id), ring: "#c9a55c", initial: d.name[0] }); G.dollArt.onload = () => { G.charKey = ""; }; }
@@ -386,7 +387,12 @@ function buildSlots(){
   G.myKit = buildKit(d); G.tipKey = null; $("#abTip").hidden = true;
 }
 // node kinds the player has an active collect quest for
-function wantedNodes(me){ const s = new Set(); if(me) for(const id in me.quests){ const Q = QUESTS[id]; if(Q.obj.type === "collect" && me.quests[id].state === "active") s.add(Q.obj.node); } return s; }
+function wantedNodes(me){
+  const s = new Set(); if(!me) return s;
+  for(const id in me.quests){ const Q = QUESTS[id]; if(Q.obj.type === "collect" && me.quests[id].state === "active") s.add(Q.obj.node); }
+  for(const kind in GATHER) if(me.prof && me.prof[GATHER[kind].prof]) s.add(kind);   // your gathering professions show their nodes
+  return s;
+}
 const potCount = me => ((me.gear && me.gear.inv) || []).filter(x => x.key === "hpot").reduce((a, x) => a + (x.q || 1), 0);
 // Tooltip for an ability button: what it does, with numbers at your current level, gear and talents
 function renderAbilityTip(){
@@ -437,6 +443,7 @@ function updateHud(){
   if(G.potEl){ const n = potCount(me); G.potEl.classList.toggle("locked", !n || !!me.dead); G.potEl.querySelector(".qty").textContent = n || "";
     const pcd = G.potEl.querySelector(".cd"); pcd.textContent = me.pot ? me.pot : ""; pcd.style.background = me.pot ? `conic-gradient(rgba(5,8,14,.72) ${me.pot / POTION.cd * 360}deg, transparent 0)` : "none"; }
   if(G.shop) renderShop();
+  renderProf();
   if(G.tipKey) renderAbilityTip();
   // raid boss health bar while one is nearby
   // (when you're close, or while he's fighting someone nearby)
@@ -499,6 +506,7 @@ function handleFx(f){
     case "defwin": if(mine){ const o = QUESTS[f.quest || "defend"].obj; banner(o.win[0], o.win[1], 3200); } break;
     case "bossmsg": if(f.big) banner(f.big, f.small, 3000); else toast(f.small); chatLine("sys", "", [f.big, f.small].filter(Boolean).join(" · ")); break;
     case "warn": G.fx.push(Object.assign({ t: 0 }, f)); break;
+    case "profs": case "learned": case "skillup": case "gathered": case "crafted": case "zap": case "voidecho": craftFx(f, mine); break;
     case "mheal": G.fx.push({ k: "ring", x: f.x, y: f.y, r: 140, t: 0, dur: .7, col: 0x6be08f }); G.nums.push({ x: f.x, y: f.y, v: `+${f.v}`, t: .9, h: 1.6, color: "#6be08f" }); break;
     case "pick": G.fx.push({ k: "pop", x: f.x, y: f.y, t: 0, dur: .45 }); break;
     case "drop": if(mine) toast(`${QUESTS[f.quest].obj.itemName} dropped. Walk over it or right-click to pick it up`); break;
@@ -536,9 +544,11 @@ function fxMesh(f){
     const geo = new THREE.CircleGeometry(1, 32, dirW - half, half * 2); geo.rotateX(-Math.PI / 2);
     // warn: a red marker on the ground before a boss attack lands; frost: the dragon's breath and tail
     f.mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: f.k === "warn" ? 0xff3020 : f.frost ? 0x9fe6ff : f.fire ? 0xff8a3a : 0xffe08a, transparent: true, depthWrite: false, side: THREE.DoubleSide })); f.ownGeo = true;
+  }else if(f.k === "zap"){ zapMesh(f);
   }else if(f.k === "nova"){
-    f.mesh = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: f.frost ? 0xbfefff : f.fire ? 0xff7a2a : 0xf0d58e, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-    f.edge = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: f.frost ? 0x7fd3ff : f.fire ? 0xff5a1a : 0xffb347, transparent: true, depthWrite: false })); G.root.add(f.edge);
+    if(f.dawn) f.setc = SETS.dawn.fx;
+    f.mesh = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: f.setc || (f.frost ? 0xbfefff : f.fire ? 0xff7a2a : 0xf0d58e), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    f.edge = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: f.setc || (f.frost ? 0x7fd3ff : f.fire ? 0xff5a1a : 0xffb347), transparent: true, depthWrite: false })); G.root.add(f.edge);
   }else{
     let color = { click: 0x7fe0a0, hit: 0xf0d58e, lvl: 0xf0d58e, pop: 0xffffff, heal: 0x6be08f, blink: 0xb98cff, ring: 0xffe08a }[f.k] || 0xffffff;
     if(f.col) color = f.col;

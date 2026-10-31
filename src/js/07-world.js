@@ -76,7 +76,7 @@ function buildHeroVisual(d, side){
   G.root.add(spr, v.shadow, v.ring, v.bubble, v.aura, ...v.orbs);
   return v;
 }
-function removeHeroVisual(v){ G.root.remove(v.spr, v.shadow, v.ring, v.bubble, v.aura, v.wglow, ...v.orbs); v.tex.dispose(); }
+function removeHeroVisual(v){ G.root.remove(v.spr, v.shadow, v.ring, v.bubble, v.aura, v.wglow, ...v.orbs); if(v.setFx) G.root.remove(v.setFx.grp); v.tex.dispose(); }
 
 /* ---------- Input ---------- */
 function screenToZone(cx, cy){
@@ -131,6 +131,7 @@ addEventListener("keydown", e => {
   const k = e.key.toUpperCase();
   if(["Q", "W", "E", "R"].includes(k)){ e.preventDefault(); const p = screenToZone(G.mouse.x, G.mouse.y); if(p) command({ cast: k, at: [Math.round(p[0]), Math.round(p[1])] }); }
   else if(k === "S") command({ stop: 1 });
+  else if(k === "O"){ if($("#profWin").hidden) openProf(); else $("#profWin").hidden = true; }
   else if(k === "K"){ if($("#skills").hidden) openSkills(); else $("#skills").hidden = true; }
   else if(k === "M") toggleBigMap();
   else if(k === "C"){ if($("#charWin").hidden) openChar(); else $("#charWin").hidden = true; }

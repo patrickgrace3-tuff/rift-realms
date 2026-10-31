@@ -625,7 +625,7 @@ const clampX = v => Math.max(ZMIN, Math.min(ZS * 2 - ZMIN, v)); // (each zone's 
 const clampY = v => Math.max(ZMIN, Math.min(ZS * 3 - ZMIN, v)); // (the Peaks' north edge and the cathedral's walls are enforced by SIM.bound)
 
 /* ---------- Items: loot tables, armor generation, inventory ---------- */
-const BAG_SIZE = 20;
+const BAG_SIZE = 30;
 const EQ_SLOTS = ["head", "chest", "hands", "legs", "feet", "weapon"];
 const ARMOR_SLOTS = ["head", "chest", "hands", "legs", "feet"];
 const SLOT_NAME = { head: "Head", chest: "Chest", hands: "Hands", legs: "Legs", feet: "Feet", weapon: "Weapon" };
@@ -718,14 +718,19 @@ function gearLook(equip){
 function applyLook(art, equip){
   const L = gearLook(equip);
   if(art.o.gearSig === L.sig) return false;
-  art.o.gear = L.gear; art.o.helm = L.helm; art.o.gearSig = L.sig; art.key = ""; return true;
+  art.o.gear = L.gear; art.o.helm = L.helm; art.o.gearSig = L.sig; art.key = "";
+  // crafted sets: how many pieces of which set, and whether the weapon is the set's
+  const e = equip || {}, sc = typeof setCount === "function" ? setCount(e) : { key: null, n: 0 };
+  art.o.setKey = sc.key; art.o.setN = sc.n; art.o.setWeapon = e.weapon && e.weapon.set ? e.weapon.set : null;
+  return true;
 }
 const iconCache = new Map();
 function itemIconURL(it){
-  const key = `${it.s}|${it.m || ""}|${it.r}|${it.key || ""}|${it.wt || ""}|${it.color || ""}|${it.glow ? 1 : 0}`;
+  const key = `${it.s}|${it.m || ""}|${it.r}|${it.key || ""}|${it.wt || ""}|${it.color || ""}|${it.glow ? 1 : 0}|${it.set || ""}`;
   if(iconCache.has(key)) return iconCache.get(key);
   const c = document.createElement("canvas"); c.width = c.height = 48; const g = c.getContext("2d");
-  const grd = g.createRadialGradient(24, 20, 4, 24, 24, 30); grd.addColorStop(0, "#26324a"); grd.addColorStop(1, "#0b0f17");
+  const S = it.set && typeof SETS !== "undefined" ? SETS[it.set] : null;   // crafted set items get a blazing background
+  const grd = g.createRadialGradient(24, 20, 4, 24, 24, 30); grd.addColorStop(0, S ? S.glow : "#26324a"); grd.addColorStop(S ? .55 : 1, S ? "#1a1030" : "#0b0f17"); if(S) grd.addColorStop(1, "#05060a");
   g.fillStyle = grd; g.fillRect(0, 0, 48, 48);
   const col = it.color || "#b8a68a", dk = shade(col, .55), lt = shade(col, 1.3);
   g.lineWidth = 2; g.strokeStyle = "#0b0f17"; g.lineJoin = "round";
@@ -746,7 +751,17 @@ function itemIconURL(it){
   else if(it.key === "wool"){ g.fillStyle = "#f4f1ea"; [[18, 26, 9], [28, 22, 10], [32, 30, 8], [22, 32, 8]].forEach(([x, y, r]) => { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }); }
   else if(it.key === "hpot"){ P([[20, 8], [28, 8], [28, 16], [20, 16]], "#c9a55c"); g.beginPath(); g.arc(24, 30, 13, 0, Math.PI * 2); g.fillStyle = "#c0392b"; g.fill(); g.stroke(); P([[20, 14], [28, 14], [28, 20], [20, 20]], "#e8e2d4"); g.fillStyle = "rgba(255,255,255,.55)"; g.fillRect(17, 25, 4, 7); }
   else if(it.key === "horn"){ g.lineWidth = 9; g.strokeStyle = "#0b0f17"; g.beginPath(); g.arc(24, 24, 12, -2.4, 2.2); g.stroke(); g.lineWidth = 6; g.strokeStyle = "#d8ccb0"; g.stroke(); }
+  else if(it.s === "mat" && MATERIALS[it.key] && MATERIALS[it.key].icon){   // crafting materials
+    const M = MATERIALS[it.key], c1 = M.col, c2 = shade(M.col, .6), c3 = shade(M.col, 1.35);
+    if(M.icon === "ore"){ P([[10, 34], [14, 18], [26, 10], [38, 16], [40, 32], [30, 40], [16, 40]], "#5a5650"); P([[18, 22], [24, 14], [28, 24], [22, 30]], c1); P([[28, 28], [34, 20], [36, 32]], c3); }
+    else if(M.icon === "herb"){ g.strokeStyle = "#3f7a2a"; g.lineWidth = 3; g.beginPath(); g.moveTo(24, 44); g.quadraticCurveTo(20, 30, 24, 18); g.stroke(); g.lineWidth = 2; g.strokeStyle = "#0b0f17"; for(let i = 0; i < 6; i++){ const a = i / 6 * Math.PI * 2; g.beginPath(); g.ellipse(24 + Math.cos(a) * 7, 16 + Math.sin(a) * 7, 6, 4, a, 0, Math.PI * 2); g.fillStyle = c1; g.fill(); } g.fillStyle = "#fff6c0"; g.beginPath(); g.arc(24, 16, 4, 0, Math.PI * 2); g.fill(); }
+    else if(M.icon === "hide"){ P([[10, 14], [20, 10], [28, 12], [38, 10], [40, 22], [36, 36], [26, 40], [14, 38], [8, 26]], c2); P([[16, 18], [32, 18], [30, 32], [18, 32]], c1); }
+    else if(M.icon === "bar"){ P([[8, 34], [14, 22], [36, 22], [42, 34]], c2); P([[14, 22], [18, 14], [34, 14], [36, 22]], c1); P([[18, 14], [24, 14], [22, 22], [16, 22]], c3); }
+    else if(M.icon === "leather"){ P([[8, 16], [40, 16], [40, 34], [8, 34]], c1); g.beginPath(); g.ellipse(40, 25, 5, 9, 0, 0, Math.PI * 2); g.fillStyle = c2; g.fill(); g.stroke(); P([[12, 22], [36, 22], [36, 25], [12, 25]], c2); }
+    else { P([[20, 8], [28, 8], [28, 18], [20, 18]], "#c8c0b0"); g.beginPath(); g.moveTo(20, 18); g.lineTo(10, 40); g.lineTo(38, 40); g.lineTo(28, 18); g.closePath(); g.fillStyle = c1; g.fill(); g.stroke(); g.fillStyle = "rgba(255,255,255,.5)"; g.fillRect(16, 30, 4, 6); }
+  }
   else { const pc = { pelt: ["#8a8580", "#a8a29a"], frostpelt: ["#d8d4ca", "#f2efe8"] }[it.key] || ["#6a4428", "#8a5a32"]; P([[10, 14], [20, 10], [28, 12], [38, 10], [40, 22], [36, 36], [26, 40], [14, 38], [8, 26]], pc[0]); P([[16, 18], [32, 18], [30, 32], [18, 32]], pc[1]); }
+  if(S){ g.fillStyle = S.trim; for(const [x, y, r] of [[8, 9, 2.2], [40, 12, 1.6], [37, 40, 2], [10, 38, 1.4]]){ g.beginPath(); for(let i = 0; i < 8; i++){ const a = i * Math.PI / 4, rr = i % 2 ? r * .4 : r * 2; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); g.fill(); } }
   g.lineWidth = 3; g.strokeStyle = RARITY[it.r].c; g.strokeRect(1.5, 1.5, 45, 45);
   const url = c.toDataURL(); iconCache.set(key, url); return url;
 }

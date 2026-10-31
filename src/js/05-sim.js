@@ -33,7 +33,7 @@ const SIM = {
       lvl: 1, xp: 0, cds: { Q: 0, W: 0, E: 0, R: 0 }, move: null, target: null, talkTo: null, atkT: 0, dead: 0, castSeq: 0, castKey: "", atkSeq: 0,
       face: Math.PI, moving: false, dash: null, forced: null, spin: null, orbT: 0, orbA: 0, orbHits: {}, orbP: null,
       cc: { stun: 0, root: 0, slow: 0, slowAmt: 0 }, shield: 0, shieldT: 0, buffT: 0, buffAS: 0, buffOnHit: 0, boostT: 0, boost: 0, stealthT: 0,
-      lastCombat: -99, quests: {}, weapon: null, lootTo: null, talents: newTalents(), orbN: 3, ambush: false,
+      lastCombat: -99, quests: {}, prof: {}, setKey: null, setN: 0, setHits: 0, setCasts: 0, weapon: null, lootTo: null, talents: newTalents(), orbN: 3, ambush: false,
       inv: [], equip: {}, coins: 0, gearVer: 1, party: null, chatT: -99, chatN: 0, potT: 0, gatherTo: null, useTo: null, channel: null, ap: 0, armor: 0, hasteG: 0, msPct: 0 };
     SIM.recalc(c); c.hp = c.maxHp;
     W.heroes[side] = c;
@@ -47,6 +47,7 @@ const SIM = {
     c.ad = (c.base.ad + c.base.adl * (c.lvl - 1) + (gs.ad || 0)) * (1 + TALENT.might.per * c.talents.core.might);
     c.ap = gs.ap || 0; c.armor = gs.armor || 0; c.hasteG = Math.min(40, gs.haste || 0); c.msPct = Math.min(30, gs.ms || 0);
     c.weapon = c.equip.weapon ? { name: c.equip.weapon.n, glow: !!c.equip.weapon.glow } : null;
+    SIM.applySet(c); c.hp = Math.min(c.hp, c.maxHp);   // crafted set bonuses (05j-crafting.js)
   },
   addItem(c, it){
     if(it.stack){ const ex = c.inv.find(x => x.key === it.key && x.q < 20); if(ex){ ex.q += it.q || 1; c.gearVer++; return true; } }
@@ -164,6 +165,7 @@ const SIM = {
     else if(src && !SIM.isHero(src) && SIM.isHero(u)) amount *= levelGap(SIM.gapOf(u, src)).taken;
     if(u.shield > 0){ const ab = Math.min(u.shield, amount); u.shield -= ab; amount -= ab; if(amount <= 0){ SIM.fx(W, { k: "num", x: u.x, y: u.y, v: "absorbed", hero: 1, tgt: u.side || "" }); return 0; } }
     if(SIM.isHero(u) && u.armor) amount *= 300 / (300 + u.armor);
+    if(u.setKey === "dawn" && u.setN >= 6) amount *= .9;   // Dawnforged: you take 10% less damage
     if(src && src.bot && src.skill && !src.merc) amount *= src.skill.dmg; // arena opponents hit softer at lower difficulty
     if(u.merc && u.merc.role === "tank" && !SIM.isHero(src || {})) amount *= 1 - MERCS.tankArmor; // a hired tank shrugs off blows
     if(SIM.isHero(u) && src && SIM.isHero(src) && u.duel){ amount = SIM.duelHit(W, u, src, amount); if(!u.duel){ SIM.fx(W, { k: "num", x: u.x, y: u.y, v: Math.round(amount), hero: 1, src: src.side, tgt: u.side }); return amount; } }
@@ -189,6 +191,7 @@ const SIM = {
       const fought = h => (u.threat && u.threat[h.id] > 0) || h.dead || Math.hypot(h.x - MOBS[u.kind].home[0], h.y - MOBS[u.kind].home[1]) < MOBS[u.kind].leash;
       const group = !looter ? [] : u.boss ? SIM.partyMembers(W, looter).filter(fought) : SIM.creditGroup(W, looter, u);
       if(looter) SIM.dropBag(W, looter, u, group);
+      if(looter) SIM.skin(W, looter, u);
       for(const c of group){
         if(c.dead && !u.boss) continue;
         SIM.gainXp(W, c, mobXp(MOBS[u.kind].xp, MOBS[u.kind].lvl, c.lvl));
@@ -211,6 +214,7 @@ const SIM = {
   },
   talk(W, c, npc){
     if(npc.shop){ SIM.fx(W, { k: "shop", side: c.side, npc: npc.id }); return; }
+    if(npc.profs){ SIM.fx(W, { k: "profs", side: c.side, npc: npc.id }); return; }
     if(npc.arena){ SIM.fx(W, { k: "arena", side: c.side, npc: npc.id, wins: c.arenaWins || 0, best: c.arenaBest || 0, lvl: c.lvl }); return; }
     const qf = questFor(c.quests, npc.id);
     SIM.fx(W, { k: "dialog", side: c.side, npc: npc.id, quest: qf.quest, state: qf.state });
@@ -299,7 +303,7 @@ const SIM = {
   },
   input(W, side, cmd){
     const c = SIM.hero(W, side); if(!c || !cmd || typeof cmd !== "object") return;
-    if(SIM.socialInput(W, c, cmd) || SIM.duelInput(W, c, cmd) || SIM.arenaInput(W, c, cmd) || SIM.mercInput(W, c, cmd)) return;
+    if(SIM.socialInput(W, c, cmd) || SIM.duelInput(W, c, cmd) || SIM.arenaInput(W, c, cmd) || SIM.mercInput(W, c, cmd) || SIM.craftInput(W, c, cmd)) return;
     if(cmd.stop){ c.move = c.target = c.talkTo = null; return; }
     if(cmd.accept){
       const Q = QUESTS[cmd.accept]; if(!Q) return;
@@ -471,6 +475,7 @@ const SIM = {
     }
     if(!["steroid", "stealth", "shield", "heal"].includes(p.type)) c.face = Math.atan2(nx, ny);
     c.cds[key] = Math.round(p.cd * (1 - (c.hasteG || 0) / 100) * 10) / 10; c.castSeq++; c.castKey = key; c.lastCombat = W.t;
+    SIM.voidEcho(W, c, key);
   },
   tickTimers(u, dt){
     u.cc.stun = Math.max(0, u.cc.stun - dt); u.cc.root = Math.max(0, u.cc.root - dt);
@@ -539,8 +544,8 @@ const SIM = {
               let dmg = c.ad + (c.buffT > 0 ? c.buffOnHit : 0);
               if(c.ambush){ dmg *= 2.5; c.ambush = false; }
               if(c.stealthT > 0) c.stealthT = 0;
-              if(c.ranged) W.shots.push({ id: "s" + W.nid++, kind: "aa", team: c.team, owner: c.id, target: tgt.id, x: c.x, y: c.y, speed: 1800, dmg, life: 2 });
-              else SIM.damage(W, tgt, dmg, c);
+              if(c.ranged) W.shots.push({ id: "s" + W.nid++, kind: "aa", basic: true, team: c.team, owner: c.id, target: tgt.id, x: c.x, y: c.y, speed: 1800, dmg, life: 2 });
+              else { SIM.damage(W, tgt, dmg, c); SIM.setOnHit(W, c, tgt, dmg); }
             }
           }else goal = [tgt.x, tgt.y];
         }else if(c.move) goal = c.move;
@@ -658,7 +663,7 @@ const SIM = {
       }else{
         const t = SIM.find(W, sh.target); if(!t){ sh.life = 0; continue; }
         const dx = t.x - sh.x, dy = t.y - sh.y, d = Math.hypot(dx, dy), stp = sh.speed * dt;
-        if(d <= stp + t.r){ SIM.damage(W, t, sh.dmg, owner); sh.life = 0; } else { sh.x += dx / d * stp; sh.y += dy / d * stp; }
+        if(d <= stp + t.r){ SIM.damage(W, t, sh.dmg, owner); if(sh.basic) SIM.setOnHit(W, owner, t, sh.dmg); sh.life = 0; } else { sh.x += dx / d * stp; sh.y += dy / d * stp; }
       }
     }
     W.shots = W.shots.filter(sh => sh.life > 0);
@@ -698,7 +703,7 @@ const SIM = {
         cc: c.cc.stun > 0 ? "stun" : c.silenceT > W.t ? "silence" : c.cc.root > 0 ? "root" : c.cc.slow > 0 ? "slow" : "", quests: SIM.questView(W, c), weapon: c.weapon ? c.weapon.name : null,
         talents: c.talents, points: talentPoints(c.lvl, c.talents), orbN: c.orbN || 3, ad: Math.round(c.ad),
         wglow: c.weapon && c.weapon.glow ? 1 : 0, coins: c.coins, ap: Math.round(c.ap), armor: Math.round(c.armor), haste: Math.round(c.hasteG), msPct: Math.round(c.msPct),
-        pot: c.potT > W.t ? Math.ceil(c.potT - W.t) : 0, aw: c.arenaWins || 0, ab: c.arenaBest || 0, bot: c.bot ? 1 : 0, merc: c.merc ? c.merc.role : "",
+        pot: c.potT > W.t ? Math.ceil(c.potT - W.t) : 0, prof: c.prof, sk: c.setKey || "", sn: c.setN || 0, aw: c.arenaWins || 0, ab: c.arenaBest || 0, bot: c.bot ? 1 : 0, merc: c.merc ? c.merc.role : "",
         chan: c.channel ? { n: c.channel.name, p: Math.round(c.channel.t / c.channel.dur * 100) / 100 } : null, party: c.party || "",
         gear: { ver: c.gearVer, inv: c.inv, equip: c.equip } })),
       m: W.mobs.map(m => [m.id, m.kind, r(m.x), r(m.y), r(m.hp), r(m.maxHp), Math.round(m.face * 10) / 10, (m.moving ? 1 : 0) | (m.aggro ? 2 : 0) | (m.charging ? 4 : 0) | (m.windup > 0 || m.cast ? 8 : 0) | (m.hidden ? 16 : 0)]),
