@@ -831,10 +831,10 @@ test("cathedral: walls keep you in, the choir is sealed, and the Peaks don't lea
   h.x = 4000; h.y = 15000; SIM.input(W, "blue", { move: [4000, 23000] }); runFor(W, 8);
   assert.ok(h.y <= G.WH, "walking north in the Peaks stops at the mountains");
   h.x = 4000; h.y = 18150; SIM.input(W, "blue", { move: [800, 18150] }); runFor(W, 6);
-  assert.ok(h.x >= G.CATHEDRAL.narthex[0], `the narthex wall stops you (x ${Math.round(h.x)})`);
+  assert.ok(h.x >= G.CATHEDRAL.nave[0] && !h.move, `a click past the west wall takes you to the nearest spot inside, and you stop (x ${Math.round(h.x)})`);
   SIM.input(W, "blue", { move: [4000, 23100] }); runFor(W, 25);
   assert.ok(h.y < G.CATHEDRAL.door, `the seal stops you at the choir (y ${Math.round(h.y)})`);
-  W.dungeon.sealed = false; runFor(W, 6);
+  W.dungeon.sealed = false; SIM.input(W, "blue", { move: [4000, 23100] }); runFor(W, 6);
   assert.ok(h.y > G.CATHEDRAL.door + 200, "once it's broken you can walk in");
   SIM.input(W, "blue", { move: [1300, 22000] }); runFor(W, 15);
   assert.ok(Math.hypot(h.x - 1300, h.y - 22000) < 200, "the west chapel can be reached through the transept");
@@ -1049,8 +1049,9 @@ test("jungle: the Saint opens two portals; the right takes your party to the jun
 test("jungle: walls hold, you fall back to Canopy Camp, and the waystones link it with Highwatch", () => {
   const W = SIM.create(), h = cathedralHero(W, "blue", ARCHER, 17);
   for(const m of W.mobs) if(G.inJungle(m.x, m.y)) m.dead = true;
-  h.x = G.CANOPY.x; h.y = G.CANOPY.y; SIM.input(W, "blue", { move: [0, 17000] }); runFor(W, 10);
+  h.x = G.CANOPY.x; h.y = G.CANOPY.y; SIM.input(W, "blue", { move: [0, 18500] }); runFor(W, 10);   // (northwest, clear of the camp's waystone)
   assert.ok(G.inJungle(h.x, h.y), "walking west stops at the jungle's edge");
+  assert.ok(h.x < G.ZS + 800 && !h.move, "it walks right up to the edge and stops, rather than heading for the cathedral next door");
   SIM.damage(W, h, 1e9, null); runFor(W, 7);
   assert.ok(!h.dead && Math.hypot(h.x - G.CANOPY.x, h.y - G.CANOPY.y) < 800, "you come back at Canopy Camp");
   // the Highwatch waystone is dark until you've been to the jungle
@@ -1299,4 +1300,43 @@ test("jump: space sends a hop everyone sees, one at a time, never while dead", (
   // jumping doesn't stop you running
   SIM.input(W, "blue", { move: [h.x, h.y + 1000] }); const y0 = h.y; SIM.input(W, "blue", { jump: 1 }); step(.5); assert.ok(h.y > y0 + 50);
   step(1); const before = jp(); h.dead = 5; SIM.input(W, "blue", { jump: 1 }); assert.equal(jp(), before, "the dead can't jump");
+});
+
+/* ---------- Click to move on every kind of ground ---------- */
+test("move: clicks anywhere in every zone end with the hero standing still, never running in place", (t) => {
+  const W = SIM.create(); SIM.addHero(W, "blue", GAREN_LIKE()); const h = W.heroes.blue;
+  W.mobs.length = 0; W.mobs.push = () => 0;   // nothing to fight: just walking
+  const dmg = SIM.damage; SIM.damage = (W, u, ...a) => SIM.isHero(u) ? 0 : dmg(W, u, ...a); t.after(() => { SIM.damage = dmg; });   // and nothing (like the cathedral's burning ground) can kill the walker
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const zones = { vale: [400, 400, 7600, 7600], peaks: [400, 8400, 7600, 15600], cathedral: [2000, 16500, 6000, 23500], jungle: [8400, 16400, 15600, 23600] };
+  let worst = 0;
+  for(const [name, [x0, y0, x1, y1]] of Object.entries(zones)) for(let k = 0; k < 40; k++){
+    const start = SIM.reachable(W, x0 + rnd() * (x1 - x0), y0 + rnd() * (y1 - y0), h.r); h.x = start[0]; h.y = start[1]; SIM.bound(W, h); h.dead = 0; h.hp = h.maxHp;
+    const a = rnd() * Math.PI * 2, r = 200 + rnd() * 1600;
+    SIM.input(W, "blue", { move: [h.x + Math.cos(a) * r, h.y + Math.sin(a) * r] });
+    const goal = h.move.slice(); let t = 0;
+    for(; t < 20 && h.move; t += 1 / 30){ h.hp = h.maxHp; SIM.step(W, 1 / 30); }   // burning ground can't kill the walker
+    worst = Math.max(worst, t);
+    assert.equal(h.move, null, `${name}: a click from ${start} toward ${goal} never ended (hero at ${Math.round(h.x)},${Math.round(h.y)})`);
+    SIM.step(W, 1 / 30); assert.ok(!h.moving, `${name}: still walking after the move ended`);
+  }
+  console.log(`# move: longest walk ${worst.toFixed(1)}s`);
+});
+test("move: clicking a house stops at its wall; clicking behind it walks around to the spot", () => {
+  const W = SIM.create(); SIM.addHero(W, "blue", GAREN_LIKE()); const h = W.heroes.blue;
+  W.mobs.length = 0; W.mobs.push = () => 0;
+  for(const [hx, hy] of G.HOUSES){
+    h.x = hx; h.y = hy - 600; h.move = null;
+    SIM.input(W, "blue", { move: [hx, hy] });
+    assert.ok(Math.hypot(h.move[0] - hx, h.move[1] - hy) >= 270, "the goal moves out of the house");
+    for(let t = 0; t < 8 && h.move; t += 1 / 30) SIM.step(W, 1 / 30);
+    assert.equal(h.move, null, "stops at the house");
+    h.x = hx; h.y = hy - 600;
+    SIM.input(W, "blue", { move: [hx, hy + 420] }); const goal = h.move.slice();
+    for(let t = 0; t < 15 && h.move; t += 1 / 30) SIM.step(W, 1 / 30);
+    assert.ok(Math.hypot(h.x - goal[0], h.y - goal[1]) < 40, `walked around the house at ${hx},${hy} (ended ${Math.round(h.x)},${Math.round(h.y)})`);
+  }
+  // the pond and the cathedral's walls: the goal comes back to where you can stand
+  const p = SIM.reachable(W, G.POND.x, G.POND.y, h.r); assert.ok(Math.hypot(p[0] - G.POND.x, p[1] - G.POND.y) >= G.POND.r * .62);
+  const c = SIM.reachable(W, 300, 19000, h.r); const u = { x: c[0], y: c[1], r: h.r }; SIM.bound(W, u); assert.ok(Math.abs(u.x - c[0]) < 1 && Math.abs(u.y - c[1]) < 1, "a click past the cathedral's west wall lands inside it");
 });

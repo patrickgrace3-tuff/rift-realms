@@ -80,9 +80,12 @@ function screenToZone(cx, cy){
   raycaster.setFromCamera(new THREE.Vector2(cx / VW * 2 - 1, -(cy / VH) * 2 + 1), camera);
   // walk along the ray until it meets the ground, so clicks on hills land where you clicked
   const o = raycaster.ray.origin, d = raycaster.ray.direction;
-  let prev = 0;
-  for(let t = .5; t < 260; t += t < 40 ? .4 : 1.2){
-    if(o.y + d.y * t <= hAt(o.x + d.x * t, o.z + d.z * t)){
+  // (if the camera itself is inside a hill, skip ahead to where the ray comes out into the open first)
+  let prev = 0, open = false;
+  for(let t = .3; t < 260; t += t < 90 ? .3 : .9){
+    const under = o.y + d.y * t <= hAt(o.x + d.x * t, o.z + d.z * t);
+    if(!open){ open = !under; prev = t; continue; }
+    if(under){
       let a = prev, b = t;
       for(let i = 0; i < 8; i++){ const m = (a + b) / 2; if(o.y + d.y * m <= hAt(o.x + d.x * m, o.z + d.z * m)) b = m; else a = m; }
       return XF.inv(o.x + d.x * b, o.z + d.z * b);
@@ -97,20 +100,24 @@ function screenToZone(cx, cy){
 function worldToScreen(x, y, z){ const far = scene && scene.fog && camera.position.distanceToSquared(projV.set(x, y, z)) > scene.fog.far * scene.fog.far;
   projV.project(camera); return [(projV.x + 1) / 2 * VW, (1 - projV.y) / 2 * VH, far ? 2 : projV.z]; }
 function command(cmd){ if(!G) return; if(G.role === "host") SIM.input(G.W, G.myTeam, cmd); else send(Object.assign({ t: "in" }, cmd)); }
+// Where a point shows on screen, or null when it's behind the camera or lost in the haze. With the orbiting camera,
+// things behind you would otherwise be mirrored onto the screen and could be clicked by mistake.
+function screenSpot(x, y, z){ const [sx, sy, sz] = worldToScreen(x, y, z); return sz < 1 && sz > -1 ? [sx, sy] : null; }
 function thingUnderCursor(cx, cy){
-  for(let i = 0; i < USE_POINTS.length; i++){ const b = USE_POINTS[i], w = XF(b.x, b.y), [sx, sy] = worldToScreen(w.x, hAt(w.x, w.z) + 1.3, w.z); if(Math.abs(sx - cx) < 40 && Math.abs(sy - cy) < 60) return { use: i }; }
-  for(const [id, nv] of G.nodeVis){ if(!nv.clickable || !nv.at) continue; const [sx, sy] = worldToScreen(nv.at.x, nv.at.y, nv.at.z); if(Math.hypot(sx - cx, sy - cy) < 44) return { gather: id }; }
-  for(const [, lv] of G.lootVis){ if(!lv.pos) continue; const [sx, sy] = worldToScreen(lv.pos.x, lv.pos.y + .7, lv.pos.z); if(Math.hypot(sx - cx, sy - cy) < 40) return { pickup: lv.pos.id }; }
-  for(const nv of G.npcVis){ const [sx, sy] = worldToScreen(nv.pos.x, nv.pos.y + 1.4, nv.pos.z); if(Math.abs(sx - cx) < 40 && Math.abs(sy - cy) < 70) return { npc: nv.n.id }; }
+  for(let i = 0; i < USE_POINTS.length; i++){ const b = USE_POINTS[i], w = XF(b.x, b.y), s = screenSpot(w.x, hAt(w.x, w.z) + 1.3, w.z); if(s && Math.abs(s[0] - cx) < 40 && Math.abs(s[1] - cy) < 60) return { use: i }; }
+  for(const [id, nv] of G.nodeVis){ if(!nv.clickable || !nv.at) continue; const s = screenSpot(nv.at.x, nv.at.y, nv.at.z); if(s && Math.hypot(s[0] - cx, s[1] - cy) < 44) return { gather: id }; }
+  for(const [, lv] of G.lootVis){ if(!lv.pos) continue; const s = screenSpot(lv.pos.x, lv.pos.y + .7, lv.pos.z); if(s && Math.hypot(s[0] - cx, s[1] - cy) < 40) return { pickup: lv.pos.id }; }
+  for(const nv of G.npcVis){ const s = screenSpot(nv.pos.x, nv.pos.y + 1.4, nv.pos.z); if(s && Math.abs(s[0] - cx) < 40 && Math.abs(s[1] - cy) < 70) return { npc: nv.n.id }; }
   // your duel opponent can be attacked like a creature
-  for(const h of G.snap.h){ if(!duelFoe(h.side) || h.dead) continue; const v = G.vis[h.side]; if(!v || !v.pos) continue; const [sx, sy] = worldToScreen(v.pos.x, v.pos.y + 1.2, v.pos.z); if(Math.abs(sx - cx) < 40 && Math.abs(sy - cy) < 70) return { atk: "c:" + h.side }; }
+  for(const h of G.snap.h){ if(!duelFoe(h.side) || h.dead) continue; const v = G.vis[h.side]; if(!v || !v.pos) continue; const s = screenSpot(v.pos.x, v.pos.y + 1.2, v.pos.z); if(s && Math.abs(s[0] - cx) < 40 && Math.abs(s[1] - cy) < 70) return { atk: "c:" + h.side }; }
   let best = null, bd = 1e9;
   for(const m of G.snap.m){
     if(m[7] & 16) continue; // hidden
     // click anywhere on the creature's body; big ones (the dragon) have a big target
     const A = MOB_ART[m[1]] || MOB_ART.sheep, p = G.smooth.get(m[0]) || { x: m[2], y: m[3] }, w = XF(p.x, p.y), gy = hAt(w.x, w.z);
-    const [sx, sy] = worldToScreen(w.x, gy + A.sy * .4, w.z), [ex] = worldToScreen(w.x + A.sx * .45, gy + A.sy * .4, w.z), reach = Math.max(46, Math.abs(ex - sx));
-    const d = Math.hypot(sx - cx, sy - cy); if(d < reach && d / reach < bd){ bd = d / reach; best = { atk: m[0] }; }
+    const s = screenSpot(w.x, gy + A.sy * .4, w.z); if(!s) continue;
+    const e = screenSpot(w.x + A.sx * .45, gy + A.sy * .4, w.z), reach = Math.min(260, Math.max(46, e ? Math.abs(e[0] - s[0]) : 46));
+    const d = Math.hypot(s[0] - cx, s[1] - cy); if(d < reach && d / reach < bd){ bd = d / reach; best = { atk: m[0] }; }
   }
   return best;
 }

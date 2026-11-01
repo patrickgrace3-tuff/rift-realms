@@ -7,6 +7,7 @@
 const GRID = 600;          // grid cell size for nearby-unit and obstacle checks (bigger than any two units' reach)
 let OBST_GRID = null;
 const JUMP_TIME = .6;   // seconds a jump lasts
+const MOVE_GIVEUP = .6; // a move that stops getting closer for this long ends (walking into a wall)
 const SIM = {
   create(){
     const W = { t: 0, heroes: {}, mobs: [], shots: [], zones: [], fields: [], pets: [], loot: [], respawnQ: [], fxNet: [], fxLocal: [], nid: 1, parties: {}, invites: [], rolls: [], duels: [], duelReqs: [], arenaReqs: [], botLeave: [], mercReqs: [] };
@@ -400,7 +401,8 @@ const SIM = {
     if(cmd.gather){ const n = W.nodes.find(x => x.id === String(cmd.gather)); if(n){ c.gatherTo = n.id; c.move = c.target = c.talkTo = null; } return; }
     if(cmd.use !== undefined){ const i = Math.floor(+cmd.use); if(USE_POINTS[i]){ c.useTo = i; c.move = c.target = c.talkTo = null; } return; }
     if(cmd.talk){ const npc = NPCS.find(n => n.id === cmd.talk); if(npc){ c.talkTo = npc.id; c.target = null; c.move = null; } return; }
-    if(cmd.move){ c.move = [clampX(+cmd.move[0] || 0), clampY(+cmd.move[1] || 0)]; c.target = null; c.talkTo = null; }
+    if(cmd.move){ c.move = SIM.reachable(W, clampX(+cmd.move[0] || 0), clampY(+cmd.move[1] || 0), c.r || 50, [c.x, c.y]);
+      const via = SIM.inCathedral(c) ? SIM.roomRoute(W, c, c.move) : null; c.moveVia = via && via.length ? { for: c.move, list: via } : null; c.target = null; c.talkTo = null; }
     else if(cmd.atk){ const t = SIM.find(W, String(cmd.atk)); if(t && SIM.hostile(c, t)){ c.target = t.id; c.move = null; c.talkTo = null; } }
     else if(cmd.cast && kitKeys(c.kit).includes(cmd.cast) && Array.isArray(cmd.at)) SIM.cast(W, c, cmd.cast, [+cmd.at[0] || 0, +cmd.at[1] || 0]);
   },
@@ -552,10 +554,17 @@ const SIM = {
               else { SIM.damage(W, tgt, dmg, c); SIM.setOnHit(W, c, tgt, dmg); }
             }
           }else goal = [tgt.x, tgt.y];
-        }else if(c.move) goal = c.move;
+        }else if(c.move){
+          // in the cathedral, a click in another room goes through the doorways first
+          const via = c.moveVia && c.moveVia.for === c.move ? c.moveVia.list : null;
+          while(via && via.length && Math.hypot(via[0][0] - c.x, via[0][1] - c.y) < 40) via.shift();
+          goal = via && via.length ? via[0] : c.move;
+        }
         if(goal && SIM.canMove(c)){
           const dx = goal[0] - c.x, dy = goal[1] - c.y, d = Math.hypot(dx, dy);
           if(d < 8 && !tgt && !c.talkTo) c.move = null;
+          // a plain move gives up once it stops getting closer (walking into a wall or a crowd), instead of running in place
+          else if(c.move && !tgt && !c.talkTo && !c.lootTo && !c.useTo && !c.gatherTo && SIM.moveStalled(c, goal, d, dt)) c.move = null;
           else if(d > 0){ const s = Math.min(d, SIM.effMs(c) * dt); c.x += dx / d * s; c.y += dy / d * s; c.face = Math.atan2(dx, dy); c.moving = true; }
         }
       }
@@ -691,6 +700,65 @@ const SIM = {
     W.mobs = W.mobs.filter(m => !m.dead);
   },
   // obstacles that could touch a unit at (x, y): looked up in a grid built once
+  // true once a move has stopped getting closer to its goal for MOVE_GIVEUP seconds (tracked per goal)
+  moveStalled(c, goal, d, dt){
+    if(c.moveFor !== goal){ c.moveFor = goal; c.moveBest = d; c.moveStall = 0; return false; }
+    if(d < c.moveBest - 3){ c.moveBest = d; c.moveStall = 0; return false; }
+    return (c.moveStall += dt) > MOVE_GIVEUP;
+  },
+  // Waypoints through the cathedral's doorways (the middle of where two rooms overlap) from a unit to a goal,
+  // or null when the straight line already stays inside the rooms
+  roomRoute(W, u, to){
+    const rooms = SIM.rooms(W), pad = (u.r || 50) * .8, inside = (x, y) => rooms.some(r => x > r[0] + pad - 1 && x < r[2] - pad + 1 && y > r[1] + pad - 1 && y < r[3] - pad + 1);
+    const n = Math.ceil(Math.hypot(to[0] - u.x, to[1] - u.y) / 40);
+    let clear = true; for(let i = 1; i < n && clear; i++) clear = inside(u.x + (to[0] - u.x) * i / n, u.y + (to[1] - u.y) * i / n);
+    if(clear) return null;
+    const holds = (r, x, y) => x >= r[0] && x <= r[2] && y >= r[1] && y <= r[3];
+    const starts = rooms.map((r, i) => holds(r, u.x, u.y) ? i : -1).filter(i => i >= 0), ends = new Set(rooms.map((r, i) => holds(r, to[0], to[1]) ? i : -1).filter(i => i >= 0));
+    if(!starts.length || !ends.size) return null;
+    // a doorway is where two rooms overlap (shrunk so a unit fits); each waypoint is the doorway's nearest point to the next one
+    const dp = (u.r || 50) + 25;   // well inside both rooms, past where the walls push a unit back
+    const door = (a, b) => { const x0 = Math.max(a[0], b[0]) + dp, y0 = Math.max(a[1], b[1]) + dp, x1 = Math.min(a[2], b[2]) - dp, y1 = Math.min(a[3], b[3]) - dp; return x0 < x1 && y0 < y1 ? [x0, y0, x1, y1] : null; };
+    const prev = new Map(starts.map(i => [i, null])), queue = [...starts];
+    while(queue.length){
+      const i = queue.shift();
+      if(ends.has(i)){
+        const doors = []; for(let k = i; prev.get(k) !== null; k = prev.get(k)) doors.unshift(door(rooms[prev.get(k)], rooms[k]));
+        const path = []; let next = to;
+        for(let k = doors.length - 1; k >= 0; k--){ const d = doors[k]; next = [Math.max(d[0], Math.min(d[2], next[0])), Math.max(d[1], Math.min(d[3], next[1]))]; path.unshift(next); }
+        return path;
+      }
+      rooms.forEach((r, j) => { if(!prev.has(j) && door(rooms[i], r)){ prev.set(j, i); queue.push(j); } });
+    }
+    return null;
+  },
+  // the nearest spot a unit could actually stand on: inside its zone (or the cathedral's rooms), outside obstacles and the pond
+  reachable(W, x, y, r, from){
+    // first keep the spot in the zone you're standing in: past the jungle's west edge is the cathedral, past its
+    // south edge the Peaks, past the Peaks' north edge the cathedral; none of those can be walked to
+    if(from){
+      const [fx, fy] = from;
+      if(inJungle(fx, fy)){ x = Math.max(ZS + ZMIN, Math.min(ZS * 2 - ZMIN, x)); y = Math.max(DZ + ZMIN, Math.min(DZ + ZS - ZMIN, y)); }
+      else if(fy > DZ && fx <= ZS){ x = Math.min(ZS - ZMIN, x); y = Math.max(DZ + ZMIN, y); }
+      else { x = Math.min(ZS - ZMIN, x); y = Math.min(DZ - ZMIN, y); }
+    }
+    const u = { x, y, r };
+    for(let pass = 0; pass < 3; pass++){
+      SIM.bound(W, u);
+      for(const o of SIM.obstaclesNear(u.x, u.y)){
+        let dx = u.x - o.x, dy = u.y - o.y, d = Math.hypot(dx, dy); const min = o.r + r + 4;
+        if(d >= min) continue;
+        if(d < 1){ dx = (from ? from[0] : o.x) - o.x; dy = (from ? from[1] : o.y - 1) - o.y; d = Math.hypot(dx, dy) || 1; }   // dead centre: come out on the side you're coming from
+        u.x = o.x + dx / d * min; u.y = o.y + dy / d * min;
+      }
+      if(Math.hypot(u.x - POND.x, u.y - POND.y) < POND.r * .62 + 4){
+        let dx = u.x - POND.x, dy = u.y - POND.y, d = Math.hypot(dx, dy);
+        if(d < 1){ dx = from ? from[0] - POND.x : 0; dy = from ? from[1] - POND.y : -1; d = Math.hypot(dx, dy) || 1; }
+        u.x = POND.x + dx / d * (POND.r * .62 + 4); u.y = POND.y + dy / d * (POND.r * .62 + 4);
+      }
+    }
+    return [Math.round(u.x), Math.round(u.y)];
+  },
   obstaclesNear(x, y){
     if(!OBST_GRID){ OBST_GRID = new Map(); for(const o of OBSTACLES){ const pad = o.r + 400; for(let gx = Math.floor((o.x - pad) / GRID); gx <= Math.floor((o.x + pad) / GRID); gx++) for(let gy = Math.floor((o.y - pad) / GRID); gy <= Math.floor((o.y + pad) / GRID); gy++){ const k = gx * 4096 + gy; let c = OBST_GRID.get(k); if(!c) OBST_GRID.set(k, c = []); c.push(o); } } }
     return OBST_GRID.get(Math.floor(x / GRID) * 4096 + Math.floor(y / GRID)) || [];
