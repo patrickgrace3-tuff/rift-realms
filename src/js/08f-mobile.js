@@ -34,7 +34,8 @@ function mobileInit(){
       <button class="mbtn sm" id="mTgt" aria-label="Switch target">◎</button>
       <button class="mbtn use" id="mUse" hidden></button>
     </div>
-    <button class="mbtn sm mchat" id="mChat" aria-label="Chat">💬</button>`;
+    <button class="mbtn sm mchat" id="mChat" aria-label="Chat">💬</button>
+    <button class="mbtn sm mfull" id="mFull" aria-label="Full screen" hidden>⛶</button>`;
   document.body.appendChild(ui);
   const rot = document.createElement("div"); rot.id = "mobRotate"; rot.className = "mrotate"; rot.innerHTML = "<div>⟳</div><p>Turn your phone sideways to play</p>"; document.body.appendChild(rot);
   MOB.ui = ui;
@@ -55,12 +56,39 @@ function mobileInit(){
   addEventListener("touchmove", e => { if(!MOB.aim) return; const t = [...e.changedTouches].find(x => x.identifier === MOB.aim.id); if(t){ MOB.aim.cx = t.clientX; MOB.aim.cy = t.clientY; } }, { passive: true });
   addEventListener("touchend", e => { if(MOB.aim && [...e.changedTouches].some(x => x.identifier === MOB.aim.id)) mobileReleaseAim(); });
   addEventListener("touchcancel", () => { MOB.aim = null; });
-  // going in: fullscreen, landscape if the phone allows it
-  document.addEventListener("click", e => {
-    if(!e.target.closest || !e.target.closest("#pvEnter, #pvContinue, #joinGo, #hostGo")) return;
-    try{ const el = document.documentElement, p = el.requestFullscreen ? el.requestFullscreen() : null; if(p && p.then) p.then(() => { try{ screen.orientation.lock("landscape").catch(() => {}); }catch(_){} }).catch(() => {}); }catch(_){}
-  }, true);
+  // going in: fullscreen, landscape if the phone allows it (and again on your next tap if it said no)
+  document.addEventListener("click", e => { if(e.target.closest && e.target.closest("#pvEnter, #joinGo, #pvJoin")) mobileFullscreen(); }, true);
+  cv.addEventListener("touchend", () => { if(!MOB.fsAsked && !mobileIsFull()){ MOB.fsAsked = true; mobileFullscreen(); } });
+  // (fullscreen has to come from a finished tap, so this one listens for touchend, not touchstart)
+  const fb = $("#mFull"); fb.addEventListener("touchend", e => { e.preventDefault(); mobileFullscreen(); }, { passive: false }); fb.addEventListener("click", mobileFullscreen);
+  // rotating or going fullscreen: phones report the new size late, so size the game again a moment after
+  const again = () => { resize(); mobileLayout(); setTimeout(() => { resize(); mobileLayout(); }, 250); setTimeout(() => { resize(); mobileLayout(); }, 700); };
+  addEventListener("orientationchange", again); document.addEventListener("fullscreenchange", again); document.addEventListener("webkitfullscreenchange", again);
+  if(window.visualViewport) visualViewport.addEventListener("resize", again);
+  mobileHomeScreenHint();
   addEventListener("resize", mobileLayout); mobileLayout();
+}
+/* ---------- Full screen ---------- */
+const mobileIsFull = () => !!(document.fullscreenElement || document.webkitFullscreenElement) || mobileStandalone();
+const mobileStandalone = () => { try{ return matchMedia("(display-mode: fullscreen)").matches || matchMedia("(display-mode: standalone)").matches || navigator.standalone === true; }catch(e){ return false; } };
+const mobileCanFull = () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+function mobileFullscreen(){
+  if(mobileIsFull() || !mobileCanFull()) return;
+  try{
+    const el = document.documentElement, go = el.requestFullscreen ? el.requestFullscreen({ navigationUI: "hide" }) : el.webkitRequestFullscreen ? el.webkitRequestFullscreen() : null;
+    const lock = () => { try{ const o = screen.orientation; if(o && o.lock) o.lock("landscape").catch(() => {}); }catch(_){} };
+    if(go && go.then) go.then(lock).catch(() => {}); else lock();
+  }catch(_){}
+}
+// iPhones can't make a web page fullscreen: the game opens fullscreen from the home screen instead. Say so, once.
+function mobileHomeScreenHint(){
+  const iOS = /iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1 && !mobileCanFull());
+  if(!iOS || mobileStandalone()) return;
+  try{ if(localStorage.getItem("rr.homeHint")) return; }catch(_){}
+  const box = document.createElement("div"); box.className = "mhint";
+  box.innerHTML = `<p><b>Play full screen:</b> tap <b>Share</b> <span aria-hidden="true">⬆︎</span>, then <b>Add to Home Screen</b>, and open Rift Realms from your home screen.</p><button class="btn small" id="mHintOk">Got it</button>`;
+  document.body.appendChild(box);
+  $("#mHintOk").onclick = () => { box.remove(); try{ localStorage.setItem("rr.homeHint", "1"); }catch(_){} };
 }
 const SIM_TELL = text => { if(G) handleFx({ k: "msg", side: G.myTeam, text }); };
 // shrink the right-hand cluster on short screens
@@ -185,6 +213,7 @@ function mobileReleaseAim(){ const A = MOB.aim; MOB.aim = null; if(G && G.snap) 
 function updateMobile(dt, t){
   if(!MOBILE || !MOB.ui || !G || !G.snap) return;
   MOB.ui.hidden = false;
+  const fb = $("#mFull"), wantFull = mobileCanFull() && !mobileIsFull(); if(fb.hidden === wantFull) fb.hidden = !wantFull;
   const me = mobileMe(); if(!me) return;
   if(G.slotKeys && G.slotKeys.join() + "|" + (G.slotEls || []).length !== MOB.keys){ MOB.keys = G.slotKeys.join() + "|" + (G.slotEls || []).length; mobileAbilityButtons(); }
   // track enemy movement for leading shots

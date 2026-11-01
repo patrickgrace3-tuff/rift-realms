@@ -3,7 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build" content="66295d9952">
+<!-- installable: from a phone's home screen the game opens full screen, with no browser bars -->
+<link rel="manifest" href="src/app.webmanifest?v=187b605a06">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Rift Realms">
+<meta name="theme-color" content="#0b0f17">
+<link rel="apple-touch-icon" href="src/icons/icon-180.png?v=ecab1e2144">
+<meta name="build" content="3805d71bfa">
 <script>
 // If this copy of the page is out of date (a browser can hold on to an old one), load the latest.
 // The build code changes whenever any game file does (scripts/stamp.mjs writes it).
@@ -24,7 +32,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=a88db731e7">
+<link rel="stylesheet" href="src/styles.css?v=9010e5c527">
 </head>
 <body>
 
@@ -369,7 +377,7 @@
 <script src="src/js/08c-audio.js?v=908391b037"></script>
 <script src="src/js/08d-save.js?v=6e363ac65a"></script>
 <script src="src/js/08e-crafting.js?v=2268cb7877"></script>
-<script src="src/js/08f-mobile.js?v=85d97a8192"></script>
+<script src="src/js/08f-mobile.js?v=0851fc35cf"></script>
 <script src="src/js/09-render.js?v=ec9e8353cc"></script>
 </body>
 </html>

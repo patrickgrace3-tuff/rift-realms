@@ -25,7 +25,7 @@ npm start
 
 ## Controls
 
-On a phone (held sideways): a joystick appears under your left thumb; on the right, Attack, your abilities, Potion, Jump, Switch target, and an action button for talking, looting and gathering. Tap an ability and it aims itself at your target (heals find the ally who needs them); drag from it to aim by hand. Drag the screen to turn the camera, pinch to zoom, tap to move or attack.
+On a phone (held sideways): a joystick appears under your left thumb; on the right, Attack, your abilities, Potion, Jump, Switch target, and an action button for talking, looting and gathering. Tap an ability and it aims itself at your target (heals find the ally who needs them); drag from it to aim by hand. Drag the screen to turn the camera, pinch to zoom, tap to move or attack. The game goes full screen when you enter the world (or tap ⛶). On an iPhone, tap Share → Add to Home Screen and open it from there to play without the browser bars.
 
 On a computer:
 
