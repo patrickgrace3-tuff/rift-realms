@@ -41,7 +41,7 @@ const ARCH = {
   aoe:     { label: "Blast", text: "Strikes the target area after a short delay" },
   cone:    { label: "Cleave", text: "Hits every enemy in a cone in front of you" },
   spin:    { label: "Spin", text: "Spins, hitting everything around you several times" },
-  shield:  { label: "Shield", text: "Shields you, or the ally nearest your cursor, and gives a burst of speed" },
+  shield:  { label: "Shield", text: "Shields you, or the ally nearest your cursor, until it has soaked up its full amount of damage, and gives a burst of speed" },
   heal:    { label: "Heal", text: "Restores health to you, or to the ally nearest your cursor" },
   steroid: { label: "Empower", text: "Your attacks are faster and hit harder for a few seconds" },
   field:   { label: "Zone", text: "Creates a zone that damages and slows enemies inside" },
@@ -120,6 +120,12 @@ function buildKit(d){
     used.add(type);
     kit[k] = Object.assign(abilityParams(type, cls, k === "R", readCC(text), text), { key: k, name: sp.name, icon: sp.image.full });
   });
+  // Support champions always have a heal on R, usable from level 1: themselves or the ally nearest the cursor,
+  // growing with level and ability damage (SIM.supportAmount)
+  if((d.tags || []).includes("Support")){
+    const sp = (d.spells && d.spells[3]) || { name: "R", image: { full: "" } };
+    kit.R = Object.assign(abilityParams("heal", cls, true, {}, ""), { key: "R", name: sp.name, icon: sp.image.full, cd: 18, amount: 320, dmg: 0, anyLevel: true });
+  }
   return kit;
 }
 function describeAbility(p){

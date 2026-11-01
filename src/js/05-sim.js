@@ -415,7 +415,7 @@ const SIM = {
   },
   cast(W, c, key, at){
     if(c.dead || c.cds[key] > 0 || c.dash || !SIM.canAct(c)) return;
-    if(key === "R" && c.lvl < ULT_LEVEL) return;
+    if(ultLocked(c.kit, c.lvl, key)) return;
     if(c.silenceT > W.t) return; // silenced (Abbess Ysolde's palm)
     c.channel = null; c.useTo = null;
     const p = applyTalents(c.kit[key], c.talents[key]);
@@ -453,7 +453,7 @@ const SIM = {
       case "spin": c.spin = { left: p.dur, done: 0, p }; break;
       case "shield": {
         const t = SIM.supportTarget(W, c, at), amt = SIM.supportAmount(c, p);
-        t.shield = Math.max(t.shield, amt); t.shieldT = p.dur; t.boostT = 2; t.boost = p.boost;
+        t.shield = Math.max(t.shield, amt); t.boostT = 2; t.boost = p.boost;   // shields last until they've soaked up their amount
         if(p.cleanse) t.cc = { stun: 0, root: 0, slow: 0, slowAmt: 0 };
         SIM.fx(W, { k: "shielded", side: t.side, v: Math.round(amt), from: c.side, name: c.name }); SIM.healThreat(W, c, amt);
         if(p.dmg){ SIM.burst(W, c, c.x, c.y, p.radius, p); SIM.fx(W, { k: "ring", x: c.x, y: c.y, r: p.radius }); }
@@ -496,7 +496,6 @@ const SIM = {
       if(c.bot && !c.dead){ if(c.merc) SIM.mercTick(W, c, dt); else SIM.botTick(W, c, dt); } // computer-controlled champions decide what to do
       if(c.dead){ if(W.t >= c.respawnAt){ const home = SIM.respawnAt(c); c.dead = 0; c.hp = c.maxHp; c.x = home[0]; c.y = home[1]; SIM.fx(W, { k: "spawn", side: c.side }); } continue; }
       SIM.tickTimers(c, dt);
-      c.shieldT -= dt; if(c.shieldT <= 0) c.shield = 0;
       c.buffT = Math.max(0, c.buffT - dt); c.boostT = Math.max(0, c.boostT - dt); c.stealthT = Math.max(0, c.stealthT - dt);
       c.moving = false;
       if(c.dash){

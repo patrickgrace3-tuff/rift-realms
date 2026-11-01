@@ -126,7 +126,7 @@ Object.assign(SIM, {
     if(!o || b.dead){ b.move = b.target = null; return; }
     const dist = Math.hypot(o.x - b.x, o.y - b.y), hpP = b.hp / b.maxHp;
     if(d.state !== "fight"){ b.move = b.target = null; b.face = Math.atan2(o.x - b.x, o.y - b.y); return; }
-    const can = k => b.cds[k] <= 0 && !(k === "R" && b.lvl < ULT_LEVEL) && SIM.canAct(b) && !b.dash;
+    const can = k => b.cds[k] <= 0 && !ultLocked(b.kit, b.lvl, k) && SIM.canAct(b) && !b.dash;
     const cast = (k, at) => { SIM.cast(W, b, k, [Math.round(at[0]), Math.round(at[1])]); return true; };
     const away = len => SIM.botInRing(b, [b.x - (o.x - b.x) / (dist || 1) * len, b.y - (o.y - b.y) / (dist || 1) * len]);
     // 1. dodge, and shield up if something is coming

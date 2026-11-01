@@ -408,9 +408,10 @@ function renderAbilityTip(){
   if(p.dmg) bits.push(`${Math.round(p.dmg * SIM.dmgScale({ lvl: me.lvl, ap: me.ap }))} damage`);
   if(p.amount) bits.push(`${p.type === "heal" ? "Heals" : "Shields for"} ${Math.round(SIM.supportAmount({ lvl: me.lvl, ap: me.ap }, p))}`);
   if(p.type === "steroid") bits.push(`+${Math.round(p.as * 100)}% attack speed`);
-  if(p.dur && ["stealth", "steroid", "field", "summon", "orbit", "shield"].includes(p.type)) bits.push(`lasts ${Math.round(p.dur * 10) / 10}s`);
+  if(p.dur && ["stealth", "steroid", "field", "summon", "orbit"].includes(p.type)) bits.push(`lasts ${Math.round(p.dur * 10) / 10}s`);
+  if(p.type === "shield") bits.push("lasts until broken");
   if(p.range && !["shield", "heal", "steroid", "stealth", "spin", "orbit"].includes(p.type)) bits.push(`range ${Math.round(p.range)}`);
-  const locked = k === "R" && me.lvl < ULT_LEVEL, cd = me.cds[k];
+  const locked = ultLocked(G.myKit, me.lvl, k), cd = me.cds[k];
   const key = [k, me.lvl, me.ap, me.haste, JSON.stringify(me.talents && me.talents[k]), locked, cd > 0 ? Math.ceil(cd) : 0].join("|");
   if(key === G.tipRendered && !$("#abTip").hidden) return;
   G.tipRendered = key;
@@ -434,7 +435,7 @@ function updateHud(){
   $("#hptext").textContent = `${Math.max(0, me.hp)} / ${me.maxHp}`;
   $("#lvl").textContent = me.lvl; $("#xpfill").style.width = Math.min(100, me.xp / me.xpNext * 100) + "%";
   ["Q", "W", "E", "R"].forEach((k, i) => {
-    const el = G.slotEls[i], cd = me.cds[k], locked = k === "R" && me.lvl < ULT_LEVEL;
+    const el = G.slotEls[i], cd = me.cds[k], locked = ultLocked(G.myKit, me.lvl, k);
     el.classList.toggle("locked", locked || !!me.dead);
     const cdEl = el.querySelector(".cd");
     cdEl.textContent = locked ? `Lv${ULT_LEVEL}` : cd > 0 ? (cd >= 1 ? Math.ceil(cd) : cd.toFixed(1)) : "";

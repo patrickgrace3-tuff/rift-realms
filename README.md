@@ -54,6 +54,7 @@ Every push to `main` runs the tests and publishes the game to GitHub Pages (`.gi
 ## Credits
 
 - Music: "Calm Ambient Dreamscape" by Morgan Ambient, from [Pixabay](https://pixabay.com/) (Pixabay Content License).
+- Sound effects in `src/audio/sfx/` (attacks, hits, misses, death, respawn, level up, heal and shield) were supplied by the project owner.
 
 ## Legal
 

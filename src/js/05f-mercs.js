@@ -95,7 +95,7 @@ Object.assign(SIM, {
     const near = (u, r) => Math.hypot(u.x - m.x, u.y - m.y) < r;
     const party = SIM.partyMembers(W, m).filter(h => !h.dead);
     const boss = W.mobs.find(b => b.boss && !b.dead && b.aggro && near(b, 2600));
-    const can = k => m.cds[k] <= 0 && !(k === "R" && m.lvl < ULT_LEVEL) && SIM.canAct(m) && !m.dash;
+    const can = k => m.cds[k] <= 0 && !ultLocked(m.kit, m.lvl, k) && SIM.canAct(m) && !m.dash;
     const cast = (k, at) => { SIM.cast(W, m, k, [Math.round(at[0]), Math.round(at[1])]); return true; };
     // 1. never stand in a telegraphed attack
     if(boss && boss.cast){

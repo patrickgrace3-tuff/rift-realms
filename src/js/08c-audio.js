@@ -23,6 +23,7 @@ const SFX = {
   "level-up": "src/audio/sfx/level-up.mp3",
   // abilities: "ab-" + the ability's type (bolt, hook, dash, leap, blink, aoe, cone, spin, shield, heal, steroid, field, summon, stealth, orbit)
   "ab-heal": "src/audio/sfx/ab-heal.mp3",
+  "ab-shield": "src/audio/sfx/ab-shield.mp3",
 };
 // the shortest gap (seconds) between two plays of the same effect, so rapid hits don't buzz
 const SFX_GAP = { "hit-flesh": .07, "hit-player": .18, "miss": .1, "level-up": 3 };
