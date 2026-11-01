@@ -164,9 +164,26 @@ const OBELISKS = [{ name: "Obelisk of Dawn", ...DS(2800, 3000) }, { name: "Obeli
 USE_POINTS.push(...OBELISKS);
 const WRECKS = [{ name: "the Broken Wagon", ...DS(5600, 1600) }, { name: "the Bleached Ribs", ...DS(6700, 3400) }, { name: "the Last Camp", ...DS(5200, 4700) }];
 const MESAS = [DS(4100, 900), DS(5200, 3400), DS(2900, 4900), DS(5800, 5300), DS(800, 4400)].map((p, i) => ({ ...p, r: [300, 320, 300, 280, 260][i] }));
-WAYSTONES.desert = { ...DS(2200, 1050), name: "Waystone to Highwatch" };   // south-east of the camp, clear of everyone you talk to
+WAYSTONES.desert = { ...DS(900, 2300), name: "Waystone to Highwatch" };   // west of the camp, clear of everyone you talk to and of the hunting grounds
 WAYSTONES.peaksDesert = { x: OUTPOST.x + 700, y: OUTPOST.y - 140, name: "Waystone to the Amberveil" };
 FIRES.push(DESERT_FIRE);
+/* ---------- The Proving Grounds (the duelling arena; x 8000–16000, y 0–8000, east of the Vale) ---------- */
+// Every duel happens here: Vex's practice duels and duels between players. Each side starts behind its own
+// gate; the gates open on "Fight!". Two broad floors are split by a chasm, crossed by one stone bridge, and
+// four great pillars on the floors block shots, so you can break line of sight.
+const PG = { x: 12000, y: 4000 };
+const PG_ROOMS = {
+  west: [8900, 3550, 9900, 4450],          // the west gate room (the challenger starts here)
+  westFloor: [9600, 2300, 11650, 5700],
+  bridge: [11350, 3700, 12650, 4300],      // the only way across the chasm (it reaches 300 onto each floor)
+  eastFloor: [12350, 2300, 14400, 5700],
+  east: [14100, 3550, 15100, 4450],        // the east gate room
+};
+const PG_ROOM_LIST = Object.values(PG_ROOMS);
+const PG_START = { a: [9250, 4000], b: [14750, 4000] };
+const PG_GATES = { a: { x: 9900, y: 4000 }, b: { x: 14100, y: 4000 } };
+const PG_PILLARS = [[10650, 2950], [10650, 5050], [13350, 2950], [13350, 5050]].map(([x, y]) => ({ x, y, r: 230 }));
+const inArena = (x, y) => x > ZS && y <= ZS;
 // Every zone: a key, its name, and its area in world units (x0, y0 is the south-west corner).
 // New zones go here; the minimap and world map draw whatever is in this list.
 const ZONES = [
@@ -175,10 +192,11 @@ const ZONES = [
   { key: "cathedral", name: "The Ashen Cathedral", x0: 0, y0: DZ, w: ZS, h: ZS, dungeon: true },
   { key: "jungle", name: "The Thornveil Jungle", x0: JX, y0: JY, w: ZS, h: ZS },
   { key: "desert", name: "The Amberveil Wastes", x0: DX, y0: DY, w: ZS, h: ZS },
+  { key: "arena", name: "The Proving Grounds", x0: ZS, y0: 0, w: ZS, h: ZS, arena: true },
 ];
 // what each zone's arrival banner says, and where you return to when you fall there
-const ZONE_HINT = { vale: "", peaks: "Highwatch Outpost lies north along the road", cathedral: "Sister Elowen waits in the narthex", jungle: "Ranger Tamsin waits at Canopy Camp", desert: "Caravan Master Daro waits at Sandglass Oasis" };
-const ZONE_HOME = { vale: "the village", peaks: "Highwatch Outpost", cathedral: "the cathedral entrance", jungle: "Canopy Camp", desert: "Sandglass Oasis" };
+const ZONE_HINT = { vale: "", peaks: "Highwatch Outpost lies north along the road", cathedral: "Sister Elowen waits in the narthex", jungle: "Ranger Tamsin waits at Canopy Camp", desert: "Caravan Master Daro waits at Sandglass Oasis", arena: "The gates open on \"Fight!\"" };
+const ZONE_HOME = { vale: "the village", peaks: "Highwatch Outpost", cathedral: "the cathedral entrance", jungle: "Canopy Camp", desert: "Sandglass Oasis", arena: "Arenamaster Vex" };
 const zoneAt = (y, x = ZS / 2) => ZONES.find(z => x >= z.x0 && x < z.x0 + z.w && y >= z.y0 && y < z.y0 + z.h) || ZONES.find(z => z.key === (y >= ZS ? "jungle" : "vale"));
 const ZONE_PICS = {}; // each zone's map picture (a canvas), keyed like ZONES; filled in when the scene is built
 const NPCS = [
@@ -207,7 +225,7 @@ const OBSTACLES = [
   ...NPCS.filter(n => !n.shop).map(n => ({ x: n.x, y: n.y, r: 55 })), // vendors are covered by their stall
   { x: CAMP.x, y: CAMP.y, r: 190 }, { x: CABIN.x, y: CABIN.y, r: 250 }, { x: TOWER.x, y: TOWER.y, r: 220 },
   ...BEACONS.map(b => ({ x: b.x, y: b.y, r: 70 })), ...LOOKOUTS.map(p => ({ x: p.x, y: p.y, r: 55 })),
-  ...PEAK_OBSTACLES, ...PILLARS, ...KAPOKS, ...MESAS, { x: OASIS_POOL.x, y: OASIS_POOL.y, r: OASIS_POOL.r }, { x: DESERT_STALL.x, y: DESERT_STALL.y - 50, r: 150 }, { x: DESERT_FIRE[0], y: DESERT_FIRE[1], r: 80 },
+  ...PEAK_OBSTACLES, ...PILLARS, ...KAPOKS, ...MESAS, ...PG_PILLARS, { x: OASIS_POOL.x, y: OASIS_POOL.y, r: OASIS_POOL.r }, { x: DESERT_STALL.x, y: DESERT_STALL.y - 50, r: 150 }, { x: DESERT_FIRE[0], y: DESERT_FIRE[1], r: 80 },
   ...OBELISKS.map(o => ({ x: o.x, y: o.y, r: 70 })), { x: JUNGLE_STALL.x, y: JUNGLE_STALL.y - 50, r: 150 }, { x: JUNGLE_FIRE[0], y: JUNGLE_FIRE[1], r: 80 }, { x: STALL.x, y: STALL.y - 50, r: 150 }, // one circle around the stall and its vendor, so there's no corner to get stuck in
 ];
 const QUESTS = {

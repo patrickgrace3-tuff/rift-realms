@@ -10,7 +10,7 @@ const JUMP_TIME = .6;   // seconds a jump lasts
 const MOVE_GIVEUP = .6; // a move that stops getting closer for this long ends (walking into a wall)
 const SIM = {
   create(){
-    const W = { t: 0, heroes: {}, mobs: [], shots: [], zones: [], fields: [], pets: [], loot: [], respawnQ: [], fxNet: [], fxLocal: [], nid: 1, parties: {}, invites: [], rolls: [], duels: [], duelReqs: [], arenaReqs: [], botLeave: [], mercReqs: [] };
+    const W = { t: 0, heroes: {}, mobs: [], shots: [], zones: [], fields: [], pets: [], loot: [], respawnQ: [], fxNet: [], fxLocal: [], nid: 1, parties: {}, invites: [], rolls: [], duels: [], duelReqs: [], arenaReqs: [], botLeave: [], mercReqs: [], pgReturn: [] };
     for(const kind in MOBS) for(let i = 0; i < MOBS[kind].count; i++) SIM.spawnMob(W, kind);
     SIM.dungeonCreate(W);
     W.nodes = [];
@@ -108,7 +108,7 @@ const SIM = {
   },
   xpNext: xpForLevel,
   // fallen heroes return to the village, or to Highwatch if they fell in the Peaks
-  respawnAt: c => inJungle(c.x, c.y) ? JUNGLE_ARRIVE : inDesert(c.x, c.y) ? DESERT_ARRIVE : c.y > DZ ? CATHEDRAL.arrive : c.y >= ZS ? [OUTPOST.x + 120, OUTPOST.y - 260] : SPAWN,
+  respawnAt: c => inArena(c.x, c.y) ? [ARENA.x - 450, ARENA.y] : inJungle(c.x, c.y) ? JUNGLE_ARRIVE : inDesert(c.x, c.y) ? DESERT_ARRIVE : c.y > DZ ? CATHEDRAL.arrive : c.y >= ZS ? [OUTPOST.x + 120, OUTPOST.y - 260] : SPAWN,
   dmgScale: c => (1 + .09 * ((c.lvl || 1) - 1)) * (1 + (c.ap || 0) / 100),
   fx(W, f){ W.fxNet.push(f); W.fxLocal.push(f); },
   isHero: u => u.team === "hero",
@@ -403,7 +403,7 @@ const SIM = {
     if(cmd.use !== undefined){ const i = Math.floor(+cmd.use); if(USE_POINTS[i]){ c.useTo = i; c.move = c.target = c.talkTo = null; } return; }
     if(cmd.talk){ const npc = NPCS.find(n => n.id === cmd.talk); if(npc){ c.talkTo = npc.id; c.target = null; c.move = null; } return; }
     if(cmd.move){ c.move = SIM.reachable(W, clampX(+cmd.move[0] || 0), clampY(+cmd.move[1] || 0), c.r || 50, [c.x, c.y]);
-      const via = SIM.inCathedral(c) ? SIM.roomRoute(W, c, c.move) : null; c.moveVia = via && via.length ? { for: c.move, list: via } : null; c.target = null; c.talkTo = null; }
+      const via = SIM.inCathedral(c) || inArena(c.x, c.y) ? SIM.roomRoute(W, c, c.move) : null; c.moveVia = via && via.length ? { for: c.move, list: via } : null; c.target = null; c.talkTo = null; }
     else if(cmd.atk){ const t = SIM.find(W, String(cmd.atk)); if(t && SIM.hostile(c, t)){ c.target = t.id; c.move = null; c.talkTo = null; } }
     else if(cmd.cast && kitKeys(c.kit).includes(cmd.cast) && Array.isArray(cmd.at)) SIM.cast(W, c, cmd.cast, [+cmd.at[0] || 0, +cmd.at[1] || 0]);
   },
@@ -495,7 +495,7 @@ const SIM = {
     W.respawnQ = W.respawnQ.filter(r => { if(W.t >= r.at){ SIM.spawnMob(W, r.kind); return false; } return true; });
     for(const n of W.nodes) if(!n.ready && W.t >= n.respawnAt) n.ready = true;
     W.loot = W.loot.filter(l => !l.expires || l.expires > W.t);
-    SIM.socialTick(W); SIM.duelTick(W); SIM.arenaTick(W); SIM.dungeonTick(W, dt);
+    SIM.socialTick(W); SIM.duelTick(W); SIM.arenaTick(W); SIM.pgTick(W); SIM.dungeonTick(W, dt);
     // heroes
     for(const c of SIM.heroes(W)){
       for(const k in c.cds) c.cds[k] = Math.max(0, c.cds[k] - dt);
@@ -680,6 +680,8 @@ const SIM = {
         if(d <= stp + t.r){ SIM.damage(W, t, sh.dmg, owner); if(sh.basic) SIM.setOnHit(W, owner, t, sh.dmg); sh.life = 0; } else { sh.x += dx / d * stp; sh.y += dy / d * stp; }
       }
     }
+    // in the Proving Grounds, the pillars stop shots: break line of sight behind one
+    for(const sh of W.shots) if(sh.life > 0 && SIM.pillarAt(sh.x, sh.y)){ sh.life = 0; SIM.fx(W, { k: "hit", x: sh.x, y: sh.y }); }
     W.shots = W.shots.filter(sh => sh.life > 0);
     for(const z of W.zones){ z.t -= dt; if(z.t <= 0){ const o = W.heroes[z.owner.slice(2)]; if(o) SIM.burst(W, o, z.x, z.y, z.r, z.p); SIM.fx(W, { k: "nova", x: z.x, y: z.y, r: z.r }); } }
     W.zones = W.zones.filter(z => z.t > 0);
@@ -710,7 +712,7 @@ const SIM = {
   // Waypoints through the cathedral's doorways (the middle of where two rooms overlap) from a unit to a goal,
   // or null when the straight line already stays inside the rooms
   roomRoute(W, u, to){
-    const rooms = SIM.rooms(W), pad = (u.r || 50) * .8, inside = (x, y) => rooms.some(r => x > r[0] + pad - 1 && x < r[2] - pad + 1 && y > r[1] + pad - 1 && y < r[3] - pad + 1);
+    const rooms = inArena(u.x, u.y) ? SIM.pgRooms(u) : SIM.rooms(W), pad = (u.r || 50) * .8, inside = (x, y) => rooms.some(r => x > r[0] + pad - 1 && x < r[2] - pad + 1 && y > r[1] + pad - 1 && y < r[3] - pad + 1);
     const n = Math.ceil(Math.hypot(to[0] - u.x, to[1] - u.y) / 40);
     let clear = true; for(let i = 1; i < n && clear; i++) clear = inside(u.x + (to[0] - u.x) * i / n, u.y + (to[1] - u.y) * i / n);
     if(clear) return null;
@@ -733,6 +735,13 @@ const SIM = {
     }
     return null;
   },
+  // is the straight line from a to b blocked by one of the Proving Grounds' pillars?
+  losBlocked(ax, ay, bx, by){
+    if(!inArena(ax, ay)) return false;
+    const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1;
+    return PG_PILLARS.some(p => { const t = Math.max(0, Math.min(1, ((p.x - ax) * dx + (p.y - ay) * dy) / L2)); return Math.hypot(ax + dx * t - p.x, ay + dy * t - p.y) < p.r - 10; });
+  },
+  pillarAt: (x, y) => inArena(x, y) && PG_PILLARS.some(p => Math.hypot(x - p.x, y - p.y) < p.r),
   // the nearest spot a unit could actually stand on: inside its zone (or the cathedral's rooms), outside obstacles and the pond
   reachable(W, x, y, r, from){
     // first keep the spot in the zone you're standing in: past the jungle's west edge is the cathedral, past its
@@ -740,6 +749,7 @@ const SIM = {
     if(from){
       const [fx, fy] = from;
       if(inJungle(fx, fy)){ x = Math.max(ZS + ZMIN, Math.min(ZS * 2 - ZMIN, x)); y = Math.max(DZ + ZMIN, Math.min(DZ + ZS - ZMIN, y)); }
+      else if(inArena(fx, fy)){ x = Math.max(ZS + 50, x); y = Math.min(ZS - 50, y); }
       else if(inDesert(fx, fy)){ x = Math.max(ZS + ZMIN, Math.min(ZS * 2 - ZMIN, x)); y = Math.max(ZS + ZMIN, Math.min(DZ - ZMIN, y)); }
       else if(fy > DZ && fx <= ZS){ x = Math.min(ZS - ZMIN, x); y = Math.max(DZ + ZMIN, y); }
       else { x = Math.min(ZS - ZMIN, x); y = Math.min(DZ - ZMIN, y); }

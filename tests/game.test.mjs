@@ -592,22 +592,25 @@ function duelWorld(){
   return { W, a, b, c, fx, step };
 }
 
-test("duel: challenge, accept, a 5-second countdown, then the two can fight", () => {
+const inRoom = (h, r) => h.x >= r[0] && h.x <= r[2] && h.y >= r[1] && h.y <= r[3];
+test("duel: accepting sends both to the Proving Grounds, each behind a gate; the countdown, then the gates open", () => {
   const { W, a, b, c, fx, step } = duelWorld();
   SIM.input(W, "blue", { duel: "red" });
   assert.ok(W.duelReqs.length === 1 && fx.length === 0 && W.fxNet.some(f => f.k === "duelreq" && f.to[0] === "red"));
   SIM.input(W, "red", { duelaccept: "blue" });
-  const d = W.duels[0];
-  assert.ok(d && a.duel === d && b.duel === d && d.state === "count", "a duel with a flag between them");
-  assert.ok(Math.abs(d.x - (a.x + b.x) / 2) < 1 && Math.abs(d.y - (a.y + b.y) / 2) < 1);
-  // during the countdown nobody can be hit
+  const d = W.duels[0], N = G.PG_RULES.count;
+  assert.ok(d && a.duel === d && b.duel === d && d.state === "count" && d.pg, "a duel in the arena");
+  assert.ok(inRoom(a, G.PG_ROOMS.west) && inRoom(b, G.PG_ROOMS.east), "the challenger starts behind the west gate, the other behind the east");
+  // during the countdown nobody can be hit, and nobody gets past their gate
   assert.ok(!SIM.hostile(a, b) && !SIM.enemies(W, a).includes(b));
-  step(2.5);
-  assert.deepEqual(fx.filter(f => f.k === "duelcount").map(f => f.n), [5, 4, 3], "counts down 5, 4, 3…");
-  step(3);
-  assert.deepEqual(fx.filter(f => f.k === "duelcount").map(f => f.n), [5, 4, 3, 2, 1, 0], "…2, 1, Fight!");
+  SIM.input(W, "blue", { move: [G.PG.x, G.PG.y] }); step(3);
+  assert.ok(inRoom(a, G.PG_ROOMS.west), "the gate holds during the countdown");
+  step(N - 3 + .5);
+  assert.deepEqual(fx.filter(f => f.k === "duelcount").map(f => f.n), [...Array.from({ length: N }, (_, i) => N - i), 0], "counts down, then Fight!");
   assert.ok(d.state === "fight" && SIM.hostile(a, b) && SIM.hostile(b, a));
   assert.ok(!SIM.hostile(a, c) && !SIM.hostile(c, b), "players outside the duel stay safe");
+  SIM.input(W, "blue", { move: [G.PG.x - 900, G.PG.y] }); step(4);
+  assert.ok(inRoom(a, G.PG_ROOMS.westFloor) && !inRoom(a, G.PG_ROOMS.west), "once the gates open you're out on the floor");
   // area abilities hit the opponent but never a bystander
   const hpB = b.hp, hpC = c.hp; c.x = a.x + 100; b.x = a.x + 150; b.y = c.y = a.y;
   SIM.burst(W, a, a.x, a.y, 400, { dmg: 50, cc: {} });
@@ -616,25 +619,47 @@ test("duel: challenge, accept, a 5-second countdown, then the two can fight", ()
   c.x = a.x - 3000; assert.equal(SIM.supportTarget(W, a, [b.x, b.y]), a);
 });
 
-test("duel: the loser is left at 1 health, the winner is announced, and the fighting stops", () => {
+test("duel: the loser is left at 1 health, the winner is announced, and both go back where they were", () => {
   const { W, a, b, fx, step } = duelWorld();
-  SIM.input(W, "blue", { duel: "red" }); SIM.input(W, "red", { duelaccept: "blue" }); step(5.2);
+  const homeA = [a.x, a.y], homeB = [b.x, b.y];
+  SIM.input(W, "blue", { duel: "red" }); SIM.input(W, "red", { duelaccept: "blue" }); step(G.PG_RULES.count + .2);
   SIM.input(W, "blue", { atk: b.id }); assert.equal(a.target, b.id, "you can target your opponent");
   SIM.damage(W, b, 1e6, a);
   assert.ok(!b.dead && b.hp === 1, "nobody dies in a duel");
   assert.ok(!W.duels.length && !a.duel && !b.duel && a.target === null);
   assert.ok(fx.concat(W.fxNet).some(f => f.k === "duelend" && f.win === "blue"));
-  assert.ok(W.fxNet.some(f => f.k === "sys" && /Alice has defeated Bob in a duel/.test(f.text)));
   assert.ok(!SIM.hostile(a, b), "after the duel they're allies again");
   const hp = b.hp; SIM.burst(W, a, b.x, b.y, 300, { dmg: 50, cc: {} }); assert.equal(b.hp, hp);
+  step(G.PG_RULES.returnAfter + .5);
+  assert.ok(Math.hypot(a.x - homeA[0], a.y - homeA[1]) < 5 && Math.hypot(b.x - homeB[0], b.y - homeB[1]) < 5, "both are sent back to where they stood");
 });
 
-test("duel: leaving the area forfeits; declines, timeouts and bad input are handled", () => {
+test("duel: the walls and the chasm hold; the bridge is the way across; pillars block shots and line of sight", () => {
+  const { W, a, b, step } = duelWorld();
+  SIM.input(W, "blue", { duel: "red" }); SIM.input(W, "red", { duelaccept: "blue" }); step(G.PG_RULES.count + .2);
+  // nobody can walk out of the arena, and there's no forfeit for being far apart
+  a.x = 10000; a.y = 4000; SIM.input(W, "blue", { move: [10000, 7900] }); step(8);
+  assert.ok(G.inArena(a.x, a.y) && a.y <= G.PG_ROOMS.westFloor[3], "the north wall holds"); assert.ok(W.duels.length === 1, "still duelling");
+  // a click on the far floor walks over the bridge, never through the chasm
+  a.x = 11000; a.y = 2700; SIM.input(W, "blue", { move: [13000, 2700] });
+  step(12);
+  assert.ok(inRoom(a, G.PG_ROOMS.eastFloor), `crossed to the east floor (at ${Math.round(a.x)},${Math.round(a.y)})`);
+  a.x = 11000; a.y = 2700; const before = [a.x, a.y]; for(let i = 0; i < 60; i++){ a.x += 20; SIM.step(W, 1 / 60); }
+  assert.ok(a.x <= G.PG_ROOMS.westFloor[2], "and you can't step into the chasm");
+  // a pillar between you stops a skillshot, and blocks line of sight
+  const P = G.PG_PILLARS[0]; a.x = P.x - 600; a.y = P.y; b.x = P.x + 600; b.y = P.y; a.move = b.move = a.target = b.target = null;
+  assert.ok(SIM.losBlocked(a.x, a.y, b.x, b.y) && !SIM.losBlocked(a.x, a.y - 500, b.x, b.y - 500));
+  const hp = b.hp;
+  W.shots.push({ id: "s" + W.nid++, kind: "sk", slot: "Q", team: a.team, owner: a.id, x: a.x + 60, y: a.y, vx: 1400, vy: 0, life: 1.5, r: 50, p: { dmg: 200, cc: {} }, hits: new Set() });
+  step(1.5); assert.equal(b.hp, hp, "the pillar took the hit");
+  b.y = a.y = P.y - 600;
+  W.shots.push({ id: "s" + W.nid++, kind: "sk", slot: "Q", team: a.team, owner: a.id, x: a.x + 60, y: a.y, vx: 1400, vy: 0, life: 1.5, r: 50, p: { dmg: 200, cc: {} }, hits: new Set() });
+  step(1.5); assert.ok(b.hp < hp, "in the open it lands");
+});
+
+test("duel: declines, timeouts and bad input are handled; a disconnect cancels and sends the other home", () => {
   const { W, a, b, c, step } = duelWorld();
-  SIM.input(W, "blue", { duel: "red" }); SIM.input(W, "red", { duelaccept: "blue" }); step(5.2);
-  const d = W.duels[0]; b.x = d.x + d.r + 300; b.move = null;
-  step(2); assert.ok(W.duels.length === 1, "a few seconds' grace outside the area");
-  step(G.DUEL.outGrace); assert.ok(!W.duels.length && !b.duel, "stayed out: forfeited");
+  const homeA = [a.x, a.y];
   // decline
   SIM.input(W, "blue", { duel: "green" }); SIM.input(W, "green", { dueldecline: "blue" });
   assert.ok(!W.duelReqs.length && !W.duels.length);
@@ -645,9 +670,15 @@ test("duel: leaving the area forfeits; declines, timeouts and bad input are hand
   for(const bad of [{ duel: "blue" }, { duel: "__proto__" }, { duelaccept: "constructor" }, { dueldecline: "x" }, { duel: null }]) SIM.input(W, "blue", bad);
   SIM.input(W, "__proto__", { duel: "red" });
   assert.ok(!W.duelReqs.length && !W.duels.length);
-  // a disconnect cancels a duel
+  // a disconnect cancels a duel, and the one left behind goes home
   SIM.input(W, "blue", { duel: "red" }); SIM.input(W, "red", { duelaccept: "blue" }); SIM.removeHero(W, "red"); step(.1);
   assert.ok(!W.duels.length && !a.duel);
+  step(G.PG_RULES.returnAfter + .5); assert.ok(Math.hypot(a.x - homeA[0], a.y - homeA[1]) < 5 && !G.inArena(a.x, a.y), "back where you were");
+  // a save made mid-duel puts you back beside Vex
+  SIM.input(W, "blue", { duel: "green" }); c.x = a.x; c.y = a.y; SIM.input(W, "blue", { duel: "green" }); SIM.input(W, "green", { duelaccept: "blue" });
+  const sv = JSON.parse(JSON.stringify(G.saveRecord(SIM.snapshot(W).h.find(x => x.side === "blue"), a.champId)));
+  const W2 = SIM.create(), a2 = SIM.addHero(W2, "blue", GAREN_LIKE()); SIM.loadSave(W2, a2, sv);
+  assert.ok(!G.inArena(a2.x, a2.y) && Math.hypot(a2.x - G.ARENA.x, a2.y - G.ARENA.y) < 800, "saved in the arena, back by Vex");
 });
 
 /* ---------- Arena: practice duels against a computer champion ---------- */
@@ -660,7 +691,7 @@ function arenaWorld(lvl = 8){
   return { W, p, vex, fx, step };
 }
 
-test("arena: talk to Vex, a computer champion of your level enters the ring, and the duel counts down", () => {
+test("arena: talk to Vex, a computer champion of your level waits in the Proving Grounds, and the duel counts down", () => {
   const { W, p, vex, fx, step } = arenaWorld();
   SIM.input(W, "blue", { talk: "vex" }); step(1);
   assert.ok(fx.some(f => f.k === "arena" && f.npc === "vex"), "talking opens the arena");
@@ -673,15 +704,15 @@ test("arena: talk to Vex, a computer champion of your level enters the ring, and
   assert.ok(b.skill.diff === 7 && b.duel.diff === 7);
   assert.ok(p.duel && p.duel === b.duel && p.duel.arena && p.duel.state === "count");
   assert.equal(G.SIM.hero(W, b.side), null, "nobody can send commands as the computer champion");
-  assert.ok(Math.hypot(p.x - G.ARENA.x, p.y - G.ARENA.y) < G.ARENA.r * .6, "you're placed inside the ring");
-  step(5.5); assert.equal(p.duel.state, "fight");
+  assert.ok(inRoom(p, G.PG_ROOMS.west) && inRoom(b, G.PG_ROOMS.east), "Vex sends you to the Proving Grounds: you behind the west gate, your opponent the east");
+  step(G.PG_RULES.count + .5); assert.equal(p.duel.state, "fight");
   const snap = SIM.snapshot(W); assert.ok(snap.h.some(h => h.side === b.side && h.bot === 1));
 });
 
 test("arena: the computer champion dodges most skillshots", () => {
   const { W, p, step } = arenaWorld(10);
   SIM.arenaStart(W, "blue", GAREN_LIKE(), 10); const b = W.heroes[Object.keys(W.heroes).find(s => s !== "blue")];
-  step(5.5);
+  step(G.PG_RULES.count + .5);
   let fired = 0, hits = 0;
   for(let k = 0; k < 60 && p.duel; k++){
     b.hp = b.maxHp; p.hp = p.maxHp; b.potions = 0;
@@ -730,15 +761,16 @@ test("arena: every setting gets easier as difficulty goes down; bad input is cla
 
 test("arena: winning pays coins and counts, losing leaves you at 1 health, and the opponent leaves", () => {
   const { W, p, fx, step } = arenaWorld(6);
-  const b = SIM.arenaStart(W, "blue", MAGE(), 4); step(5.5);
+  const b = SIM.arenaStart(W, "blue", MAGE(), 4); step(G.PG_RULES.count + .5);
   const coins = p.coins; b.hp = 5; SIM.damage(W, b, 1e6, p);
   assert.ok(!b.dead && b.hp === 1 && !p.duel);
   assert.ok(p.coins === coins + Math.round(1.5 * 4 * p.lvl) && p.arenaWins === 1 && p.arenaBest === 4, "a win pays by difficulty and counts");
   step(3); assert.ok(!W.heroes[b.side], "the opponent leaves the ring");
-  const b2 = SIM.arenaStart(W, "blue", MAGE(), 7); step(5.5);
+  const b2 = SIM.arenaStart(W, "blue", MAGE(), 7); step(G.PG_RULES.count + .5);
   SIM.damage(W, p, 1e6, b2);
   assert.ok(!p.dead && p.hp === 1 && p.arenaWins === 1, "losing: still alive, no win counted");
   step(3); assert.ok(!W.heroes[b2.side]);
+  step(G.PG_RULES.returnAfter); assert.ok(!G.inArena(p.x, p.y) && Math.hypot(p.x - G.ARENA.x, p.y - G.ARENA.y) < 1000, "and you're sent back to Vex");
 });
 
 /* ---------- Hired raid party (Scout Yrsa) ---------- */

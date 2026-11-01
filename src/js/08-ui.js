@@ -190,6 +190,7 @@ function objectiveTarget(me){
   const zt = zoneAt(t.y, t.x).key, zm = zoneAt(me.y, me.x).key, outdoors = k => k === "vale" || k === "peaks";
   if(zt === zm || (outdoors(zt) && outdoors(zm))) return t;
   const at = p => ({ x: p.x, y: p.y, r: 0 });
+  if(zm === "arena") return null;                                      // nothing to chase mid-duel
   if(zm === "jungle") return at(WAYSTONES.jungle);                      // the jungle's and the desert's waystones lead back to Highwatch
   if(zm === "desert") return at(WAYSTONES.desert);
   if(zm === "cathedral") return zt === "jungle" ? at(CHOIR_PORTALS.right) : zt === "desert" ? at(CHOIR_PORTALS.left) : at(CATHEDRAL.exit);

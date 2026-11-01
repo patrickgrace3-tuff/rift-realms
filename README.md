@@ -7,6 +7,7 @@ League of Legends champions in a small World of Warcraft–style world. Pick any
 - Sunhollow Vale (eight quests) leads north through Greywind Pass to Frostspine Peaks (eleven more), where Skarnvir the Rimewyrm waits as the first raid boss.
 - The Ashen Cathedral, a five-player dungeon with three bosses, opens behind Skarnvir. Behind its last boss, two portals: the right one to the Thornveil Jungle (levels 16–19), the left one to the Amberveil Wastes, a desert (levels 20–23) with eleven quests, scorpions, vipers, jackals, basilisks and risen tomb husks, two elites, and two raid bosses: Zahrak, the Dune Wyrm, who burrows and erupts under the party, and Queen Ankhara, the Sun-Bound, shielded by her tomb guard.
 - Hire a raid party of computer champions (tank, healer, damage) for the raids and the dungeon.
+- PvP in the Proving Grounds, a stand-alone arena: two gated starting rooms, broad floors split by a chasm with one bridge across, and four great pillars that block shots. Duel a party member, or ask Arenamaster Vex for a computer opponent (difficulty 1–10).
 - Loot from every creature, four armor rarities, a character window, a skill tree, a minimap and a world map.
 - Co-op for up to five players: share a 5-letter code, no server needed.
 - Parties: invite players to your group to share XP, quest kills and quest items. Rare and Epic drops are rolled on with Need, Greed or Pass.

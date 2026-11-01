@@ -66,6 +66,7 @@ function render(dt){
   // duel flags, with a red ring marking each duel's area
   const seenD = new Set();
   for(const d of (s.du || [])){
+    if(inArena(d[2], d[3])) continue;   // duels in the Proving Grounds need no flag: the walls are the limit
     const key = d[0] + "|" + d[1]; seenD.add(key);
     let dv = G.duelVis.get(key);
     if(!dv){
@@ -275,6 +276,7 @@ function render(dt){
     guarded("cathedral", () => updateCathedral(s, meSnap, t));
     guarded("jungle", () => updateJungle(s, meSnap, t));
     guarded("desert", () => updateDesert(s, meSnap, t));
+    guarded("arena", () => updateArena(s, meSnap, t));
   }
   renderer.render(scene, camera);
 

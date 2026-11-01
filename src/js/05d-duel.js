@@ -3,6 +3,10 @@
 // A challenge is accepted, a flag drops between the duelists, a countdown runs from 5,
 // then the two can damage each other (SIM.hostile). The duel ends at 1 health: nobody dies.
 
+const PG_RULES = {
+  count: 8,          // seconds behind the gates before "Fight!"
+  returnAfter: 4,    // seconds after a duel before you're sent back
+};
 const DUEL = {
   reach: 1500,     // how close the two must be to challenge or accept
   radius: 1000,    // the duel area around the flag
@@ -39,9 +43,8 @@ Object.assign(SIM, {
     W.duelReqs = W.duelReqs.filter(x => x !== q);
     const a = SIM.hero(W, from);
     if(!a || a.dead || c.dead || a.duel || c.duel || Math.hypot(a.x - c.x, a.y - c.y) > DUEL.reach){ SIM.tell(W, c, "That duel can't start now."); return; }
-    const d = { id: "d" + W.nid++, a: a.side, b: c.side, x: (a.x + c.x) / 2, y: (a.y + c.y) / 2, r: DUEL.radius, state: "count", startAt: W.t + DUEL.count, lastN: DUEL.count + 1, out: {} };
-    W.duels.push(d); a.duel = c.duel = d;
-    SIM.note(W, [a.side, c.side], `Duel! ${a.name} vs ${c.name}. Stay near the flag.`);
+    const d = SIM.pgDuel(W, a, c);
+    SIM.note(W, [a.side, c.side], `Duel! ${a.name} vs ${c.name}. To the Proving Grounds: the gates open on "Fight!"`);
   },
   duelDecline(W, c, from){
     const had = W.duelReqs.some(q => q.from === from && q.to === c.side);
@@ -55,6 +58,7 @@ Object.assign(SIM, {
     const A = W.heroes[d.a], B = W.heroes[d.b], both = [A, B].filter(Boolean);
     for(const h of both){ if(h.duel === d) h.duel = null; const o = h === A ? B : A; if(o && h.target === o.id) h.target = null; }
     SIM.arenaEnd(W, d, winner);
+    if(d.pg) SIM.pgLeave(W, d);
     const near = SIM.heroes(W).filter(h => !h.bot && Math.hypot(h.x - d.x, h.y - d.y) < 3000).map(h => h.side);
     if(winner && loser){
       SIM.fx(W, { k: "duelend", to: both.map(h => h.side), win: winner.side, winName: winner.name, loseName: loser.name, why });
@@ -71,7 +75,8 @@ Object.assign(SIM, {
         if(n < d.lastN && n > 0){ d.lastN = n; SIM.fx(W, { k: "duelcount", to: [d.a, d.b], n }); }
         if(W.t >= d.startAt){ d.state = "fight"; SIM.fx(W, { k: "duelcount", to: [d.a, d.b], n: 0 }); }
       }
-      // stay inside the area or forfeit
+      // stay inside the area or forfeit (in the Proving Grounds the walls do that)
+      if(d.pg) continue;
       for(const [h, o] of [[A, B], [B, A]]){
         if(d.state === "done") break;
         const out = Math.hypot(h.x - d.x, h.y - d.y) > d.r;
@@ -80,6 +85,35 @@ Object.assign(SIM, {
         else if(W.t >= d.out[h.side]) SIM.duelEnd(W, d, o, h, "fled");
       }
     }
+  },
+  /* ---------- The Proving Grounds ---------- */
+  // start a duel between heroes a and b in the arena: each is sent to its own gate room, and every
+  // player remembers where they came from
+  pgDuel(W, a, b, extra){
+    const d = Object.assign({ id: "d" + W.nid++, a: a.side, b: b.side, x: PG.x, y: PG.y, r: 3200, state: "count", startAt: W.t + PG_RULES.count, lastN: PG_RULES.count + 1, out: {}, pg: true, back: {} }, extra || {});
+    W.duels.push(d); a.duel = b.duel = d;
+    for(const [h, at, face] of [[a, PG_START.a, Math.PI / 2], [b, PG_START.b, -Math.PI / 2]]){
+      if(!h.bot) d.back[h.side] = inArena(h.x, h.y) ? [ARENA.x - 450, ARENA.y] : [Math.round(h.x), Math.round(h.y)];
+      SIM.teleport(W, h, at[0], at[1]); h.face = face; h.bx = undefined;
+    }
+    return d;
+  },
+  // the duel is over: players go back where they came from a few seconds later
+  pgLeave(W, d){ for(const side in d.back) W.pgReturn.push({ side, to: d.back[side], at: W.t + PG_RULES.returnAfter }); },
+  pgTick(W){
+    if(!W.pgReturn.length) return;
+    W.pgReturn = W.pgReturn.filter(q => {
+      if(W.t < q.at) return true;
+      const h = W.heroes[q.side];
+      if(h && !h.duel && inArena(h.x, h.y)){ SIM.teleport(W, h, q.to[0], q.to[1]); h.bx = undefined; SIM.fx(W, { k: "msg", side: h.side, text: "You step out of the Proving Grounds." }); }
+      return false;
+    });
+  },
+  // the walkable rooms for a unit in the arena: during the countdown, only its own gate room
+  pgRooms(u){
+    const d = u.duel;
+    if(d && d.pg && d.state === "count") return [d.a === u.side ? PG_ROOMS.west : PG_ROOMS.east];
+    return PG_ROOM_LIST;
   },
   // called from SIM.damage when one duelist hits the other: nobody dies, the duel ends at 1 health
   duelHit(W, u, src, amount){

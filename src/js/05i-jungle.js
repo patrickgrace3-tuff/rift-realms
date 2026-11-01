@@ -104,7 +104,10 @@ Object.assign(SIM, {
     SIM.fx(W, { k: "bossmsg", to: group.filter(h => !h.bot).map(h => h.side), big, small });
   },
   // a waystone takes you and your hired champions to its twin
+  // creatures still after you? then no waystone (you'd drag the fight along, or flee it by accident)
+  inCombat: (W, c) => W.mobs.some(m => !m.dead && m.aggro === c.id),
   waystone(W, c, to, text){
+    if(SIM.inCombat(W, c)){ if(!(c.portalWarnT > W.t)){ c.portalWarnT = W.t + 4; SIM.fx(W, { k: "msg", side: c.side, text: "The waystone won't answer while you're fighting." }); } return; }
     const group = [c, ...SIM.heroes(W).filter(h => h.merc && h.merc.owner === c.side && !h.dead)];
     group.forEach((h, k) => SIM.teleport(W, h, to.x + (k - 1) * 140, to.y - 320));
     SIM.fx(W, { k: "msg", side: c.side, text });

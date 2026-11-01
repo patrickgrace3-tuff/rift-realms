@@ -49,13 +49,9 @@ Object.assign(SIM, {
     for(const sl of EQ_SLOTS) b.equip[sl] = genItem({ ilvl: c.lvl + 1, rarity: skill.rarity, cls: b.kit.cls, slot: sl, nid: W.nid++ });
     b.talents = skill.talents ? SIM.botTalents(b) : newTalents(); SIM.recalc(b); b.hp = b.maxHp;
     Object.assign(b, { aiT: 0, potions: skill.potions, dodged: {}, seen: null });
-    b.x = clampX(ARENA.x + 300); b.y = clampY(ARENA.y + 40); b.face = -Math.PI / 2;
-    // Vex walks you into the ring, facing your challenger
-    SIM.fx(W, { k: "blink", x: c.x, y: c.y, x2: ARENA.x - 300, y2: ARENA.y - 40 });
-    c.x = clampX(ARENA.x - 300); c.y = clampY(ARENA.y - 40); c.move = c.target = c.talkTo = null; c.face = Math.PI / 2;
-    const dl = { id: "d" + W.nid++, a: c.side, b: bs, x: ARENA.x, y: ARENA.y, r: ARENA.r, state: "count", startAt: W.t + DUEL.count, lastN: DUEL.count + 1, out: {}, arena: true, diff: skill.diff };
-    W.duels.push(dl); c.duel = b.duel = dl;
-    SIM.note(W, [c.side], `${b.name} enters the Champion's Ring. Level ${b.lvl} · Difficulty ${skill.diff} (${ARENA_DIFF_NAMES[skill.diff]}).`);
+    // Vex sends you both to the Proving Grounds, each behind your own gate
+    SIM.pgDuel(W, c, b, { arena: true, diff: skill.diff });
+    SIM.note(W, [c.side], `${b.name} waits behind the far gate of the Proving Grounds. Level ${b.lvl} · Difficulty ${skill.diff} (${ARENA_DIFF_NAMES[skill.diff]}). The gates open on "Fight!"`);
     return b;
   },
   // spend the opponent's skill points sensibly: power on its damage, haste on its ultimate
@@ -106,6 +102,7 @@ Object.assign(SIM, {
   // keep a destination inside the duel area (slide around the edge instead of leaving)
   botInRing(b, p){
     const d = b.duel; if(!d) return p;
+    if(d.pg){ const u = { x: p[0], y: p[1], r: b.r, duel: d, side: b.side }; SIM.boundIn(null, u); return [u.x, u.y]; }
     const dx = p[0] - d.x, dy = p[1] - d.y, dd = Math.hypot(dx, dy) || 1, lim = d.r * .85;
     return dd <= lim ? p : [d.x + dx / dd * lim, d.y + dy / dd * lim];
   },
@@ -145,6 +142,8 @@ Object.assign(SIM, {
       if(p.type === "shield" && hpP < .55 && dist < 700) return void cast(k, [b.x, b.y]);
       if(p.type === "stealth" && hpP < .3) return void cast(k, [b.x, b.y]);
     }
+    // 2b. no line of sight (a pillar in the way): don't waste a shot, walk round to find one
+    if(SIM.losBlocked(b.x, b.y, o.x, o.y)){ b.move = null; b.target = o.id; return; }
     // 3. attack with abilities, best first (ultimate, then the rest); easier opponents hold back more often
     if(Math.random() < b.skill.abilities) for(const k of ["R", "Q", "E", "W"]){
       if(!can(k)) continue;

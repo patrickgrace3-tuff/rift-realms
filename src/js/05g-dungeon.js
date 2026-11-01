@@ -96,13 +96,18 @@ Object.assign(SIM, {
     SIM.boundIn(W, u);
     u.bx = u.x; u.by = u.y;
   },
-  zoneKind: (x, y) => inJungle(x, y) ? 1 : inDesert(x, y) ? 2 : y > DZ && x <= ZS ? 3 : 0,
+  zoneKind: (x, y) => inJungle(x, y) ? 1 : inDesert(x, y) ? 2 : y > DZ && x <= ZS ? 3 : inArena(x, y) ? 4 : 0,
   boundIn(W, u){
     if(inJungle(u.x, u.y)){ u.x = Math.max(ZS + ZMIN, Math.min(ZS * 2 - ZMIN, u.x)); u.y = Math.max(DZ + ZMIN, Math.min(DZ + ZS - ZMIN, u.y)); return; }
     if(inDesert(u.x, u.y)){ u.x = Math.max(ZS + ZMIN, Math.min(ZS * 2 - ZMIN, u.x)); u.y = Math.max(ZS + ZMIN, Math.min(DZ - ZMIN, u.y)); return; }
+    if(inArena(u.x, u.y)){ SIM.boundRooms(u, SIM.pgRooms(u)); return; }
     u.x = Math.max(ZMIN, Math.min(ZS - ZMIN, u.x));
     if(!SIM.inCathedral(u)){ u.y = Math.max(ZMIN, Math.min(WH - ZMIN, u.y)); return; }
-    const pad = u.r || 50, rooms = SIM.rooms(W);
+    SIM.boundRooms(u, SIM.rooms(W));
+  },
+  // move a unit to the nearest point inside any of the rooms (rectangles [x0, y0, x1, y1])
+  boundRooms(u, rooms){
+    const pad = u.r || 50;
     let bx = u.x, by = u.y, bd = Infinity;
     for(const r of rooms){
       const px = Math.max(r[0] + pad, Math.min(r[2] - pad, u.x)), py = Math.max(r[1] + pad, Math.min(r[3] - pad, u.y)), d = Math.hypot(px - u.x, py - u.y);
