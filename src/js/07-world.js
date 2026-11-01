@@ -78,7 +78,18 @@ function removeHeroVisual(v){ G.root.remove(v.model.root, v.shadow, v.ring, v.bu
 function screenToZone(cx, cy){
   const me = G.vis[G.myTeam], h = me && me.pos ? me.pos.y : 0;
   raycaster.setFromCamera(new THREE.Vector2(cx / VW * 2 - 1, -(cy / VH) * 2 + 1), camera);
-  const hit = new THREE.Vector3();
+  // walk along the ray until it meets the ground, so clicks on hills land where you clicked
+  const o = raycaster.ray.origin, d = raycaster.ray.direction;
+  let prev = 0;
+  for(let t = .5; t < 260; t += t < 40 ? .4 : 1.2){
+    if(o.y + d.y * t <= hAt(o.x + d.x * t, o.z + d.z * t)){
+      let a = prev, b = t;
+      for(let i = 0; i < 8; i++){ const m = (a + b) / 2; if(o.y + d.y * m <= hAt(o.x + d.x * m, o.z + d.z * m)) b = m; else a = m; }
+      return XF.inv(o.x + d.x * b, o.z + d.z * b);
+    }
+    prev = t;
+  }
+  const hit = new THREE.Vector3();   // nothing hit (the sky, or past the haze): fall back to the level of your feet
   if(!raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -h), hit)) return null;
   return XF.inv(hit.x, hit.z);
 }
@@ -120,7 +131,12 @@ function rightClick(cx, cy, held){
 let rmb = false;
 cv.addEventListener("contextmenu", e => e.preventDefault());
 cv.addEventListener("pointerdown", e => { if(!G || e.pointerType !== "mouse") return; if(e.button === 2){ rmb = true; rightClick(e.clientX, e.clientY, false); G.holdT = .2; } });
-addEventListener("pointermove", e => { if(G){ G.mouse.x = e.clientX; G.mouse.y = e.clientY; } });
+addEventListener("pointermove", e => {
+  if(G){ G.mouse.x = e.clientX; G.mouse.y = e.clientY; }
+  // trust what the mouse says is held right now: a button let go outside the window never sends its "up",
+  // and a stuck button used to keep you running (both buttons) or steering toward the cursor (right button)
+  if(e.pointerType === "mouse"){ if(!(e.buttons & 2)) rmb = false; bothMouse = (e.buttons & 3) === 3; if(!(e.buttons & 5)) camDrag = null; }
+});
 addEventListener("pointerup", e => { if(e.button === 2) rmb = false; });
 cv.addEventListener("wheel", e => { e.preventDefault(); camDist = Math.max(12, Math.min(36, camDist + Math.sign(e.deltaY) * 2)); }, { passive: false });
 // hold the left (or middle) mouse button and drag to turn the camera around you; double-click puts it back behind.
@@ -214,6 +230,7 @@ addEventListener("keydown", e => {
   }
 });
 addEventListener("blur", () => { rmb = false; });
+addEventListener("mouseout", e => { if(!e.relatedTarget){ rmb = false; bothMouse = false; camDrag = null; } });   // the mouse left the window
 $("#menuBtn").onclick = () => { $("#menu").hidden = false; };
 $("#ctrlBtn").onclick = () => setControls(CONTROLS === "wasd" ? "classic" : "wasd");
 updateControlsText();
