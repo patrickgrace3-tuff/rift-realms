@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build" content="7e6bcdd1a2">
+<meta name="build" content="ce25f9730c">
 <script>
 // If this copy of the page is out of date (a browser can hold on to an old one), load the latest.
 // The build code changes whenever any game file does (scripts/stamp.mjs writes it).
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=f3d82d5897">
+<link rel="stylesheet" href="src/styles.css?v=59024a1236">
 </head>
 <body>
 
@@ -178,7 +178,7 @@
     <div class="chan" id="chan" hidden><span id="chanText"></span><div class="cb"><i id="chanFill"></i></div></div>
     <div class="abtip" id="abTip" role="tooltip" hidden></div>
     <div class="slots" id="slots"></div>
-    <div class="helpline">Right-click to move, attack, talk or pick up · Q W E R abilities · F potion · T talk · C character · K skills · M map · P players · Enter chat · S stop · scroll to zoom</div>
+    <div class="helpline" id="helpline">Right-click to move, attack, talk or pick up · Q W E R abilities · F potion · T talk · C character · K skills · M map · P players · Enter chat · S stop · scroll to zoom</div>
   </div>
 </div>
 
@@ -315,6 +315,11 @@
       <output id="musicVolOut" for="musicVol"></output>
       <button class="btn" id="muteBtn" aria-pressed="false">Mute</button>
     </div>
+    <div class="soundrow">
+      <label for="ctrlBtn">Controls</label>
+      <span class="ctrlnote">WASD: W S run, A D turn, 1–4 abilities. Classic: Q W E R abilities, right-click to move.</span>
+      <button class="btn" id="ctrlBtn" aria-pressed="true">WASD</button>
+    </div>
     <div class="row">
       <button class="btn" id="leaveBtn">Leave world</button>
       <button class="btn primary" id="resumeBtn">Back to game</button>
@@ -335,10 +340,11 @@
 <script src="src/js/01b-crafting-data.js?v=3be97816c3"></script>
 <script src="src/js/02-boot-select.js?v=02db5c224d"></script>
 <script src="src/js/03-art.js?v=15ac4a42e5"></script>
-<script src="src/js/04-scene.js?v=4b79eb00eb"></script>
+<script src="src/js/04-scene.js?v=adb1e8d58d"></script>
 <script src="src/js/04b-peaks.js?v=0ca223369f"></script>
 <script src="src/js/04c-cathedral.js?v=9e86172d22"></script>
-<script src="src/js/04d-jungle.js?v=2be28eb357"></script>
+<script src="src/js/04d-jungle.js?v=3ebf6f7cf4"></script>
+<script src="src/js/04e-atmosphere.js?v=f8a19fcca1"></script>
 <script src="src/js/05-sim.js?v=bf275341bd"></script>
 <script src="src/js/05b-party.js?v=31caaeb5d8"></script>
 <script src="src/js/05c-raid.js?v=a30e6dd7dc"></script>
@@ -350,12 +356,12 @@
 <script src="src/js/05j-crafting.js?v=ca46e0ad52"></script>
 <script src="src/js/05h-save.js?v=c6e04bfdb6"></script>
 <script src="src/js/06-net.js?v=1bcdd7cefc"></script>
-<script src="src/js/07-world.js?v=59b4b59cfc"></script>
-<script src="src/js/08-ui.js?v=adc95e28fd"></script>
+<script src="src/js/07-world.js?v=c421021ee4"></script>
+<script src="src/js/08-ui.js?v=3eef71105c"></script>
 <script src="src/js/08b-social.js?v=ea060b3aaf"></script>
 <script src="src/js/08c-audio.js?v=2b9603f1bc"></script>
 <script src="src/js/08d-save.js?v=6e363ac65a"></script>
 <script src="src/js/08e-crafting.js?v=2268cb7877"></script>
-<script src="src/js/09-render.js?v=4885d8d047"></script>
+<script src="src/js/09-render.js?v=86f4f0137a"></script>
 </body>
 </html>

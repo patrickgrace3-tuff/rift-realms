@@ -371,8 +371,8 @@ function buildSlots(){
     const s = document.createElement("div"); s.className = "slot"; s.tabIndex = 0;
     s.style.pointerEvents = "auto"; // the HUD ignores the mouse; the ability buttons need it for their tooltips
     const name = k === "G" ? G.myKit.G.name : d.spells[i].name, icon = k === "G" ? supportHealIcon() : spellIcon(d.spells[i].image.full);
-    s.setAttribute("aria-label", `${k}: ${name}`); s.setAttribute("aria-describedby", "abTip");
-    s.innerHTML = `<img alt="" src="${icon}"><div class="cd"></div><span class="key">${k}</span>`;
+    s.setAttribute("aria-label", `${keyLabel(k)}: ${name}`); s.setAttribute("aria-describedby", "abTip");
+    s.innerHTML = `<img alt="" src="${icon}"><div class="cd"></div><span class="key">${keyLabel(k)}</span>`;
     const show = () => { G.tipKey = k; renderAbilityTip(); }, hide = () => { if(G) G.tipKey = null; $("#abTip").hidden = true; };
     s.addEventListener("pointerenter", show); s.addEventListener("focus", show);
     s.addEventListener("pointerleave", hide); s.addEventListener("blur", hide);

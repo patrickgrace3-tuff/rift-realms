@@ -86,7 +86,9 @@ function screenToZone(cx, cy){
   if(!raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -h), hit)) return null;
   return XF.inv(hit.x, hit.z);
 }
-function worldToScreen(x, y, z){ projV.set(x, y, z).project(camera); return [(projV.x + 1) / 2 * VW, (1 - projV.y) / 2 * VH, projV.z]; }
+// z > 1 means "don't draw": behind the camera, or lost in the haze (so far-off name plates don't show through the horizon)
+function worldToScreen(x, y, z){ const far = scene && scene.fog && camera.position.distanceToSquared(projV.set(x, y, z)) > scene.fog.far * scene.fog.far;
+  projV.project(camera); return [(projV.x + 1) / 2 * VW, (1 - projV.y) / 2 * VH, far ? 2 : projV.z]; }
 function command(cmd){ if(!G) return; if(G.role === "host") SIM.input(G.W, G.myTeam, cmd); else send(Object.assign({ t: "in" }, cmd)); }
 function thingUnderCursor(cx, cy){
   for(let i = 0; i < USE_POINTS.length; i++){ const b = USE_POINTS[i], w = XF(b.x, b.y), [sx, sy] = worldToScreen(w.x, hAt(w.x, w.z) + 1.3, w.z); if(Math.abs(sx - cx) < 40 && Math.abs(sy - cy) < 60) return { use: i }; }
@@ -125,12 +127,68 @@ cv.addEventListener("pointerdown", e => { if(!G || e.pointerType !== "mouse") re
 addEventListener("pointermove", e => { if(G){ G.mouse.x = e.clientX; G.mouse.y = e.clientY; } });
 addEventListener("pointerup", e => { if(e.button === 2) rmb = false; });
 cv.addEventListener("wheel", e => { e.preventDefault(); camDist = Math.max(12, Math.min(36, camDist + Math.sign(e.deltaY) * 2)); }, { passive: false });
+// hold the left (or middle) mouse button and drag to turn the camera around you; double-click puts it back behind
+let camDrag = null;
+cv.addEventListener("pointerdown", e => { if(!G || e.pointerType !== "mouse" || (e.button !== 0 && e.button !== 1)) return; e.preventDefault(); camDrag = { x: e.clientX, y: e.clientY }; });
+addEventListener("pointermove", e => {
+  if(!camDrag) return;
+  const dx = e.clientX - camDrag.x, dy = e.clientY - camDrag.y; camDrag.x = e.clientX; camDrag.y = e.clientY;
+  camYaw -= dx * .006; const b = camBasePitch(); camTilt = Math.max(CAM_PITCH[0] - b, Math.min(CAM_PITCH[1] - b, camTilt + dy * .004));
+});
+addEventListener("pointerup", e => { if(e.button === 0 || e.button === 1) camDrag = null; });
+cv.addEventListener("dblclick", () => { camYaw = 0; camTilt = 0; });
+
+/* ---------- Movement keys ----------
+   Arrow keys always run (up/down) and turn (left/right). With WASD controls (the default), W/S run, A/D turn,
+   Q/E step sideways, and the abilities move to 1 2 3 4. Classic controls keep Q W E R for abilities and S to stop.
+   Keyboard running sends ordinary "move" commands a short way ahead, so the host needs nothing new. */
+let CONTROLS = (() => { try { return localStorage.getItem("rr.controls") === "classic" ? "classic" : "wasd"; } catch { return "wasd"; } })();
+const ABILITY_DIGITS = { "1": "Q", "2": "W", "3": "E", "4": "R" };
+const keyLabel = k => CONTROLS === "wasd" ? ({ Q: "1", W: "2", E: "3", R: "4" }[k] || k) : k;
+const MOVE_KEYS = () => CONTROLS === "wasd"
+  ? { fwd: ["ARROWUP", "W"], back: ["ARROWDOWN", "S"], left: ["ARROWLEFT", "A"], right: ["ARROWRIGHT", "D"], sl: ["Q"], sr: ["E"] }
+  : { fwd: ["ARROWUP"], back: ["ARROWDOWN"], left: ["ARROWLEFT"], right: ["ARROWRIGHT"], sl: [], sr: [] };
+const keysDown = new Set();
+const TURN_RATE = 2.2;     // radians a second
+function setControls(mode){
+  CONTROLS = mode === "classic" ? "classic" : "wasd"; keysDown.clear();
+  try { localStorage.setItem("rr.controls", CONTROLS); } catch {}
+  if(G && G.slotKeys) buildSlots();
+  updateControlsText();
+}
+function updateControlsText(){
+  const b = $("#ctrlBtn"); if(b){ b.textContent = CONTROLS === "wasd" ? "WASD" : "Classic"; b.setAttribute("aria-pressed", String(CONTROLS === "wasd")); }
+  const h = $("#helpline"); if(h) h.textContent = CONTROLS === "wasd"
+    ? "W S run · A D turn · Q E step aside · 1 2 3 4 abilities · drag to look · right-click to move, attack, talk or pick up · F potion · T talk · C character · K skills · M map · P players · Enter chat"
+    : "Right-click to move, attack, talk or pick up · Q W E R abilities · arrow keys run and turn · drag to look · F potion · T talk · C character · K skills · M map · P players · Enter chat · S stop";
+}
+// called every frame from the render loop
+function keyMove(dt){
+  if(!G || !G.snap) return;
+  const K = MOVE_KEYS(), on = list => list.some(k => keysDown.has(k));
+  const turn = (on(K.right) ? 1 : 0) - (on(K.left) ? 1 : 0);
+  if(turn) camYaw -= turn * TURN_RATE * dt;
+  const f = (on(K.fwd) ? 1 : 0) - (on(K.back) ? 1 : 0), s = (on(K.sr) ? 1 : 0) - (on(K.sl) ? 1 : 0);
+  G.keyMoveT = (G.keyMoveT || 0) - dt;
+  if(!f && !s){ if(G.keyMoving){ G.keyMoving = false; command({ stop: 1 }); } return; }
+  if(G.keyMoveT > 0 && G.keyMoveDir === f + "," + s) return;   // resend a few times a second (and at once when the keys change)
+  const me = G.snap.h.find(h => h.side === G.myTeam); if(!me || me.dead) return;
+  // forward is away from the camera; sideways is screen-right
+  const fx = -Math.sin(camYaw), fy = Math.cos(camYaw), rx = Math.cos(camYaw), ry = Math.sin(camYaw);
+  let dx = fx * f + rx * s, dy = fy * f + ry * s; const n = Math.hypot(dx, dy); dx /= n; dy /= n;
+  G.keyMoveT = .12; G.keyMoving = true; G.keyMoveDir = f + "," + s;
+  command({ move: [Math.round(clampX(me.x + dx * 380)), Math.round(clampY(me.y + dy * 380))] });
+}
+addEventListener("keyup", e => { keysDown.delete(e.key.toUpperCase()); });
+addEventListener("blur", () => { keysDown.clear(); camDrag = null; });
 addEventListener("keydown", e => {
   if(!G || e.repeat) return;
   if(e.target.tagName === "INPUT") return;
-  const k = e.key.toUpperCase();
-  if(kitKeys(G.myKit).includes(k)){ e.preventDefault(); const p = screenToZone(G.mouse.x, G.mouse.y); if(p) command({ cast: k, at: [Math.round(p[0]), Math.round(p[1])] }); }
-  else if(k === "S") command({ stop: 1 });
+  const k = e.key.toUpperCase(), K = MOVE_KEYS();
+  if([K.fwd, K.back, K.left, K.right, K.sl, K.sr].some(l => l.includes(k))){ e.preventDefault(); keysDown.add(k); return; }
+  const ab = CONTROLS === "wasd" ? (ABILITY_DIGITS[k] || (k === "G" ? "G" : null)) : k;
+  if(ab && kitKeys(G.myKit).includes(ab)){ e.preventDefault(); const p = screenToZone(G.mouse.x, G.mouse.y); if(p) command({ cast: ab, at: [Math.round(p[0]), Math.round(p[1])] }); }
+  else if(k === "S" && CONTROLS === "classic") command({ stop: 1 });
   else if(k === "O"){ if($("#profWin").hidden) openProf(); else $("#profWin").hidden = true; }
   else if(k === "K"){ if($("#skills").hidden) openSkills(); else $("#skills").hidden = true; }
   else if(k === "M") toggleBigMap();
@@ -155,6 +213,8 @@ addEventListener("keydown", e => {
 });
 addEventListener("blur", () => { rmb = false; });
 $("#menuBtn").onclick = () => { $("#menu").hidden = false; };
+$("#ctrlBtn").onclick = () => setControls(CONTROLS === "wasd" ? "classic" : "wasd");
+updateControlsText();
 $("#resumeBtn").onclick = () => { $("#menu").hidden = true; };
 $("#leaveBtn").onclick = () => { $("#menu").hidden = true; leaveWorld(); show("select"); };
 

@@ -23,19 +23,27 @@ npm start
 
 ## Controls
 
+Two control schemes; switch in the Menu (Esc). WASD is the default.
+
 | Key | Action |
 |---|---|
+| W S / ↑ ↓ | Run forward and back (away from or toward the camera) |
+| A D / ← → | Turn |
+| Q E | Step sideways (WASD controls) |
+| 1 2 3 4 | Cast at the cursor (WASD controls; Q W E R with Classic controls). The ultimate unlocks at level 6. Hover an ability to see what it does |
+| G | Support heal (Support champions) |
+| Drag (left mouse) | Turn the camera around you; double-click puts it back behind |
+| Scroll | Zoom. Zoomed in, the camera drops low enough to see the sky; zoomed out it looks down from above |
 | Right-click | Move, attack, talk, pick up, use |
-| Q W E R | Cast at the cursor (R unlocks at level 6). Hover an ability to see what it does |
 | F | Drink a Health Potion (buy them from Peddler Osric in the village) |
 | T | Talk to the nearest NPC |
 | C | Character window |
 | K | Skill tree |
+| O | Professions |
 | M | World map |
 | P | Players and party |
 | Enter | Chat (Tab or `/p` for party chat) |
-| S | Stop |
-| Scroll | Zoom |
+| S | Stop (Classic controls) |
 
 ## Develop
 

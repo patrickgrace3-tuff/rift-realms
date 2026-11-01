@@ -168,15 +168,15 @@ function updateJungle(s, me, t){
   const q = me && me.quests, been = !!(q && ((q.ashensaint && (q.ashensaint.state === "ready" || q.ashensaint.state === "done")) || Object.keys(q).some(id => QUESTS[id] && (QUESTS[id].giver === "tamsin" || QUESTS[id].giver === "ezo"))));
   JUNG.wsPeaks.label.shown = been; JUNG.wsPeaks.rune.material.opacity = been ? .8 + Math.sin(t * 3) * .2 : .15; JUNG.wsPeaks.ring.material.opacity = been ? .7 : .15;
   JUNG.wsJungle.rune.material.opacity = .8 + Math.sin(t * 3) * .2;
-  // fade the tree tops between the camera and you (the camera sits to your south, looking north)
+  // fade the tree tops between the camera and you (wherever the camera has been turned)
   if(me && inJungle(me.x, me.y)){
-    const key = Math.round(me.x / 40) + "," + Math.round(me.y / 40) + "," + camDist;
+    const key = Math.round(me.x / 40) + "," + Math.round(me.y / 40) + "," + camDist + "," + Math.round(camYaw * 20);
     if(key === JUNG.hiddenAt) return; JUNG.hiddenAt = key;
-    const reach = camDist * 17, zero = new THREE.Matrix4().makeScale(0, 0, 0);
+    const reach = camDist * 17, zero = new THREE.Matrix4().makeScale(0, 0, 0), cx = Math.sin(camYaw), cy = -Math.cos(camYaw);   // toward the camera
     for(const tp of JUNG.tops){
       let dirty = false; tp.hidden = tp.hidden || new Set();
       tp.list.forEach(([x, y], i) => {
-        const dy = me.y - y, hide = dy > -120 && dy < reach && Math.abs(x - me.x) < 260 + dy * .25;
+        const ox = x - me.x, oy = y - me.y, dy = ox * cx + oy * cy, hide = dy > -120 && dy < reach && Math.abs(ox * cy - oy * cx) < 260 + dy * .25;
         if(hide !== tp.hidden.has(i)){ dirty = true; if(hide){ tp.hidden.add(i); tp.im.setMatrixAt(i, zero); } else { tp.hidden.delete(i); tp.im.setMatrixAt(i, tp.mats[i]); } }
       });
       if(dirty) tp.im.instanceMatrix.needsUpdate = true;

@@ -31,7 +31,7 @@ function render(dt){
       if(fresh){ v.castUntil = t + .35; const ab = v.kit[c.castKey]; if(ab) playSound(() => sfxAt("ab-" + ab.type, c.x, c.y)); } // each ability type has its own sound
     }
     if(c.atkSeq !== v.atkSeq){ const fresh = v.atkSeq >= 0; v.atkSeq = c.atkSeq; if(fresh){ v.atkUntil = t + .22; playSound(() => sfxAt(ATTACK_SFX[v.kit.cls], c.x, c.y)); } }
-    const sx = Math.sin(c.face); if(sx < -.15) v.flip = true; else if(sx > .15) v.flip = false;
+    const sx = facesRight(c.face); if(sx < -.15) v.flip = true; else if(sx > .15) v.flip = false;
     const tier = c.wglow ? 1 : 0;
     applyLook(v.art, c.gear && c.gear.equip);
     if((v.art.o.tier || 0) !== tier){ v.art.o.tier = tier; v.art.key = ""; }
@@ -50,7 +50,7 @@ function render(dt){
     v.spr.position.set(w.x, y + (c.dead ? .5 : (c.moving ? Math.abs(Math.sin(t * 9 * Math.PI / 2)) * .06 : Math.sin(t * 2.5) * .02)), w.z);
     v.shadow.visible = v.ring.visible = !hidden && !c.dead;
     v.wglow.visible = !!c.wglow && !hidden && !c.dead;
-    if(v.wglow.visible){ v.wglow.position.set(w.x + (v.flip ? -.6 : .6), y + 1.25, w.z); const gs = 1.1 + Math.sin(t * 4) * .25; v.wglow.scale.set(gs, gs, 1); }
+    if(v.wglow.visible){ const cr = camRight(), wo = v.flip ? -.6 : .6; v.wglow.position.set(w.x + cr.x * wo, y + 1.25, w.z + cr.z * wo); const gs = 1.1 + Math.sin(t * 4) * .25; v.wglow.scale.set(gs, gs, 1); }
     v.shadow.position.set(w.x, y + .02, w.z); v.ring.position.set(w.x, y + .03, w.z);
     v.bubble.visible = c.shield > 0 && !c.dead && !hidden; v.bubble.position.set(w.x, y + 1.25, w.z);
     v.aura.visible = !!c.buff && !c.dead && !hidden; v.aura.position.set(w.x, y + .06, w.z); v.aura.scale.setScalar(1 + Math.sin(t * 8) * .08);
@@ -109,7 +109,7 @@ function render(dt){
       G.root.add(spr, sh); G.mobVis.set(id, mv);
     }
     const p = smoothPos(id, x, y, dt), w = XF(p.x, p.y), gy = hAt(w.x, w.z);
-    const sx = Math.sin(face); if(sx < -.15) mv.flip = true; else if(sx > .15) mv.flip = false;
+    const sx = facesRight(face); if(sx < -.15) mv.flip = true; else if(sx > .15) mv.flip = false;
     const moving = flags & 1, angry = (flags & 2) > 0;
     const charging = (flags & 4) > 0, windup = (flags & 8) > 0;
     const frame = moving ? Math.floor(t * (charging ? 18 : angry ? 12 : 7)) % 4 : 0, key = frame + "|" + mv.flip + "|" + angry + "|" + (windup ? Math.floor(t * 30) : 0) + (mv.buttT > 0 ? "a" : "");
@@ -117,7 +117,7 @@ function render(dt){
     mv.charging = charging; mv.windup = windup;
     mv.angryT = Math.max(0, mv.angryT - dt); mv.buttT = Math.max(0, mv.buttT - dt);
     const lunge = mv.buttT > 0 ? Math.sin((1 - mv.buttT / .25) * Math.PI) * .35 * (mv.flip ? -1 : 1) : 0;
-    mv.spr.position.set(w.x + lunge, gy + (moving ? Math.abs(Math.sin(t * 14)) * .05 : 0), w.z);
+    mv.spr.position.set(w.x + lunge * Math.cos(camYaw), gy + (moving ? Math.abs(Math.sin(t * 14)) * .05 : 0), w.z - lunge * Math.sin(camYaw));
     mv.sh.position.set(w.x, gy + .02, w.z);
     mv.hp = hp; mv.maxHp = maxHp; mv.angry = angry; mv.pos = { x: w.x, y: gy, z: w.z };
     mv.hidden = (flags & 16) > 0; mv.spr.visible = mv.sh.visible = !mv.hidden;   // a raid boss under the water or in the shadows
@@ -254,9 +254,19 @@ function render(dt){
   // camera
   const me = G.vis[G.myTeam] && G.vis[G.myTeam].pos;
   if(me){
-    scene.fog.near = camDist * 1.8; scene.fog.far = camDist * 4.2;
-    camera.position.set(me.x, me.y + camDist * .8, me.z + camDist * .6); camera.lookAt(me.x, me.y + .8, me.z);
+    // zoomed in, the camera drops toward the horizon so you see the sky; zoomed out it looks down as before
+    // drag with the left mouse button to turn the camera around you; A/D or the arrow keys turn it too
+    guarded("keys", () => keyMove(dt));
+    const indoors = meSnap && meSnap.y > DZ && meSnap.x <= ZS, pitch = camPitch(), lift = 1.2 + 2.6 * Math.max(0, Math.min(1, (.93 - pitch) / .71));
+    scene.fog.near = indoors ? camDist * 1.8 : camDist * 2.6; scene.fog.far = indoors ? camDist * 4.2 : camDist * 6.5;
+    const look = { x: me.x, y: me.y + lift, z: me.z }, ideal = { x: me.x + Math.sin(camYaw) * Math.cos(pitch) * camDist, y: me.y + Math.sin(pitch) * camDist, z: me.z + Math.cos(camYaw) * Math.cos(pitch) * camDist };
+    // pull in at once when something is in the way, ease back out when it isn't
+    let clear = 1; guarded("camera", () => { clear = camClear(look, ideal, indoors); });
+    G.camK = clear < (G.camK || 1) ? clear : Math.min(clear, (G.camK || 1) + dt * 1.5);
+    camera.position.set(look.x + (ideal.x - look.x) * G.camK, look.y + (ideal.y - look.y) * G.camK, look.z + (ideal.z - look.z) * G.camK);
+    camera.lookAt(look.x, look.y, look.z);
     if(meSnap) updateClimate(dt, meSnap.y, me, meSnap.x);
+    guarded("sky", () => updateAtmosphere(meSnap, t));
     guarded("cathedral", () => updateCathedral(s, meSnap, t));
     guarded("jungle", () => updateJungle(s, meSnap, t));
   }

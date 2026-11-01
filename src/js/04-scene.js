@@ -5,6 +5,16 @@
 let HEMI = null, SUN = null, renderer, scene, camera, glowMat, ringGeo, discGeo, zone, fireLight, fireFlames = [];
 const cv = $("#cv"), ov = $("#ov"), octx = ov.getContext("2d");
 let VW = innerWidth, VH = innerHeight, dpr = 1, camDist = 22;
+// The camera orbits your champion: camYaw turns it around you (0 = from the south, looking north), camTilt raises or
+// lowers it from the zoom's own angle (zoomed in sits low and sees the sky, zoomed out looks down).
+let camYaw = 0, camTilt = 0;
+const camZoomK = () => Math.pow(Math.max(0, Math.min(1, (camDist - 12) / 24)), .6);
+const camBasePitch = () => { const k = camZoomK(); return Math.atan2(.22 + .58 * k, .98 - .38 * k); };
+const CAM_PITCH = [.1, 1.3];
+const camPitch = () => Math.max(CAM_PITCH[0], Math.min(CAM_PITCH[1], camBasePitch() + camTilt));
+// screen-right in three.js space, and whether a direction in the zone (by its sim angle) points right on screen
+const camRight = () => ({ x: Math.cos(camYaw), z: -Math.sin(camYaw) });
+const facesRight = face => Math.sin(face + camYaw);
 const raycaster = window.THREE ? new THREE.Raycaster() : null;
 const texCache = new Map();
 function iconTexture(url, ring){
@@ -68,8 +78,8 @@ function buildZone(){
       pond: 1 - ss(POND.r * .5, POND.r, dPo), edge: (1 - ss(250, 900, dE)) * (1 - gap), dAr, arena: 1 - ss(ARENA.r * .75, ARENA.r + 120, dAr) };
   };
   const height = (x, y, f) => {
-    let h = noise(x, y) * 1.1 + .4 * noise(x * 2.3 + 900, y * 2.1 - 400);
-    const flat = Math.max(f.vil, f.past * .8, f.path * .6, f.den * .9, f.camp, f.tow, f.arena);
+    let h = noise(x, y) * 1.6 + .5 * noise(x * 2.3 + 900, y * 2.1 - 400) + 1.4 * noise(x * .35 + 300, y * .35 + 120);   // rolling hills with a slow swell under them
+    const flat = Math.max(f.vil, f.past * .8, f.path * .6, f.den * .9, f.camp, f.tow, f.arena, f.pond);
     h = h * (1 - flat) + .15 * flat;
     h -= f.pond * 1.6;
     h += Math.pow(f.edge, 1.6) * 11 * (.8 + .4 * noise(x * 3, y * 3));
@@ -338,5 +348,22 @@ function buildZone(){
   buildJungle(g);
   buildForges(g);
   zone = g; zone.visible = false; scene.add(zone);
+  buildSky();
 }
 function hAt(x, z){ const [zx, zy] = XF.inv(x, z); return ZH ? ZH(zx, zy) : 0; }
+// How far the camera can sit from the look point before a hill, a building or a cathedral wall gets in the way
+// (0..1 of the full distance). Walks the line from you to the camera; small props like trees don't block.
+let CAM_SOLIDS = null;
+function camClear(from, to, indoors){
+  if(!CAM_SOLIDS) CAM_SOLIDS = OBSTACLES.filter(o => o.r >= 150);
+  const N = 22;
+  for(let i = 3; i <= N; i++){
+    const k = i / N, x = from.x + (to.x - from.x) * k, y = from.y + (to.y - from.y) * k, z = from.z + (to.z - from.z) * k;
+    const [zx, zy] = XF.inv(x, z), ground = ZH ? ZH(zx, zy) : 0;
+    let hit = y < ground + .7;
+    if(!hit && y < ground + 7) for(const o of CAM_SOLIDS){ if(Math.abs(o.x - zx) < o.r && Math.abs(o.y - zy) < o.r && Math.hypot(o.x - zx, o.y - zy) < o.r * .9){ hit = true; break; } }
+    if(!hit && indoors) hit = !ROOM_LIST.some(r => zx > r[0] + 40 && zx < r[2] - 40 && zy > r[1] + 40 && zy < r[3] - 40);
+    if(hit) return Math.max(.12, (i - 1.5) / N);
+  }
+  return 1;
+}
