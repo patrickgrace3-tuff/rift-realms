@@ -1,5 +1,5 @@
 "use strict";
-// The Champion's Ring: Arenamaster Vex sends out a computer-controlled champion for a practice duel.
+// Practice duels: Arenamaster Vex sends out a computer-controlled champion for a practice duel.
 // Adds to SIM (host only). The opponent is a normal hero (flagged `bot`) driven by SIM.botTick.
 
 const ARENA_RULES = {
@@ -35,11 +35,11 @@ Object.assign(SIM, {
     const diff = arenaSkill(cmd.diff).diff;
     if(Math.hypot(c.x - npc.x, c.y - npc.y) > 500){ SIM.tell(W, c, `Talk to ${npc.name} to start a practice duel.`); return true; }
     c.arenaPending = true; W.arenaReqs.push({ side: c.side, diff });
-    SIM.fx(W, { k: "msg", side: c.side, text: `${npc.name} whistles. A challenger steps into the ring...` });
+    SIM.fx(W, { k: "msg", side: c.side, text: `${npc.name} whistles. A challenger heads for the Proving Grounds...` });
     return true;
   },
   arenaFail(W, side){ const c = SIM.hero(W, side); if(c){ c.arenaPending = false; SIM.tell(W, c, "No challenger came. Try again."); } },
-  // spawn the opponent (champion detail `d`) and start the duel in the ring
+  // spawn the opponent (champion detail `d`) and start the duel in the Proving Grounds
   arenaStart(W, side, d, diff){
     const c = SIM.hero(W, side); if(!c) return null;
     c.arenaPending = false;
@@ -61,7 +61,7 @@ Object.assign(SIM, {
     for(const step of order){ if(pts <= 0) break; const [s, n] = step.split("."); if(canTalent(b.lvl, t, s, n)){ t[s][n]++; pts--; } }
     return t;
   },
-  // called when a duel ends: arena opponents leave the ring, and a win pays out
+  // called when a duel ends: arena opponents leave, and a win pays out
   arenaEnd(W, d, winner){
     if(!d.arena) return;
     const p = W.heroes[d.a], b = W.heroes[d.b];

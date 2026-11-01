@@ -291,7 +291,7 @@ function openDialog(f){
 function openArena(f){
   const npc = NPCS.find(n => n.id === f.npc); if(!npc) return;
   G.arenaNpc = npc.id; G.arenaLvl = f.lvl || 1; $("#arenaName").textContent = npc.name;
-  $("#arenaWins").textContent = f.wins ? `Your wins in the ring: ${f.wins} · best: difficulty ${f.best}` : "You haven't won in the ring yet.";
+  $("#arenaWins").textContent = f.wins ? `Your arena wins: ${f.wins} · best: difficulty ${f.best}` : "You haven't won in the arena yet.";
   // the difficulty buttons, remembering your last pick
   let pick = ARENA_RULES.defaultDiff; try{ pick = +localStorage.getItem("rr.arenaDiff") || pick; }catch(e){}
   $("#arenaDiffs").innerHTML = Array.from({ length: 10 }, (_, i) => `<button class="dbtn" data-diff="${i + 1}" aria-pressed="false" aria-label="Difficulty ${i + 1}, ${ARENA_DIFF_NAMES[i + 1]}">${i + 1}</button>`).join("");

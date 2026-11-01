@@ -97,7 +97,6 @@ function buildZone(){
     t2.setHSL(.24, .5, .45 + .03 * n); c.lerp(t2, f.past * .6);
     t2.setHSL(.09, .3, .46 + .03 * n); c.lerp(t2, Math.max(f.path * .95, f.vil * .55, f.tow * .6));
     t2.setHSL(.07, .35, .27 + .04 * n); c.lerp(t2, f.den * .85);
-    t2.setHSL(.11, .45, .62 + .04 * n); c.lerp(t2, f.arena * .85);
     t2.setHSL(.13, .35, .3); c.lerp(t2, f.pond);
     t2.setHSL(.08, .12, .38 + .05 * n); c.lerp(t2, ss(1.8, 4, h) * f.edge);
     t2.setHSL(.6, .15, .93); c.lerp(t2, ss(7.5, 9.5, h));
@@ -212,22 +211,6 @@ function buildZone(){
     stall.position.set(sw.x, ZH(STALL.x, STALL.y), sw.z);
     const nw = XF(npc.x, npc.y); stall.rotation.y = Math.atan2(nw.x - sw.x, nw.z - sw.z);
     g.add(stall); }
-  // the Champion's Ring: a sandy yard with a rope fence, banners and a weapon rack
-  { const postM = new THREE.MeshLambertMaterial({ color: 0x6a4428 }), ropeM = new THREE.MeshLambertMaterial({ color: 0xc8b48a }), bannerM = new THREE.MeshLambertMaterial({ color: 0xb8322a, side: THREE.DoubleSide });
-    const n = 28, gapA = Math.atan2(NPCS.find(p => p.arena).y - ARENA.y, NPCS.find(p => p.arena).x - ARENA.x);
-    const pts = []; for(let i = 0; i < n; i++){ const a = i / n * Math.PI * 2; if(Math.abs(Math.atan2(Math.sin(a - gapA), Math.cos(a - gapA))) < .25) { pts.push(null); continue; } pts.push([ARENA.x + Math.cos(a) * (ARENA.r + 40), ARENA.y + Math.sin(a) * (ARENA.r + 40)]); }
-    pts.forEach((p, i) => {
-      if(!p) return; const w = XF(...p), h = ZH(...p);
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(.12, .14, 1.4, 6), postM); post.position.set(w.x, h + .7, w.z); g.add(post);
-      if(i % 7 === 0){ const ban = new THREE.Mesh(new THREE.PlaneGeometry(.7, 1.1), bannerM); ban.position.set(w.x, h + 1.9, w.z); ban.rotation.y = -Math.atan2(p[1] - ARENA.y, p[0] - ARENA.x); const pole = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 2.6, 5), postM); pole.position.set(w.x, h + 1.3, w.z); g.add(ban, pole); }
-      const q = pts[(i + 1) % n]; if(!q) return; const wq = XF(...q), len = Math.hypot(wq.x - w.x, wq.z - w.z);
-      const rope = new THREE.Mesh(new THREE.BoxGeometry(len, .06, .06), ropeM); rope.position.set((w.x + wq.x) / 2, h + 1.15, (w.z + wq.z) / 2); rope.rotation.y = -Math.atan2(wq.z - w.z, wq.x - w.x); g.add(rope);
-    });
-    const rack = new THREE.Group(), rw = XF(ARENA.x - ARENA.r + 140, ARENA.y + 420);
-    const bar2 = new THREE.Mesh(new THREE.BoxGeometry(2, .12, .12), postM); bar2.position.y = 1.3; rack.add(bar2);
-    for(const sx of [-.9, .9]){ const leg = new THREE.Mesh(new THREE.BoxGeometry(.12, 1.4, .12), postM); leg.position.set(sx, .7, 0); rack.add(leg); }
-    for(let k = 0; k < 4; k++){ const blade = new THREE.Mesh(new THREE.BoxGeometry(.08, 1.4, .02), new THREE.MeshStandardMaterial({ color: 0xc0ccdc, metalness: .6, roughness: .4 })); blade.position.set(-.6 + k * .4, .9, .1); blade.rotation.z = .08; rack.add(blade); }
-    rack.position.set(rw.x, ZH(ARENA.x - ARENA.r + 140, ARENA.y + 420), rw.z); rack.rotation.y = .6; g.add(rack); }
   // campfire
   const cw = XF(...CAMPFIRE), fire = new THREE.Group();
   for(let i = 0; i < 8; i++){ const a = i / 8 * Math.PI * 2, s = new THREE.Mesh(new THREE.IcosahedronGeometry(.2, 0), stone); s.position.set(Math.cos(a) * .6, .1, Math.sin(a) * .6); fire.add(s); }
@@ -330,7 +313,6 @@ function buildZone(){
     t2.setHSL(.24, .45, .42); c.lerp(t2, f.past * .6);
     t2.setHSL(.09, .35, .56); c.lerp(t2, Math.max(f.path, f.vil * .6, f.camp * .5, f.tow * .5));
     t2.setHSL(.07, .35, .3); c.lerp(t2, f.den * .85);
-    t2.setHSL(.11, .45, .62); c.lerp(t2, f.arena * .85);
     t2.setHSL(.55, .55, .52); c.lerp(t2, f.pond > .35 ? 1 : 0);
     t2.setHSL(.08, .1, .44); c.lerp(t2, ss(1.8, 4, h) * f.edge);
     t2.setHSL(.6, .15, .9); c.lerp(t2, ss(7.5, 9.5, h));
