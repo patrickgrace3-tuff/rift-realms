@@ -262,6 +262,7 @@ function render(dt){
     // zoomed in, the camera drops toward the horizon so you see the sky; zoomed out it looks down as before
     // drag with the left mouse button to turn the camera around you; A/D or the arrow keys turn it too
     guarded("keys", () => keyMove(dt));
+    guarded("mobile", () => updateMobile(dt, t));
     const indoors = meSnap && meSnap.y > DZ && meSnap.x <= ZS, pitch = camPitch(), lift = 1.2 + 2.6 * Math.max(0, Math.min(1, (.93 - pitch) / .71));
     scene.fog.near = indoors ? camDist * 1.8 : camDist * 2.6; scene.fog.far = indoors ? camDist * 4.2 : camDist * 6.5;
     const look = { x: me.x, y: me.y + lift, z: me.z }, ideal = { x: me.x + Math.sin(camYaw) * Math.cos(pitch) * camDist, y: me.y + Math.sin(pitch) * camDist, z: me.z + Math.cos(camYaw) * Math.cos(pitch) * camDist };

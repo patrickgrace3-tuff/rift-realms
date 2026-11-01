@@ -36,6 +36,7 @@ function leaveWorld(keepNet){
   $("#dialog").hidden = true; $("#hud").hidden = true; $("#cv").hidden = true; $("#ov").hidden = true;
   $("#skills").hidden = true; $("#bigmap").hidden = true; $("#charWin").hidden = true; $("#lootFeed").innerHTML = "";
   $("#social").hidden = true;
+  const mui = document.getElementById("mobUI"); if(mui) mui.hidden = true;
 }
 function buildNpcs(){
   for(const n of NPCS){
@@ -187,20 +188,23 @@ function updateControlsText(){
     : "Right-click to move, attack, talk or pick up · Q W E R abilities · arrow keys run and turn · Space jump · drag to look · both buttons run · F potion · T talk · C character · K skills · M map · P players · Enter chat · S stop";
 }
 // called every frame from the render loop
+const MOB_STICK = { on: false, x: 0, y: 0 };   // the phone joystick (08f-mobile.js): x right, y down, each −1…1
 function keyMove(dt){
   if(!G || !G.snap) return;
   const K = MOVE_KEYS(), on = list => list.some(k => keysDown.has(k));
   const turn = (on(K.right) ? 1 : 0) - (on(K.left) ? 1 : 0);
   if(turn) camYaw -= turn * TURN_RATE * dt;
-  const f = (on(K.fwd) || bothMouse ? 1 : 0) - (on(K.back) ? 1 : 0), s = (on(K.sr) ? 1 : 0) - (on(K.sl) ? 1 : 0);
+  let f = (on(K.fwd) || bothMouse ? 1 : 0) - (on(K.back) ? 1 : 0), s = (on(K.sr) ? 1 : 0) - (on(K.sl) ? 1 : 0);
+  if(MOB_STICK.on && Math.hypot(MOB_STICK.x, MOB_STICK.y) > .2){ f = -MOB_STICK.y; s = MOB_STICK.x; }
   G.keyMoveT = (G.keyMoveT || 0) - dt;
   if(!f && !s){ if(G.keyMoving){ G.keyMoving = false; command({ stop: 1 }); } return; }
-  if(G.keyMoveT > 0 && G.keyMoveDir === f + "," + s) return;   // resend a few times a second (and at once when the keys change)
+  const dirKey = Math.round(f * 6) + "," + Math.round(s * 6);
+  if(G.keyMoveT > 0 && G.keyMoveDir === dirKey) return;   // resend a few times a second (and at once when the direction changes)
   const me = G.snap.h.find(h => h.side === G.myTeam); if(!me || me.dead) return;
   // forward is away from the camera; sideways is screen-right
   const fx = -Math.sin(camYaw), fy = Math.cos(camYaw), rx = Math.cos(camYaw), ry = Math.sin(camYaw);
   let dx = fx * f + rx * s, dy = fy * f + ry * s; const n = Math.hypot(dx, dy); dx /= n; dy /= n;
-  G.keyMoveT = .12; G.keyMoving = true; G.keyMoveDir = f + "," + s;
+  G.keyMoveT = .12; G.keyMoving = true; G.keyMoveDir = dirKey;
   command({ move: [Math.round(clampX(me.x + dx * 380)), Math.round(clampY(me.y + dy * 380))] });
 }
 addEventListener("keyup", e => { keysDown.delete(e.key.toUpperCase()); });

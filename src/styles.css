@@ -314,3 +314,42 @@ h1{font:400 clamp(34px,6vw,58px)/1 var(--display);margin:8px 0 0;letter-spacing:
 .prow .btn{padding:7px 12px;font-size:13px}
 @media (max-width:900px){ .chat{width:min(300px,calc(100vw - 32px));bottom:calc(env(safe-area-inset-bottom,0px) + 150px)} .chatlog{height:96px} .lootfeed{bottom:calc(env(safe-area-inset-bottom,0px) + 290px)} .rolls{bottom:calc(env(safe-area-inset-bottom,0px) + 150px)} }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ---------- Phone controls (08f-mobile.js; only when body has .mobile) ---------- */
+.mobui{position:fixed;inset:0;z-index:4;pointer-events:none}
+.mobui[hidden]{display:none}
+.mstick{position:absolute;left:calc(env(safe-area-inset-left,0px) + 36px);bottom:calc(env(safe-area-inset-bottom,0px) + 36px);width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.2);opacity:.5;pointer-events:none}
+.mstick.on{opacity:1}
+.mknob{position:absolute;left:40px;top:40px;width:56px;height:56px;border-radius:50%;background:rgba(240,213,142,.55);border:2px solid rgba(255,255,255,.65)}
+.mbtns{position:absolute;right:calc(env(safe-area-inset-right,0px) + 12px);bottom:calc(env(safe-area-inset-bottom,0px) + 8px);width:300px;height:225px;transform:scale(var(--ms,1));transform-origin:bottom right}
+.mbtn{pointer-events:auto;position:absolute;border-radius:50%;border:2px solid rgba(240,213,142,.75);background:rgba(19,27,42,.8);color:#f0d58e;font:700 22px var(--num);display:grid;place-items:center;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;padding:0;overflow:hidden}
+.mbtn:active{transform:scale(.93)}
+.mbtn[hidden]{display:none}
+.mbtn.atk{width:92px;height:92px;right:4px;bottom:4px;font-size:42px;background:rgba(120,30,24,.88)}
+.mbtn.ab{width:62px;height:62px}
+.mbtn.ab img{width:100%;height:100%;object-fit:cover;border-radius:50%;pointer-events:none}
+.mbtn.ab .cd{position:absolute;inset:0;display:grid;place-items:center;font:700 18px var(--num);color:#fff;text-shadow:0 1px 3px #000;font-style:normal;border-radius:50%}
+.mbtn.ab .cd:not(:empty){background:rgba(5,8,14,.62)}
+.mbtn.locked{filter:grayscale(1);opacity:.6}
+.mbtn.abQ{left:104px;top:144px}.mbtn.abW{left:121px;top:84px}.mbtn.abE{left:164px;top:39px}.mbtn.abR{left:219px;top:22px}.mbtn.abG{left:18px;top:146px;width:56px;height:56px;border-color:#8cff9a}
+.mbtn.sm{width:48px;height:48px;font-size:21px}
+#mPot{left:50px;top:86px}#mJump{left:14px;top:30px}#mTgt{left:90px;top:16px}
+#mPot b{position:absolute;right:4px;bottom:1px;font:700 11px var(--num);color:#fff;text-shadow:0 1px 2px #000}
+.mbtn.use{left:-128px;top:156px;width:auto;min-width:96px;height:46px;border-radius:23px;padding:0 16px;font-size:16px;letter-spacing:.06em;text-transform:uppercase;background:rgba(36,74,40,.92);border-color:#8cff9a;color:#dfffe2}
+.mbtn.mchat{left:calc(env(safe-area-inset-left,0px) + 14px);top:46%}
+.mrotate{display:none}
+@media (orientation:portrait){ body.mobile .mrotate{display:flex;position:fixed;inset:0;z-index:100;background:#0b0f17;color:#f0d58e;flex-direction:column;align-items:center;justify-content:center;gap:8px;font:600 20px var(--num);text-align:center;padding:24px} .mrotate div{font-size:64px;animation:mrot 2s ease-in-out infinite} }
+@keyframes mrot{50%{transform:rotate(90deg)}}
+body.mobile .slots,body.mobile .helpline{display:none}
+body.mobile .chat{display:none}
+body.mobile .chat.open{display:flex;left:calc(env(safe-area-inset-left,0px) + 70px);bottom:auto;top:30%;width:min(380px,50vw);z-index:7}
+body.mobile .topright{transform:scale(.62);transform-origin:top right}
+body.mobile #mmIn,body.mobile #mmOut{display:none}
+body.mobile .topleft{transform:scale(.8);transform-origin:top left}
+body.mobile .tracker{position:absolute;left:max(12px,env(safe-area-inset-left));top:calc(env(safe-area-inset-top,0px) + 62px);min-width:0;max-width:230px;max-height:30vh;overflow:hidden;padding:5px 9px}
+body.mobile .tracker .qn{font-size:13px}body.mobile .tracker .qo{font-size:12px}
+body.mobile .pframes{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 200px);transform:scale(.75);transform-origin:bottom left}
+body.mobile .lootfeed{bottom:auto;top:40%;left:auto;right:calc(env(safe-area-inset-right,0px) + 250px);align-items:flex-end}
+body.mobile .dialog{bottom:8px;max-height:84vh;overflow:auto}
+body.mobile .modal .card{max-height:94vh;overflow:auto}
+body.mobile .bottom{bottom:calc(env(safe-area-inset-bottom,0px) + 6px)}
