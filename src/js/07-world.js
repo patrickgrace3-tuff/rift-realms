@@ -233,12 +233,18 @@ addEventListener("keydown", e => {
     else if(!$("#skills").hidden) $("#skills").hidden = true;
     else if(!$("#bigmap").hidden) toggleBigMap(false);
     else if(!$("#dialog").hidden) closeDialog();
-    else $("#menu").hidden = !$("#menu").hidden;
+    else if(!$("#menu").hidden) $("#menu").hidden = true;
+    else menuDrop($("#menuDrop").hidden);
   }
 });
 addEventListener("blur", () => { rmb = false; });
 addEventListener("mouseout", e => { if(!e.relatedTarget){ rmb = false; bothMouse = false; camDrag = null; } });   // the mouse left the window
-$("#menuBtn").onclick = () => { $("#menu").hidden = false; };
+// the Menu button opens a short list of every window; picking one (or clicking anywhere else) closes the list
+function menuDrop(open){ const d = $("#menuDrop"); d.hidden = !open; $("#menuBtn").setAttribute("aria-expanded", String(open)); }
+$("#menuBtn").onclick = e => { e.stopPropagation(); menuDrop($("#menuDrop").hidden); };
+$("#menuDrop").addEventListener("click", () => menuDrop(false));
+addEventListener("pointerdown", e => { if(!$("#menuDrop").hidden && !(e.target.closest && e.target.closest(".menuwrap"))) menuDrop(false); });
+$("#settingsBtn").onclick = () => { $("#menu").hidden = false; };
 $("#ctrlBtn").onclick = () => setControls(CONTROLS === "wasd" ? "classic" : "wasd");
 updateControlsText();
 $("#resumeBtn").onclick = () => { $("#menu").hidden = true; };

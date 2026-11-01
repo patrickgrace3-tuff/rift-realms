@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="build" content="b96f90d0f3">
+<meta name="build" content="d5966013c0">
 <script>
 // If this copy of the page is out of date (a browser can hold on to an old one), load the latest.
 // The build code changes whenever any game file does (scripts/stamp.mjs writes it).
@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=59024a1236">
+<link rel="stylesheet" href="src/styles.css?v=eca97647be">
 </head>
 <body>
 
@@ -130,13 +130,16 @@
         <button class="hudbtn" id="mmBig">Map (M)</button>
       </div>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-      <button class="hudbtn" id="charBtn">Character (C)</button>
-      <button class="hudbtn" id="profBtn">Professions (O)</button>
-      <button class="hudbtn" id="skillsBtn">Skills (K)<span class="badge" id="skillBadge" hidden>0</span></button>
-      <button class="hudbtn" id="socialBtn">Players (P)</button>
-      <button class="hudbtn" id="inviteBtn">Invite friends</button>
-      <button class="hudbtn" id="menuBtn">Menu</button>
+    <div class="menuwrap">
+      <button class="hudbtn" id="menuBtn" aria-expanded="false" aria-controls="menuDrop">Menu<span class="badge" id="menuBadge" hidden>0</span></button>
+      <div class="menudrop" id="menuDrop" role="menu" hidden>
+        <button class="hudbtn" id="charBtn" role="menuitem">Character (C)</button>
+        <button class="hudbtn" id="profBtn" role="menuitem">Professions (O)</button>
+        <button class="hudbtn" id="skillsBtn" role="menuitem">Skills (K)<span class="badge" id="skillBadge" hidden>0</span></button>
+        <button class="hudbtn" id="socialBtn" role="menuitem">Players (P)</button>
+        <button class="hudbtn" id="inviteBtn" role="menuitem">Invite friends</button>
+        <button class="hudbtn" id="settingsBtn" role="menuitem">Settings</button>
+      </div>
     </div>
     <div class="netinfo" id="netinfo"></div>
     <div class="tracker" id="tracker" hidden>
@@ -308,7 +311,7 @@
 
 <div id="menu" class="modal" hidden>
   <div class="card" style="width:min(400px,100%)">
-    <h2>Menu</h2>
+    <h2>Settings</h2>
     <div class="soundrow">
       <label for="musicVol">Music</label>
       <input type="range" id="musicVol" min="0" max="100" step="1">
@@ -360,8 +363,8 @@
 <script src="src/js/05j-crafting.js?v=ca46e0ad52"></script>
 <script src="src/js/05h-save.js?v=02bd11a4ba"></script>
 <script src="src/js/06-net.js?v=1bcdd7cefc"></script>
-<script src="src/js/07-world.js?v=1bc0a4d39c"></script>
-<script src="src/js/08-ui.js?v=a15deedeac"></script>
+<script src="src/js/07-world.js?v=26dbb30319"></script>
+<script src="src/js/08-ui.js?v=9c54457373"></script>
 <script src="src/js/08b-social.js?v=ea060b3aaf"></script>
 <script src="src/js/08c-audio.js?v=908391b037"></script>
 <script src="src/js/08d-save.js?v=6e363ac65a"></script>

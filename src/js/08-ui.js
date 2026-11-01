@@ -458,6 +458,7 @@ function updateHud(){
   $("#bossBar").hidden = !boss;
   if(boss){ const T = MOBS[boss[1]], pct = Math.max(0, boss[4] / boss[5] * 100); $("#bossName").textContent = T.name; $("#bossTitle").textContent = T.title || "Rare Raid Boss"; $("#bossFill").style.width = pct + "%"; $("#bossPct").textContent = `${Math.ceil(pct)}%`; }
   const badge = $("#skillBadge"); badge.hidden = !(me.points > 0); badge.textContent = me.points;
+  const mb = $("#menuBadge"); mb.hidden = badge.hidden; mb.textContent = me.points;   // unspent skill points show on the Menu button too
   const tkey = JSON.stringify(me.talents) + me.points + me.lvl;
   if(!$("#skills").hidden && tkey !== G.skillKey) renderSkills(me);
   drawMinimap(me);
