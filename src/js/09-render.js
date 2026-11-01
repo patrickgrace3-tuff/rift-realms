@@ -31,26 +31,27 @@ function render(dt){
       if(fresh){ v.castUntil = t + .35; const ab = v.kit[c.castKey]; if(ab) playSound(() => sfxAt("ab-" + ab.type, c.x, c.y)); } // each ability type has its own sound
     }
     if(c.atkSeq !== v.atkSeq){ const fresh = v.atkSeq >= 0; v.atkSeq = c.atkSeq; if(fresh){ v.atkUntil = t + .22; playSound(() => sfxAt(ATTACK_SFX[v.kit.cls], c.x, c.y)); } }
-    const sx = facesRight(c.face); if(sx < -.15) v.flip = true; else if(sx > .15) v.flip = false;
     const tier = c.wglow ? 1 : 0;
     applyLook(v.art, c.gear && c.gear.equip);
-    if((v.art.o.tier || 0) !== tier){ v.art.o.tier = tier; v.art.key = ""; }
+    if((v.art.o.tier || 0) !== tier) v.art.o.tier = tier;
+    v.model.sync();
     // mining swings a pickaxe up and down; picking kneels and reaches for the flower
     const gathering = c.chan && !c.dead ? c.chan.k : "";
     if(gathering === "mine") miningChips(c, v, t);
     const pose = c.dead ? "dead" : gathering === "mine" ? (t % .45 < .25 ? "mine0" : "mine1") : gathering === "pick" ? "pick" : t < v.castUntil ? "cast" : t < v.atkUntil ? "attack" : "idle";
-    const frame = c.moving && !c.dead ? Math.floor(t * 9) % 4 : 0;
-    if(v.art.draw(frame, v.flip, pose)) v.tex.needsUpdate = true;
+    // a jump is a hop of JUMP_TIME seconds, started when the hero's jump count changes
+    if(c.jp !== v.jp){ const fresh = v.jp !== undefined; v.jp = c.jp; if(fresh) v.jumpAt = t; }
+    const jk = (t - v.jumpAt) / JUMP_TIME, jumping = v.jumpAt > 0 && jk < 1 && !c.dead, hop = jumping ? Math.sin(jk * Math.PI) * 1.1 : 0;
+    const atkK = pose === "attack" ? Math.min(1, 1 - (v.atkUntil - t) / .22) : 0;
+    v.model.animate(pose, !!c.moving && !c.dead, t, dt, atkK, jumping);
+    if(!c.dead && c.face !== undefined) turnToward(v.model.root, faceYaw(c.face), dt);
+    v.model.root.position.set(w.x, y + hop, w.z);
     const hidden = !!c.stealth && c.side !== G.myTeam;
     v.hidden = hidden;
-    v.spr.visible = !hidden;
-    v.spr.material.opacity = c.stealth ? .45 : 1; v.spr.material.transparent = true;
-    v.spr.material.rotation = c.dead ? Math.PI / 2 * (v.flip ? 1 : -1) : 0;
-    v.spr.center.set(.5, c.dead ? .5 : 0);
-    v.spr.position.set(w.x, y + (c.dead ? .5 : (c.moving ? Math.abs(Math.sin(t * 9 * Math.PI / 2)) * .06 : Math.sin(t * 2.5) * .02)), w.z);
-    v.shadow.visible = v.ring.visible = !hidden && !c.dead;
+    v.model.root.visible = !hidden; v.model.setOpacity(c.stealth ? .45 : 1);
+    v.shadow.visible = v.ring.visible = !hidden && !c.dead; v.shadow.scale.setScalar(.65 * (1 - hop * .3));
     v.wglow.visible = !!c.wglow && !hidden && !c.dead;
-    if(v.wglow.visible){ const cr = camRight(), wo = v.flip ? -.6 : .6; v.wglow.position.set(w.x + cr.x * wo, y + 1.25, w.z + cr.z * wo); const gs = 1.1 + Math.sin(t * 4) * .25; v.wglow.scale.set(gs, gs, 1); }
+    if(v.wglow.visible){ v.model.wpn.getWorldPosition(v.wglow.position); const gs = 1.1 + Math.sin(t * 4) * .25; v.wglow.scale.set(gs, gs, 1); }
     v.shadow.position.set(w.x, y + .02, w.z); v.ring.position.set(w.x, y + .03, w.z);
     v.bubble.visible = c.shield > 0 && !c.dead && !hidden; v.bubble.position.set(w.x, y + 1.25, w.z);
     v.aura.visible = !!c.buff && !c.dead && !hidden; v.aura.position.set(w.x, y + .06, w.z); v.aura.scale.setScalar(1 + Math.sin(t * 8) * .08);
@@ -90,7 +91,10 @@ function render(dt){
     nv.marker.visible = !!mk; if(mk) nv.marker.material = nv.marks[mk];
     const up = MARK_UP.setFromMatrixColumn(camera.matrixWorld, 1), mh = 3.65 + Math.sin(t * 3) * .1; // above the name, along the camera's up
     nv.marker.position.set(nv.pos.x + up.x * mh, nv.pos.y + up.y * mh, nv.pos.z + up.z * mh);
-    if(meSnap){ const sx = Math.sign(XF(meSnap.x, meSnap.y).x - nv.pos.x); const fl = sx < 0; if(nv.art.draw(Math.floor(t * 1.2) % 2 ? 0 : 0, fl, "idle")) nv.tex.needsUpdate = true; }
+    // NPCs turn to face you when you come near
+    const mw = meSnap && XF(meSnap.x, meSnap.y), near = mw && Math.hypot(mw.x - nv.pos.x, mw.z - nv.pos.z) < 12;
+    turnToward(nv.model.root, near ? Math.atan2(mw.x - nv.pos.x, mw.z - nv.pos.z) : 0, dt, 4);
+    nv.model.animate("idle", false, t, dt);
   }
   // mobs
   const seenM = new Set();
@@ -98,32 +102,32 @@ function render(dt){
     const [id, kind, x, y, hp, maxHp, face, flags] = m; seenM.add(id);
     let mv = G.mobVis.get(id);
     if(!mv){
-      const A = MOB_ART[kind] || MOB_ART.sheep;
-      let c, art = null;
-      if(A.char){ art = new CharArt({ style: A.style, drawHead: A.head, tier: A.tier }); c = art.canvas; }
-      else { c = document.createElement("canvas"); c.width = A.cw; c.height = A.ch; }
-      const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding;
-      const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, alphaTest: .1 })); spr.center.set(.5, 0); spr.scale.set(A.sx, A.sy, 1);
+      const A = MOB_ART[kind] || MOB_ART.sheep, model = new Creature3D(kind);
       const sh = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: .28, depthWrite: false })); sh.scale.setScalar(A.sh);
-      mv = { kind, A, art, c, g: c.getContext("2d"), tex, spr, sh, key: "", flip: false, angryT: 0, buttT: 0, roarT: 0 };
-      G.root.add(spr, sh); G.mobVis.set(id, mv);
+      model.root.rotation.y = faceYaw(face);
+      mv = { kind, A, model, sh, angryT: 0, buttT: 0, roarT: 0 };
+      G.root.add(model.root, sh); G.mobVis.set(id, mv);
     }
     const p = smoothPos(id, x, y, dt), w = XF(p.x, p.y), gy = hAt(w.x, w.z);
-    const sx = facesRight(face); if(sx < -.15) mv.flip = true; else if(sx > .15) mv.flip = false;
-    const moving = flags & 1, angry = (flags & 2) > 0;
+    const moving = (flags & 1) > 0, angry = (flags & 2) > 0;
     const charging = (flags & 4) > 0, windup = (flags & 8) > 0;
-    const frame = moving ? Math.floor(t * (charging ? 18 : angry ? 12 : 7)) % 4 : 0, key = frame + "|" + mv.flip + "|" + angry + "|" + (windup ? Math.floor(t * 30) : 0) + (mv.buttT > 0 ? "a" : "");
-    if(key !== mv.key){ mv.key = key; if(mv.art) mv.art.draw(frame, mv.flip, mv.buttT > 0 ? "attack" : "idle", true); else mv.A.draw(mv.g, frame, mv.flip, angry, windup); mv.tex.needsUpdate = true; }
     mv.charging = charging; mv.windup = windup;
     mv.angryT = Math.max(0, mv.angryT - dt); mv.buttT = Math.max(0, mv.buttT - dt);
-    const lunge = mv.buttT > 0 ? Math.sin((1 - mv.buttT / .25) * Math.PI) * .35 * (mv.flip ? -1 : 1) : 0;
-    mv.spr.position.set(w.x + lunge * Math.cos(camYaw), gy + (moving ? Math.abs(Math.sin(t * 14)) * .05 : 0), w.z - lunge * Math.sin(camYaw));
-    mv.sh.position.set(w.x, gy + .02, w.z);
     mv.hp = hp; mv.maxHp = maxHp; mv.angry = angry; mv.pos = { x: w.x, y: gy, z: w.z };
-    mv.hidden = (flags & 16) > 0; mv.spr.visible = mv.sh.visible = !mv.hidden;   // a raid boss under the water or in the shadows
+    mv.hidden = (flags & 16) > 0;   // a raid boss under the water or in the shadows
+    // creatures lost in the haze aren't drawn at all (there can be hundreds)
+    const far = !camera || camera.position.distanceToSquared(mv.pos) > scene.fog.far * scene.fog.far * 1.1;
+    mv.model.root.visible = mv.sh.visible = !mv.hidden && !far;
+    if(mv.model.root.visible){
+      const lunge = mv.buttT > 0 ? 1 - mv.buttT / .25 : 0, fwd = lunge ? Math.sin(lunge * Math.PI) * .35 : 0, yaw = mv.model.root.rotation.y;
+      turnToward(mv.model.root, faceYaw(face), dt, charging ? 16 : 8);
+      mv.model.animate({ moving, angry, charging, windup, lunge }, t, dt);
+      mv.model.root.position.set(w.x + Math.sin(yaw) * fwd, gy, w.z + Math.cos(yaw) * fwd);
+      mv.sh.position.set(w.x, gy + .02, w.z);
+    }
     if(charging && Math.random() < .5) G.fx.push({ k: "pop", x: p.x, y: p.y, t: 0, dur: .4 });
   }
-  for(const [id, mv] of G.mobVis) if(!seenM.has(id)){ G.root.remove(mv.spr, mv.sh); mv.tex.dispose(); mv.spr.material.dispose(); mv.sh.material.dispose(); G.mobVis.delete(id); G.smooth.delete(id); }
+  for(const [id, mv] of G.mobVis) if(!seenM.has(id)){ G.root.remove(mv.model.root, mv.sh); mv.model.dispose(); mv.sh.material.dispose(); G.mobVis.delete(id); G.smooth.delete(id); }
   // quest loot (only the owner sees it)
   const seenL = new Set();
   for(const l of (s.l || [])){
@@ -265,6 +269,7 @@ function render(dt){
     G.camK = clear < (G.camK || 1) ? clear : Math.min(clear, (G.camK || 1) + dt * 1.5);
     camera.position.set(look.x + (ideal.x - look.x) * G.camK, look.y + (ideal.y - look.y) * G.camK, look.z + (ideal.z - look.z) * G.camK);
     camera.lookAt(look.x, look.y, look.z);
+    guarded("trees", () => updateCamFade(look, camera.position));
     if(meSnap) updateClimate(dt, meSnap.y, me, meSnap.x);
     guarded("sky", () => updateAtmosphere(meSnap, t));
     guarded("cathedral", () => updateCathedral(s, meSnap, t));
@@ -361,7 +366,7 @@ function frame(now){
     pingTick -= dt;
     if(pingTick <= 0){ pingTick = 2; NET.pingId = Math.random(); NET.pingSent = performance.now(); send({ t: "ping", id: NET.pingId }); }
   });
-  if(rmb){ G.holdT -= dt; if(G.holdT <= 0){ G.holdT = .15; rightClick(G.mouse.x, G.mouse.y, true); } }
+  if(rmb && !bothMouse){ G.holdT -= dt; if(G.holdT <= 0){ G.holdT = .15; rightClick(G.mouse.x, G.mouse.y, true); } }
   while(G.fxQueue.length){ const f = G.fxQueue.shift(); guarded("effects", () => handleFx(f)); }
   guarded("effects", () => { for(const f of G.fx){ f.t += dt; if(f.t >= f.dur) removeFxMesh(f); } G.fx = G.fx.filter(f => f.t < f.dur); for(const n of G.nums){ n.t -= dt; n.h += .9 * dt; } G.nums = G.nums.filter(n => n.t > 0); });
   guarded("drawing", () => render(dt));

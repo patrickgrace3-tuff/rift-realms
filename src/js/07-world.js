@@ -39,19 +39,16 @@ function leaveWorld(keepNet){
 }
 function buildNpcs(){
   for(const n of NPCS){
-    const art = new CharArt({ style: n.style, drawHead: HEADS[n.head] });
-    const tex = new THREE.CanvasTexture(art.canvas); tex.encoding = THREE.sRGBEncoding;
-    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, alphaTest: .1 })); spr.center.set(.5, 0); spr.scale.set(1.6, 2.4, 1);
-    art.draw(0, false, "idle", true); tex.needsUpdate = true;
+    const art = new CharArt({ style: n.style, drawHead: HEADS[n.head] }), model = new Humanoid3D(art);
     const marks = { offer: new THREE.SpriteMaterial({ map: markerTexture("!", "#ffd84a"), transparent: true, depthWrite: false }),
       progress: new THREE.SpriteMaterial({ map: markerTexture("?", "#b8b8b8"), transparent: true, depthWrite: false }),
       complete: new THREE.SpriteMaterial({ map: markerTexture("?", "#ffd84a"), transparent: true, depthWrite: false }) };
     const marker = new THREE.Sprite(marks.offer); marker.scale.set(.9, .9, 1);
     const w = XF(n.x, n.y), y = hAt(w.x, w.z);
-    spr.position.set(w.x, y, w.z); marker.position.set(w.x, y + 3.1, w.z);
+    model.root.position.set(w.x, y, w.z); marker.position.set(w.x, y + 3.1, w.z);
     const shadow = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: .3, depthWrite: false })); shadow.scale.setScalar(.6); shadow.position.set(w.x, y + .02, w.z);
-    G.root.add(spr, marker, shadow);
-    G.npcVis.push({ n, spr, marker, marks, art, tex, pos: { x: w.x, y, z: w.z } });
+    G.root.add(model.root, marker, shadow);
+    G.npcVis.push({ n, model, marker, marks, art, pos: { x: w.x, y, z: w.z } });
   }
 }
 
@@ -59,10 +56,9 @@ function buildNpcs(){
 function buildHeroVisual(d, side){
   const kit = buildKit(d), sideCol = SIDE_COLOR[side] || "#7fd3ff", ringCol = side === "blue" ? "#c9a55c" : sideCol;
   const art = new CharArt({ style: kit.cls, headUrl: champIcon(d.id), ring: ringCol, initial: d.name[0] });
-  const tex = new THREE.CanvasTexture(art.canvas); tex.encoding = THREE.sRGBEncoding;
-  art.onload = () => { tex.needsUpdate = true; };
-  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, alphaTest: .1 })); spr.center.set(.5, 0); spr.scale.set(1.7, 2.55, 1);
-  const v = { side, d, kit, art, tex, spr, flip: false, castUntil: 0, atkUntil: 0, castSeq: -1, atkSeq: -1, pos: null };
+  const model = new Humanoid3D(art);
+  art.onload = () => { model.headKey = null; };   // the portrait arrived: redraw the head
+  const v = { side, d, kit, art, model, castUntil: 0, atkUntil: 0, castSeq: -1, atkSeq: -1, pos: null, jumpAt: 0 };
   v.shadow = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: .32, depthWrite: false })); v.shadow.scale.setScalar(.65);
   v.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: sideCol, transparent: true, opacity: .7, depthWrite: false })); v.ring.scale.setScalar(.75);
   v.mats = {}; ["Q", "W", "E", "R"].forEach((k, i) => { v.mats[k] = spriteMat(spellIcon(d.spells[i].image.full), "#f0d58e"); });
@@ -73,10 +69,10 @@ function buildHeroVisual(d, side){
   const glowCol = { melee: 0xffb347, caster: 0xc98cff, ranged: 0x8cff9a }[kit.cls];
   v.wglow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowMat.map, color: glowCol, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); v.wglow.visible = false; G.root.add(v.wglow);
   v.orbs = [0, 1, 2, 3].map(() => { const o = new THREE.Sprite(v.mats[orbKey]); o.scale.set(.7, .7, 1); const gl = new THREE.Sprite(glowMat); gl.scale.set(1.8, 1.8, 1); o.add(gl); o.visible = false; return o; });
-  G.root.add(spr, v.shadow, v.ring, v.bubble, v.aura, ...v.orbs);
+  G.root.add(model.root, v.shadow, v.ring, v.bubble, v.aura, ...v.orbs);
   return v;
 }
-function removeHeroVisual(v){ G.root.remove(v.spr, v.shadow, v.ring, v.bubble, v.aura, v.wglow, ...v.orbs); if(v.setFx) G.root.remove(v.setFx.grp); v.tex.dispose(); }
+function removeHeroVisual(v){ G.root.remove(v.model.root, v.shadow, v.ring, v.bubble, v.aura, v.wglow, ...v.orbs); if(v.setFx) G.root.remove(v.setFx.grp); v.model.dispose(); }
 
 /* ---------- Input ---------- */
 function screenToZone(cx, cy){
@@ -127,26 +123,31 @@ cv.addEventListener("pointerdown", e => { if(!G || e.pointerType !== "mouse") re
 addEventListener("pointermove", e => { if(G){ G.mouse.x = e.clientX; G.mouse.y = e.clientY; } });
 addEventListener("pointerup", e => { if(e.button === 2) rmb = false; });
 cv.addEventListener("wheel", e => { e.preventDefault(); camDist = Math.max(12, Math.min(36, camDist + Math.sign(e.deltaY) * 2)); }, { passive: false });
-// hold the left (or middle) mouse button and drag to turn the camera around you; double-click puts it back behind
-let camDrag = null;
-cv.addEventListener("pointerdown", e => { if(!G || e.pointerType !== "mouse" || (e.button !== 0 && e.button !== 1)) return; e.preventDefault(); camDrag = { x: e.clientX, y: e.clientY }; });
+// hold the left (or middle) mouse button and drag to turn the camera around you; double-click puts it back behind.
+// Holding both buttons runs forward while the mouse steers. (Mouse events, not pointer events: a second button pressed
+// while one is held gives no pointerdown.)
+let camDrag = null, bothMouse = false;
+cv.addEventListener("mousedown", e => {
+  if(!G) return; bothMouse = (e.buttons & 3) === 3;
+  if(e.button === 0 || e.button === 1 || bothMouse){ e.preventDefault(); if(!camDrag) camDrag = { x: e.clientX, y: e.clientY }; }
+});
+addEventListener("mouseup", e => { bothMouse = (e.buttons & 3) === 3; if(!(e.buttons & 5) && !bothMouse) camDrag = null; });
 addEventListener("pointermove", e => {
   if(!camDrag) return;
   const dx = e.clientX - camDrag.x, dy = e.clientY - camDrag.y; camDrag.x = e.clientX; camDrag.y = e.clientY;
   camYaw -= dx * .006; const b = camBasePitch(); camTilt = Math.max(CAM_PITCH[0] - b, Math.min(CAM_PITCH[1] - b, camTilt + dy * .004));
 });
-addEventListener("pointerup", e => { if(e.button === 0 || e.button === 1) camDrag = null; });
 cv.addEventListener("dblclick", () => { camYaw = 0; camTilt = 0; });
 
 /* ---------- Movement keys ----------
-   Arrow keys always run (up/down) and turn (left/right). With WASD controls (the default), W/S run, A/D turn,
-   Q/E step sideways, and the abilities move to 1 2 3 4. Classic controls keep Q W E R for abilities and S to stop.
+   Arrow keys always run (up/down) and turn (left/right). With WASD controls (the default), W/S run, A/D step
+   sideways, Q/E turn, and the abilities move to 1 2 3 4. Space jumps in either scheme. Classic controls keep Q W E R for abilities and S to stop.
    Keyboard running sends ordinary "move" commands a short way ahead, so the host needs nothing new. */
 let CONTROLS = (() => { try { return localStorage.getItem("rr.controls") === "classic" ? "classic" : "wasd"; } catch { return "wasd"; } })();
 const ABILITY_DIGITS = { "1": "Q", "2": "W", "3": "E", "4": "R" };
 const keyLabel = k => CONTROLS === "wasd" ? ({ Q: "1", W: "2", E: "3", R: "4" }[k] || k) : k;
 const MOVE_KEYS = () => CONTROLS === "wasd"
-  ? { fwd: ["ARROWUP", "W"], back: ["ARROWDOWN", "S"], left: ["ARROWLEFT", "A"], right: ["ARROWRIGHT", "D"], sl: ["Q"], sr: ["E"] }
+  ? { fwd: ["ARROWUP", "W"], back: ["ARROWDOWN", "S"], left: ["ARROWLEFT", "Q"], right: ["ARROWRIGHT", "E"], sl: ["A"], sr: ["D"] }
   : { fwd: ["ARROWUP"], back: ["ARROWDOWN"], left: ["ARROWLEFT"], right: ["ARROWRIGHT"], sl: [], sr: [] };
 const keysDown = new Set();
 const TURN_RATE = 2.2;     // radians a second
@@ -159,8 +160,8 @@ function setControls(mode){
 function updateControlsText(){
   const b = $("#ctrlBtn"); if(b){ b.textContent = CONTROLS === "wasd" ? "WASD" : "Classic"; b.setAttribute("aria-pressed", String(CONTROLS === "wasd")); }
   const h = $("#helpline"); if(h) h.textContent = CONTROLS === "wasd"
-    ? "W S run · A D turn · Q E step aside · 1 2 3 4 abilities · drag to look · right-click to move, attack, talk or pick up · F potion · T talk · C character · K skills · M map · P players · Enter chat"
-    : "Right-click to move, attack, talk or pick up · Q W E R abilities · arrow keys run and turn · drag to look · F potion · T talk · C character · K skills · M map · P players · Enter chat · S stop";
+    ? "W S run · A D step aside · Q E turn · Space jump · 1 2 3 4 abilities · drag to look · both buttons run · right-click to move, attack, talk or pick up · F potion · T talk · C character · K skills · M map · P players · Enter chat"
+    : "Right-click to move, attack, talk or pick up · Q W E R abilities · arrow keys run and turn · Space jump · drag to look · both buttons run · F potion · T talk · C character · K skills · M map · P players · Enter chat · S stop";
 }
 // called every frame from the render loop
 function keyMove(dt){
@@ -168,7 +169,7 @@ function keyMove(dt){
   const K = MOVE_KEYS(), on = list => list.some(k => keysDown.has(k));
   const turn = (on(K.right) ? 1 : 0) - (on(K.left) ? 1 : 0);
   if(turn) camYaw -= turn * TURN_RATE * dt;
-  const f = (on(K.fwd) ? 1 : 0) - (on(K.back) ? 1 : 0), s = (on(K.sr) ? 1 : 0) - (on(K.sl) ? 1 : 0);
+  const f = (on(K.fwd) || bothMouse ? 1 : 0) - (on(K.back) ? 1 : 0), s = (on(K.sr) ? 1 : 0) - (on(K.sl) ? 1 : 0);
   G.keyMoveT = (G.keyMoveT || 0) - dt;
   if(!f && !s){ if(G.keyMoving){ G.keyMoving = false; command({ stop: 1 }); } return; }
   if(G.keyMoveT > 0 && G.keyMoveDir === f + "," + s) return;   // resend a few times a second (and at once when the keys change)
@@ -180,12 +181,13 @@ function keyMove(dt){
   command({ move: [Math.round(clampX(me.x + dx * 380)), Math.round(clampY(me.y + dy * 380))] });
 }
 addEventListener("keyup", e => { keysDown.delete(e.key.toUpperCase()); });
-addEventListener("blur", () => { keysDown.clear(); camDrag = null; });
+addEventListener("blur", () => { keysDown.clear(); camDrag = null; bothMouse = false; });
 addEventListener("keydown", e => {
   if(!G || e.repeat) return;
   if(e.target.tagName === "INPUT") return;
   const k = e.key.toUpperCase(), K = MOVE_KEYS();
   if([K.fwd, K.back, K.left, K.right, K.sl, K.sr].some(l => l.includes(k))){ e.preventDefault(); keysDown.add(k); return; }
+  if(e.key === " "){ e.preventDefault(); command({ jump: 1 }); return; }
   const ab = CONTROLS === "wasd" ? (ABILITY_DIGITS[k] || (k === "G" ? "G" : null)) : k;
   if(ab && kitKeys(G.myKit).includes(ab)){ e.preventDefault(); const p = screenToZone(G.mouse.x, G.mouse.y); if(p) command({ cast: ab, at: [Math.round(p[0]), Math.round(p[1])] }); }
   else if(k === "S" && CONTROLS === "classic") command({ stop: 1 });

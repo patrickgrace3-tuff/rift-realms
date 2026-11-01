@@ -1287,3 +1287,16 @@ test("shields last until they've soaked up their amount; Support champions heal 
   s.hp = 50; s.cds.G = 0; SIM.input(W, "red", { cast: "G", at: [s.x + 900, s.y] }); assert.ok(s.hp > 50, "with nobody near the cursor it heals yourself");
   const hp0 = a.hp; a.cds.G = 0; SIM.input(W, "blue", { cast: "G", at: [a.x, a.y] }); assert.ok(!a.kit.G && a.cds.G === 0, "only Support champions have G");
 });
+
+/* ---------- Jumping ---------- */
+test("jump: space sends a hop everyone sees, one at a time, never while dead", () => {
+  const { W, h, step } = newWorld();
+  const jp = () => SIM.snapshot(W).h.find(c => c.side === "blue").jp;
+  assert.equal(jp(), 0);
+  SIM.input(W, "blue", { jump: 1 }); assert.equal(jp(), 1);
+  SIM.input(W, "blue", { jump: 1 }); assert.equal(jp(), 1, "no second jump in mid-air");
+  step(1); SIM.input(W, "blue", { jump: 1 }); assert.equal(jp(), 2);
+  // jumping doesn't stop you running
+  SIM.input(W, "blue", { move: [h.x, h.y + 1000] }); const y0 = h.y; SIM.input(W, "blue", { jump: 1 }); step(.5); assert.ok(h.y > y0 + 50);
+  step(1); const before = jp(); h.dead = 5; SIM.input(W, "blue", { jump: 1 }); assert.equal(jp(), before, "the dead can't jump");
+});

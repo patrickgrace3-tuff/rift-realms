@@ -28,8 +28,10 @@ Two control schemes; switch in the Menu (Esc). WASD is the default.
 | Key | Action |
 |---|---|
 | W S / ↑ ↓ | Run forward and back (away from or toward the camera) |
-| A D / ← → | Turn |
-| Q E | Step sideways (WASD controls) |
+| Q E / ← → | Turn (Q E with WASD controls) |
+| A D | Step sideways (WASD controls) |
+| Space | Jump |
+| Both mouse buttons | Run forward; move the mouse to steer |
 | 1 2 3 4 | Cast at the cursor (WASD controls; Q W E R with Classic controls). The ultimate unlocks at level 6. Hover an ability to see what it does |
 | G | Support heal (Support champions) |
 | Drag (left mouse) | Turn the camera around you; double-click puts it back behind |

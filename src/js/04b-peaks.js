@@ -78,7 +78,7 @@ function buildPeaks(g, valeH, T){
     trunks.setMatrixAt(k, d.matrix); pines.setMatrixAt(k, d.matrix); caps.setMatrixAt(k, d.matrix);
     pines.setColorAt(k, c.setHSL(.4 + rnd() * .05, .35, .18 + rnd() * .07));
   });
-  g.add(trunks, pines, caps);
+  g.add(trunks, pines, caps); camFadeRegister(trunks, pines, caps);
   // boulders
   const rockM = new THREE.MeshStandardMaterial({ flatShading: true, roughness: .95 });
   const rocks = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.6, 0), rockM, 360);

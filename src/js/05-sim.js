@@ -6,6 +6,7 @@
    ===================================================================== */
 const GRID = 600;          // grid cell size for nearby-unit and obstacle checks (bigger than any two units' reach)
 let OBST_GRID = null;
+const JUMP_TIME = .6;   // seconds a jump lasts
 const SIM = {
   create(){
     const W = { t: 0, heroes: {}, mobs: [], shots: [], zones: [], fields: [], pets: [], loot: [], respawnQ: [], fxNet: [], fxLocal: [], nid: 1, parties: {}, invites: [], rolls: [], duels: [], duelReqs: [], arenaReqs: [], botLeave: [], mercReqs: [] };
@@ -306,6 +307,8 @@ const SIM = {
     const c = SIM.hero(W, side); if(!c || !cmd || typeof cmd !== "object") return;
     if(SIM.socialInput(W, c, cmd) || SIM.duelInput(W, c, cmd) || SIM.arenaInput(W, c, cmd) || SIM.mercInput(W, c, cmd) || SIM.craftInput(W, c, cmd)) return;
     if(cmd.stop){ c.move = c.target = c.talkTo = null; return; }
+    // a jump is only a hop everyone sees (jumpSeq in the snapshot); one at a time
+    if(cmd.jump){ if(!c.dead && !(W.t - (c.jumpT ?? -9) < JUMP_TIME)){ c.jumpT = W.t; c.jumpSeq = (c.jumpSeq || 0) + 1; } return; }
     if(cmd.accept){
       const Q = QUESTS[cmd.accept]; if(!Q) return;
       const npc = NPCS.find(n => n.id === Q.giver), qs = c.quests[Q.id];
@@ -699,7 +702,7 @@ const SIM = {
       h: SIM.heroes(W).map(c => ({
         side: c.side, champId: c.champId, name: c.name, x: r(c.x), y: r(c.y), hp: r(c.hp), maxHp: r(c.maxHp), lvl: c.lvl, xp: r(c.xp), xpNext: SIM.xpNext(c.lvl),
         face: Math.round(c.face * 100) / 100, moving: c.moving ? 1 : 0, dead: c.dead ? Math.max(1, Math.ceil(c.respawnAt - W.t)) : 0,
-        castSeq: c.castSeq, castKey: c.castKey, atkSeq: c.atkSeq, cds: { Q: +c.cds.Q.toFixed(1), W: +c.cds.W.toFixed(1), E: +c.cds.E.toFixed(1), R: +c.cds.R.toFixed(1), G: +(c.cds.G || 0).toFixed(1) },
+        castSeq: c.castSeq, castKey: c.castKey, atkSeq: c.atkSeq, jp: c.jumpSeq || 0, cds: { Q: +c.cds.Q.toFixed(1), W: +c.cds.W.toFixed(1), E: +c.cds.E.toFixed(1), R: +c.cds.R.toFixed(1), G: +(c.cds.G || 0).toFixed(1) },
         orbT: c.orbT > 0 ? 1 : 0, orbA: Math.round(c.orbA * 100) / 100, shield: r(c.shield), buff: c.buffT > 0 ? 1 : 0, stealth: c.stealthT > 0 ? 1 : 0,
         cc: c.cc.stun > 0 ? "stun" : c.silenceT > W.t ? "silence" : c.cc.root > 0 ? "root" : c.cc.slow > 0 ? "slow" : "", quests: SIM.questView(W, c), weapon: c.weapon ? c.weapon.name : null,
         talents: c.talents, points: talentPoints(c.lvl, c.talents), orbN: c.orbN || 3, ad: Math.round(c.ad),

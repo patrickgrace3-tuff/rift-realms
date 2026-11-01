@@ -138,7 +138,7 @@ function buildZone(){
     if(rnd() < .55){ cones.setMatrixAt(nc, d.matrix); cones.setColorAt(nc++, c.setHSL(.36 + rnd() * .06, .45, .24 + rnd() * .08)); }
     else { rounds.setMatrixAt(nr, d.matrix); rounds.setColorAt(nr++, c.setHSL(.25 + rnd() * .07, .5, .32 + rnd() * .1)); }
   });
-  cones.count = nc; rounds.count = nr; g.add(trunks, cones, rounds);
+  cones.count = nc; rounds.count = nr; g.add(trunks, cones, rounds); camFadeRegister(trunks, cones, rounds);
   // flowers and rocks
   const flowers = new THREE.InstancedMesh(new THREE.OctahedronGeometry(.11), new THREE.MeshBasicMaterial(), 900);
   let nf = 0;
@@ -354,6 +354,32 @@ function hAt(x, z){ const [zx, zy] = XF.inv(x, z); return ZH ? ZH(zx, zy) : 0; }
 // How far the camera can sit from the look point before a hill, a building or a cathedral wall gets in the way
 // (0..1 of the full distance). Walks the line from you to the camera; small props like trees don't block.
 let CAM_SOLIDS = null;
+// Trees (instanced) that stand between the camera and you are hidden, so a low camera never sits inside a tree.
+const CAM_FADE = [];
+function camFadeRegister(...ims){
+  for(const im of ims){
+    const a = im.instanceMatrix.array, n = im.count, pos = new Float32Array(n * 3);
+    for(let i = 0; i < n; i++){ pos[i * 3] = a[i * 16 + 12]; pos[i * 3 + 1] = a[i * 16 + 13]; pos[i * 3 + 2] = a[i * 16 + 14]; }
+    im.userData.fade = { orig: a.slice(0, n * 16), pos, hidden: new Uint8Array(n) }; CAM_FADE.push(im);
+  }
+}
+let camFadeKey = "";
+function updateCamFade(look, cam){
+  const key = [cam.x, cam.y, cam.z, look.x, look.z].map(v => Math.round(v * 4)).join(",");
+  if(key === camFadeKey) return; camFadeKey = key;
+  const dx = look.x - cam.x, dy = look.y - cam.y, dz = look.z - cam.z, L2 = dx * dx + dz * dz || 1;
+  for(const im of CAM_FADE){
+    const F = im.userData.fade, a = im.instanceMatrix.array; let dirty = false;
+    for(let i = 0; i < im.count; i++){
+      const px = F.pos[i * 3], py = F.pos[i * 3 + 1], pz = F.pos[i * 3 + 2];
+      if(Math.abs(px - cam.x) > 60 || Math.abs(pz - cam.z) > 60){ if(F.hidden[i]){ F.hidden[i] = 0; for(let j = 0; j < 16; j++) a[i * 16 + j] = F.orig[i * 16 + j]; dirty = true; } continue; }
+      const t = Math.max(0, Math.min(1, ((px - cam.x) * dx + (pz - cam.z) * dz) / L2)), ex = cam.x + dx * t - px, ez = cam.z + dz * t - pz;
+      const hide = t < .93 && ex * ex + ez * ez < 2.2 && cam.y + dy * t < py + 4.6 ? 1 : 0;
+      if(hide !== F.hidden[i]){ F.hidden[i] = hide; for(let j = 0; j < 16; j++) a[i * 16 + j] = hide ? 0 : F.orig[i * 16 + j]; dirty = true; }
+    }
+    if(dirty) im.instanceMatrix.needsUpdate = true;
+  }
+}
 function camClear(from, to, indoors){
   if(!CAM_SOLIDS) CAM_SOLIDS = OBSTACLES.filter(o => o.r >= 150);
   const N = 22;
