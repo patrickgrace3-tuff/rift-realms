@@ -238,15 +238,53 @@ function frogBody(){
   parts.head = m3pivot(body);
   return parts;
 }
-function serpentBody(){
+function serpentBody(pal = {}){
   const G3 = m3geo(), root = new THREE.Group(), parts = { root, body: m3pivot(root), seg: [] };
-  const c = m3mat("#4a7a32"), d = m3mat("#3a6a2a"), y = m3mat("#a8c84a");
+  const c = m3mat(pal.c || "#4a7a32"), d = m3mat(pal.d || "#3a6a2a"), y = m3mat(pal.y || "#a8c84a");
   for(let i = 0; i < 8; i++){ const s = .38 - i * .03, m = m3pivot(parts.body, 0, s / 2, -i * .3); m3part(m, G3.box, i % 2 ? d : c, s, s, .34); m3part(m, G3.box, y, s * .8, .05, .3, 0, -s / 2, 0); parts.seg.push(m); }
   const head = m3pivot(parts.body, 0, .62, .25); parts.head = head;
   m3part(parts.body, G3.box, c, .3, .5, .3, 0, .35, .05).rotation.x = -.4;   // the raised neck
   m3part(head, G3.box, c, .4, .22, .46, 0, 0, .12); m3part(head, G3.box, d, .5, .08, .3, 0, .1, 0);
   for(const s of [-1, 1]) m3part(head, G3.cone, m3mat("#f2ecd8"), .04, .12, .04, s * .1, -.14, .3).rotation.x = Math.PI;
-  parts.eyes = [-1, 1].map(s => m3part(head, G3.box, m3mat("#ffd84a"), .07, .06, .04, s * .14, .06, .32));
+  parts.eyes = [-1, 1].map(s => m3part(head, G3.box, m3mat(pal.eye || "#ffd84a"), .07, .06, .04, s * .14, .06, .32));
+  if(pal.hood) for(const s of [-1, 1]){ const h = m3part(parts.body, G3.box, d, .22, .36, .06, s * .2, .5, .08); h.rotation.z = s * .35; }   // a cobra's hood
+  return parts;
+}
+// a scorpion: armoured body, eight legs, two pincers (they snap on a bite) and a tail curled over its back
+function scorpionBody(pal){
+  const G3 = m3geo(), root = new THREE.Group(), body = m3pivot(root, 0, .32, 0), parts = { root, body, legs: [], spider: true };
+  const c = m3mat(pal.body), d = m3mat(pal.dark), st = m3mat(pal.sting, pal.glow);
+  m3part(body, G3.box, c, .7, .26, .9); for(let i = 0; i < 4; i++) m3part(body, G3.box, d, .74, .06, .14, 0, .14, -.32 + i * .2);   // shell plates
+  const head = m3pivot(body, 0, 0, .45); parts.head = head; m3part(head, G3.box, c, .44, .2, .26, 0, 0, .1);
+  parts.eyes = [-1, 1].map(s => m3part(head, G3.box, m3mat("#1b1410"), .06, .05, .03, s * .1, .08, .23));
+  parts.arms = [-1, 1].map(s => { const p = m3pivot(body, s * .28, 0, .45); p.rotation.y = s * -.35;
+    m3part(p, G3.box, c, .12, .12, .42, 0, 0, .2); const claw = m3pivot(p, 0, 0, .42); m3part(claw, G3.box, d, .22, .14, .26, 0, 0, .12); m3part(claw, G3.box, d, .08, .1, .22, s * .12, 0, .3); return p; });
+  for(const s of [-1, 1]) for(let i = 0; i < 4; i++){
+    const p = m3pivot(body, s * .32, -.02, .28 - i * .2); p.rotation.y = s < 0 ? Math.PI : 0; p.rotation.y += s * (.25 - i * .2);
+    const up = m3pivot(p); up.rotation.z = .5; m3part(up, G3.box, d, .4, .06, .06, .2, 0, 0); const lo = m3pivot(up, .4, 0, 0); lo.rotation.z = -1.4; m3part(lo, G3.box, d, .36, .05, .05, .18, 0, 0);
+    parts.legs.push(p);
+  }
+  // the tail: five segments arching up and forward, ending in the sting
+  const tail = m3pivot(body, 0, .08, -.45); parts.tail = tail; let seg = tail;
+  for(let i = 0; i < 5; i++){ const k = m3pivot(seg, 0, 0, i ? -.2 : 0); k.rotation.x = i ? -.55 : -.6; m3part(k, G3.box, i % 2 ? d : c, .2 - i * .015, .18 - i * .015, .24, 0, 0, -.1); seg = k; }
+  const sting = m3pivot(seg, 0, 0, -.24); m3part(sting, G3.ball, st, .16, .16, .2); const barb = m3part(sting, G3.cone, st, .07, .2, .07, 0, -.08, .08); barb.rotation.x = 2.2;
+  return parts;
+}
+// Zahrak, the Dune Wyrm: a great ringed worm rearing out of the sand, its round maw lined with teeth
+function wormBody(){
+  const G3 = m3geo(), root = new THREE.Group(), body = m3pivot(root), parts = { root, body, seg: [] };
+  const c = m3mat("#b8875a"), d = m3mat("#8a5f3a"), belly = m3mat("#d8b88a"), tooth = m3mat("#f2ecd8");
+  for(let i = 0; i < 9; i++){   // from the buried tail up to the rearing head
+    const k = i / 8, s = 1.25 - k * .35, m = m3pivot(body, 0, .2 + Math.pow(k, 1.6) * 3.4, -2.4 + k * 2.6);
+    m3part(m, G3.cyl, i % 2 ? d : c, s, .5, s).rotation.x = -.6 * k - .2; m3part(m, G3.box, belly, s * .7, .45, .1, 0, 0, s * .45);
+    parts.seg.push(m);
+  }
+  for(let k = 0; k < 7; k++){ const a = k / 7 * Math.PI * 2; m3part(body, G3.cone, d, .5, 1.2, .5, Math.cos(a) * 1.6, .3, -2.4 + Math.sin(a) * 1.2); }   // sand heaped round the hole
+  const head = m3pivot(body, 0, 3.7, .35); parts.head = head;
+  m3part(head, G3.cyl, c, 1.2, .5, 1.2).rotation.x = -1.3;
+  for(let k = 0; k < 10; k++){ const a = k / 10 * Math.PI * 2, t = m3part(head, G3.cone, tooth, .14, .4, .14, Math.cos(a) * .42, Math.sin(a) * .42, .32); t.rotation.x = Math.PI / 2; }
+  m3part(head, G3.cyl, m3mat("#3a1a10"), .7, .1, .7, 0, 0, .3).rotation.x = -Math.PI / 2;   // the dark throat
+  parts.eyes = [-1, 1].map(s => m3part(head, G3.box, m3mat("#ff8a3a", "#ff5a1a"), .16, .12, .06, s * .55, .45, .1));
   return parts;
 }
 function spiderBody(){
@@ -313,7 +351,14 @@ const CREATURE_BUILD = {
   ape: () => apeBody(APE_PAL),
   greyback: () => apeBody(GREY_PAL),
   yeti: () => apeBody({ body: "#e8ecf2", dark: "#c8ccd4", back: "#f6f8fc", face: "#8aa6c8", horns: "#dde2ea" }),
-  frog: frogBody, serpent: serpentBody, sizzra: spiderBody, wisp: wispBody, cragling: craglingBody,
+  frog: frogBody, serpent: () => serpentBody(), sizzra: spiderBody, wisp: wispBody, cragling: craglingBody,
+  // the Amberveil Wastes
+  scuttler: () => scorpionBody({ body: "#c89a5a", dark: "#8a6230", sting: "#3a2418" }),
+  rattlespine: () => scorpionBody({ body: "#6a3a2a", dark: "#3a1e14", sting: "#e0b040", glow: "#ff8a1a" }),
+  viper: () => serpentBody({ c: "#d8b070", d: "#b88a4a", y: "#f2dca8", eye: "#e0302a", hood: true }),
+  jackal: () => quadruped({ body: [.38, .38, .95], col: "#c8a46a", belly: "#e8d4a8", head: [.3, .28, .3], headY: .22, snout: [.15, .13, .26], nose: "#1b1410", legH: .48, legW: .09, legCol: "#a8844a", tail: [.11, .11, .5, "#8a6a3a", .2], ears: "point", eye: "#e8d040" }),
+  basilisk: () => quadruped({ body: [.5, .3, 1.15], col: "#c86a2a", belly: "#f2c87a", spikes: [6, "#ffd36a"], head: [.34, .24, .34], headY: .05, snout: [.24, .14, .26], legH: .2, legW: .13, splay: .08, legCol: "#8a4a1a", tail: [.24, .18, .8, "#c86a2a", 0], tail2: true, eye: "#7fff6a" }),
+  zahrak: wormBody,
   whelp: () => dragonBody({ body: "#7fa6c8", belly: "#dfeefa", dark: "#4f6f8f", wing: "#9fc0dc" }),
   dragon: () => dragonBody({ body: "#6a92b8", belly: "#dfeefa", dark: "#3f5f80", wing: "#8fb2d2" }),
 };

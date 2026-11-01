@@ -108,7 +108,7 @@ const SIM = {
   },
   xpNext: xpForLevel,
   // fallen heroes return to the village, or to Highwatch if they fell in the Peaks
-  respawnAt: c => inJungle(c.x, c.y) ? JUNGLE_ARRIVE : c.y > DZ ? CATHEDRAL.arrive : c.y >= ZS ? [OUTPOST.x + 120, OUTPOST.y - 260] : SPAWN,
+  respawnAt: c => inJungle(c.x, c.y) ? JUNGLE_ARRIVE : inDesert(c.x, c.y) ? DESERT_ARRIVE : c.y > DZ ? CATHEDRAL.arrive : c.y >= ZS ? [OUTPOST.x + 120, OUTPOST.y - 260] : SPAWN,
   dmgScale: c => (1 + .09 * ((c.lvl || 1) - 1)) * (1 + (c.ap || 0) / 100),
   fx(W, f){ W.fxNet.push(f); W.fxLocal.push(f); },
   isHero: u => u.team === "hero",
@@ -234,7 +234,8 @@ const SIM = {
     }
     W.loot = W.loot.filter(x => x !== l);
     const qs = c.quests[l.quest], Q = QUESTS[l.quest];
-    if(qs && qs.state === "active"){ qs.count = Q.obj.count; qs.state = "ready"; SIM.fx(W, { k: "looted", side: c.side, quest: l.quest }); SIM.fx(W, { k: "qready", side: c.side, quest: l.quest }); }
+    // each quest item picked up counts one (most loot quests want just one)
+    if(qs && qs.state === "active"){ SIM.fx(W, { k: "looted", side: c.side, quest: l.quest }); SIM.progress(W, c, l.quest); }
   },
   activeQuest(c, type){ return Object.keys(c.quests).find(id => QUESTS[id].obj.type === type && c.quests[id].state === "active"); },
   questReady(W, c, qid){ c.quests[qid].state = "ready"; SIM.fx(W, { k: "qready", side: c.side, quest: qid }); },
@@ -739,6 +740,7 @@ const SIM = {
     if(from){
       const [fx, fy] = from;
       if(inJungle(fx, fy)){ x = Math.max(ZS + ZMIN, Math.min(ZS * 2 - ZMIN, x)); y = Math.max(DZ + ZMIN, Math.min(DZ + ZS - ZMIN, y)); }
+      else if(inDesert(fx, fy)){ x = Math.max(ZS + ZMIN, Math.min(ZS * 2 - ZMIN, x)); y = Math.max(ZS + ZMIN, Math.min(DZ - ZMIN, y)); }
       else if(fy > DZ && fx <= ZS){ x = Math.min(ZS - ZMIN, x); y = Math.max(DZ + ZMIN, y); }
       else { x = Math.min(ZS - ZMIN, x); y = Math.min(DZ - ZMIN, y); }
     }

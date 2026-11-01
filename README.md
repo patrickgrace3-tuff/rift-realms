@@ -3,9 +3,10 @@
 League of Legends champions in a small World of Warcraft–style world. Pick any champion, step into Sunhollow Vale, and quest with up to four friends.
 
 - Every champion is playable. Abilities are matched from each champion's real kit (skillshots, hooks, leaps, shields, summons and more).
-- Pixel-art bodies with your champion's portrait as the head; armor changes the look.
-- Two zones. Sunhollow Vale has eight quests: hunting, a boss with a quest drop, a timed delivery, exploring, gathering, lighting beacons and defending a watchtower. Finish them all and Captain Rhea sends you north through Greywind Pass to Frostspine Peaks, a snowy mountain zone with eleven more quests: the Hollowdeep Mine, the frozen lake of Glassmere, the elite yeti Whitemane, and more.
-- The first raid boss: Skarnvir the Rimewyrm, a huge frost dragon in the Wyrm's Crown. Bring a party of three or more (a tank, a healer and damage). Dodge his breath and tail, kill his whelps, and win Legendary loot.
+- Chunky low-poly 3D bodies with your champion's portrait as the head; armor changes the look. A sky with a day and night cycle, and a camera you can turn and zoom.
+- Sunhollow Vale (eight quests) leads north through Greywind Pass to Frostspine Peaks (eleven more), where Skarnvir the Rimewyrm waits as the first raid boss.
+- The Ashen Cathedral, a five-player dungeon with three bosses, opens behind Skarnvir. Behind its last boss, two portals: the right one to the Thornveil Jungle (levels 16–19), the left one to the Amberveil Wastes, a desert (levels 20–23) with eleven quests, scorpions, vipers, jackals, basilisks and risen tomb husks, two elites, and two raid bosses: Zahrak, the Dune Wyrm, who burrows and erupts under the party, and Queen Ankhara, the Sun-Bound, shielded by her tomb guard.
+- Hire a raid party of computer champions (tank, healer, damage) for the raids and the dungeon.
 - Loot from every creature, four armor rarities, a character window, a skill tree, a minimap and a world map.
 - Co-op for up to five players: share a 5-letter code, no server needed.
 - Parties: invite players to your group to share XP, quest kills and quest items. Rare and Epic drops are rolled on with Need, Greed or Pass.

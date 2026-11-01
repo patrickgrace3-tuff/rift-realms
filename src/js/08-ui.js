@@ -190,9 +190,12 @@ function objectiveTarget(me){
   const zt = zoneAt(t.y, t.x).key, zm = zoneAt(me.y, me.x).key, outdoors = k => k === "vale" || k === "peaks";
   if(zt === zm || (outdoors(zt) && outdoors(zm))) return t;
   const at = p => ({ x: p.x, y: p.y, r: 0 });
-  if(zm === "jungle") return at(WAYSTONES.jungle);                      // the jungle's waystone leads back to Highwatch
-  if(zm === "cathedral") return zt === "jungle" ? at(CHOIR_PORTALS.right) : at(CATHEDRAL.exit);
-  if(zt === "jungle"){ const q = me.quests.ashensaint; return q && (q.state === "ready" || q.state === "done") ? at(WAYSTONES.peaks) : at(RIFT); }
+  if(zm === "jungle") return at(WAYSTONES.jungle);                      // the jungle's and the desert's waystones lead back to Highwatch
+  if(zm === "desert") return at(WAYSTONES.desert);
+  if(zm === "cathedral") return zt === "jungle" ? at(CHOIR_PORTALS.right) : zt === "desert" ? at(CHOIR_PORTALS.left) : at(CATHEDRAL.exit);
+  const saint = me.quests.ashensaint, beenPast = saint && (saint.state === "ready" || saint.state === "done");
+  if(zt === "jungle") return beenPast ? at(WAYSTONES.peaks) : at(RIFT);
+  if(zt === "desert") return beenPast ? at(WAYSTONES.peaksDesert) : at(RIFT);
   return at(RIFT);
 }
 function objectiveSpot(me){

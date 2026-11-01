@@ -116,11 +116,10 @@ Object.assign(SIM, {
       const near = p => Math.hypot(c.x - p.x, c.y - p.y) < JUNGLE.portalR;
       const tell = text => { if(!(c.portalWarnT > W.t)){ c.portalWarnT = W.t + 6; SIM.fx(W, { k: "msg", side: c.side, text }); } };
       if(SIM.inCathedral(c)){
-        if(open && near(CHOIR_PORTALS.right)) SIM.portalParty(W, c, CHOIR_PORTALS.right, JUNGLE_ARRIVE, "The Thornveil Jungle", "Heat, birdsong and the smell of rain. Ranger Tamsin's camp is close by.");
-        else if(open && near(CHOIR_PORTALS.left)) tell("The left portal shimmers, but its far side is still sealed. Another day.");
+        if(open && near(CHOIR_PORTALS.right)) SIM.portalParty(W, c, CHOIR_PORTALS.right, JUNGLE_ARRIVE, "The Thornveil Jungle", "Heat, birdsong and the smell of rain. Ranger Tamsin's camp is close by.");   // (the left portal is in 05k-desert.js)
       }else if(SIM.inJungle(c)){
         if(near(WAYSTONES.jungle)) SIM.waystone(W, c, WAYSTONES.peaks, "The waystone hums, and you step out by Highwatch Outpost.");
-      }else if(near(WAYSTONES.peaks)){
+      }else if(!SIM.inDesert(c) && near(WAYSTONES.peaks)){
         if(SIM.canEnterJungle(W, c)) SIM.waystone(W, c, WAYSTONES.jungle, "The waystone hums, and the air turns warm and wet. Canopy Camp.");
         else tell("The waystone is dark. Its twin lies somewhere beyond the Ashen Cathedral.");
       }

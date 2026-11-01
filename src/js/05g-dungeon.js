@@ -10,6 +10,7 @@ const DUNGEON = {
   hazardTick: .5,       // burning ground hurts every half second
   exposed: 1.3,         // the Saint takes this much more damage just after his choir falls
 };
+const ZONE_SLIP = 1500;   // moves shorter than this can't carry a unit from one zone into another (see SIM.bound)
 const ROOM_LIST = CATHEDRAL_ROOMS.map(k => CATHEDRAL[k]);
 
 /* ---------- Boss scripts ----------
@@ -88,7 +89,17 @@ Object.assign(SIM, {
   rooms: W => W.dungeon && W.dungeon.sealed ? ROOM_LIST.filter(r => r !== CATHEDRAL.choir) : ROOM_LIST,
   // keep a unit inside its zone: the jungle's edges, the Peaks' north edge, or the cathedral's rooms
   bound(W, u){
+    // zones sit side by side on one map: a short move (a dash, a leap, a knockback) that crosses into another zone
+    // is undone, so nobody slips out of the desert into the Peaks or out of the jungle into the cathedral.
+    // Portals, waystones and respawns jump much further than ZONE_SLIP and are left alone.
+    if(u.bx !== undefined && SIM.zoneKind(u.x, u.y) !== SIM.zoneKind(u.bx, u.by) && Math.hypot(u.x - u.bx, u.y - u.by) < ZONE_SLIP){ u.x = u.bx; u.y = u.by; }
+    SIM.boundIn(W, u);
+    u.bx = u.x; u.by = u.y;
+  },
+  zoneKind: (x, y) => inJungle(x, y) ? 1 : inDesert(x, y) ? 2 : y > DZ && x <= ZS ? 3 : 0,
+  boundIn(W, u){
     if(inJungle(u.x, u.y)){ u.x = Math.max(ZS + ZMIN, Math.min(ZS * 2 - ZMIN, u.x)); u.y = Math.max(DZ + ZMIN, Math.min(DZ + ZS - ZMIN, u.y)); return; }
+    if(inDesert(u.x, u.y)){ u.x = Math.max(ZS + ZMIN, Math.min(ZS * 2 - ZMIN, u.x)); u.y = Math.max(ZS + ZMIN, Math.min(DZ - ZMIN, u.y)); return; }
     u.x = Math.max(ZMIN, Math.min(ZS - ZMIN, u.x));
     if(!SIM.inCathedral(u)){ u.y = Math.max(ZMIN, Math.min(WH - ZMIN, u.y)); return; }
     const pad = u.r || 50, rooms = SIM.rooms(W);
@@ -238,7 +249,7 @@ Object.assign(SIM, {
     }
     W.hazards = W.hazards.filter(z => z.until > W.t && !z.src.dead && z.src.aggro);
     // once nobody has been inside for a while, everything comes back
-    SIM.jungleTick(W);
+    SIM.jungleTick(W); SIM.desertTick(W);
     if(SIM.heroes(W).some(h => !h.bot && SIM.inCathedral(h))) D.emptyT = 0;
     else if((D.emptyT += dt) > CATHEDRAL.resetAfter && D.emptyT - dt <= CATHEDRAL.resetAfter) SIM.dungeonReset(W);
   },

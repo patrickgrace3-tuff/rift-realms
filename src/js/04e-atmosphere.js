@@ -82,9 +82,10 @@ function updateAtmosphere(meSnap, t){
   const day = THREE.MathUtils.smoothstep(e, -.12, .25), twi = Math.max(0, 1 - Math.abs(e - .02) / .24), C = SKYC, u = SKY.u;
   u.top.value.copy(C.nightTop).lerp(C.dayTop, day).lerp(C.twiTop, twi * .5);
   u.horizon.value.copy(C.nightHor).lerp(C.dayHor, day).lerp(C.twiHor, twi * .65);
-  // each zone tints its sky: snowy grey-blue in the Peaks, humid green in the jungle
-  const jungle = inJungle(meSnap.x, meSnap.y), peaks = Math.max(0, Math.min(1, (meSnap.y - (ZS - 600)) / 1400));
-  if(jungle){ u.horizon.value.lerp(JUNGLE_FOG, .4 * (.4 + .6 * day)); u.top.value.lerp(JUNGLE_FOG, .12); }
+  // each zone tints its sky: snowy grey-blue in the Peaks, humid green in the jungle, hot gold in the desert
+  const jungle = inJungle(meSnap.x, meSnap.y), desert = inDesert(meSnap.x, meSnap.y), peaks = Math.max(0, Math.min(1, (meSnap.y - (ZS - 600)) / 1400));
+  if(desert){ u.horizon.value.lerp(DESERT_FOG, .5 * (.3 + .7 * day)); u.top.value.lerp(DESERT_FOG, .08); }
+  else if(jungle){ u.horizon.value.lerp(JUNGLE_FOG, .4 * (.4 + .6 * day)); u.top.value.lerp(JUNGLE_FOG, .12); }
   else if(peaks > 0) u.horizon.value.lerp(SKY_PEAKS, .35 * peaks * (.4 + .6 * day));
   u.ground.value.copy(u.horizon.value).multiplyScalar(.7);
   u.cloudCol.value.copy(C.nightCloud).lerp(C.dayCloud, day).lerp(C.twiCloud, twi * .55);

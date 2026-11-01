@@ -60,7 +60,7 @@ Object.assign(SIM, {
     // where you were: the cathedral starts over at its entrance (each world has its own)
     const x = +save.x, y = +save.y;
     if(Number.isFinite(x) && Number.isFinite(y)){
-      if(inJungle(x, y)){ c.x = x; c.y = y; SIM.bound(W, c); }       // the jungle is open country: pick up where you were
+      if(inJungle(x, y) || inDesert(x, y)){ c.x = x; c.y = y; SIM.bound(W, c); }   // the jungle and the desert are open country: pick up where you were
       else if(y > DZ){ c.x = CATHEDRAL.arrive[0]; c.y = CATHEDRAL.arrive[1]; }
       else { c.x = x; c.y = y; SIM.bound(W, c); }
     }

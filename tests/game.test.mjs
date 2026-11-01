@@ -1030,18 +1030,20 @@ test("save: a bad or tampered save can't break the game or cheat past the rules"
 });
 
 /* ---------- The Thornveil Jungle ---------- */
-test("jungle: the Saint opens two portals; the right takes your party to the jungle, the left is still sealed", () => {
+test("jungle: the Saint opens two portals; the right takes your party to the jungle, the left to the desert", () => {
   const W = SIM.create(), a = cathedralHero(W, "blue", ARCHER, 17), b = cathedralHero(W, "red", HEALER, 17);
   SIM.input(W, "blue", { pinvite: "red" }); SIM.input(W, "red", { paccept: "blue" });
   const P = G.CHOIR_PORTALS; W.dungeon.sealed = false;
   for(const h of [a, b]){ h.x = 4000; h.y = 22700; }
   a.x = P.right.x; a.y = P.right.y; runFor(W, .2);
   assert.ok(a.y < G.DZ + 8000 && a.x < G.ZS, "the portals stay shut while the Saint lives");
+  a.x = 4000; a.y = 22700;   // off the portal before he falls
   const saint = W.mobs.find(m => m.kind === "saint"); saint.immune = false; SIM.damage(W, saint, 100, a); saint.hp = 1; SIM.damage(W, saint, 1e9, a);
   assert.ok(saint.dead && W.dungeon.down.saint);
   runFor(W, 4); a.x = P.left.x; a.y = P.left.y; runFor(W, .2);
-  assert.ok(!G.inJungle(a.x, a.y), "the left portal is sealed for now");
-  a.x = P.right.x; a.y = P.right.y; runFor(W, .2);
+  assert.ok(G.inDesert(a.x, a.y) && G.inDesert(b.x, b.y), "the left portal takes the whole party into the desert");
+  assert.ok(Math.hypot(a.x - G.OASIS.x, a.y - G.OASIS.y) < 800, "you arrive by Sandglass Oasis");
+  runFor(W, 4); for(const h of [a, b]){ h.x = 4000; h.y = 22700; } a.x = P.right.x; a.y = P.right.y; runFor(W, .2);
   assert.ok(G.inJungle(a.x, a.y) && G.inJungle(b.x, b.y), "the right portal takes the whole party into the jungle");
   assert.ok(Math.hypot(a.x - G.CANOPY.x, a.y - G.CANOPY.y) < 800, "you arrive by Canopy Camp");
 });
@@ -1130,8 +1132,102 @@ test("jungle: Mawgrot dives and Shadowmane vanishes; a hired party kills both fo
   }
 });
 
+/* ---------- The Amberveil Wastes ---------- */
+test("desert: walls hold, you fall back to Sandglass Oasis, the waystones link it with Highwatch, and saves come back there", () => {
+  const W = SIM.create(), h = cathedralHero(W, "blue", ARCHER, 20);
+  for(const m of W.mobs) if(G.inDesert(m.x, m.y)) m.dead = true;
+  h.x = G.OASIS.x; h.y = G.OASIS.y + 600; SIM.input(W, "blue", { move: [0, 15000] }); runFor(W, 12);
+  assert.ok(G.inDesert(h.x, h.y) && !h.move, "walking west stops at the desert's edge, never into the Peaks next door");
+  h.x = G.OASIS.x + 600; h.y = G.OASIS.y + 600; SIM.input(W, "blue", { move: [12000, 30000] }); runFor(W, 25);
+  assert.ok(G.inDesert(h.x, h.y) && !h.move, "nor north into the jungle");
+  SIM.damage(W, h, 1e9, null); runFor(W, 7);
+  assert.ok(!h.dead && Math.hypot(h.x - G.OASIS.x, h.y - G.OASIS.y) < 800, "you come back at Sandglass Oasis");
+  // the second Highwatch waystone is dark until you've been to the desert
+  const fresh = cathedralHero(W, "red", GAREN_LIKE, 20); fresh.x = G.WAYSTONES.peaksDesert.x; fresh.y = G.WAYSTONES.peaksDesert.y; runFor(W, .2);
+  assert.ok(!G.inDesert(fresh.x, fresh.y), "the waystone is dark for someone who hasn't been");
+  h.quests.ashensaint = { state: "done", count: 1, flags: [] };
+  h.portalT = 0; h.x = G.WAYSTONES.desert.x; h.y = G.WAYSTONES.desert.y; runFor(W, .2);
+  assert.ok(Math.hypot(h.x - G.WAYSTONES.peaksDesert.x, h.y - G.WAYSTONES.peaksDesert.y) < 500 && !G.inDesert(h.x, h.y), "the oasis waystone leads to Highwatch");
+  runFor(W, 4); h.x = G.WAYSTONES.peaksDesert.x; h.y = G.WAYSTONES.peaksDesert.y; runFor(W, .2);
+  assert.ok(G.inDesert(h.x, h.y), "and back again");
+  runFor(W, 4); h.x = G.WAYSTONES.peaks.x; h.y = G.WAYSTONES.peaks.y; runFor(W, .2);
+  assert.ok(G.inJungle(h.x, h.y), "the jungle's waystone still goes to the jungle");
+  // a save made in the desert comes back there
+  h.portalT = 0; h.x = G.GLASS_FLATS.x; h.y = G.GLASS_FLATS.y;
+  const sv = JSON.parse(JSON.stringify(G.saveRecord(SIM.snapshot(W).h.find(x => x.side === "blue"), h.champId)));
+  const W2 = SIM.create(), h2 = SIM.addHero(W2, "blue", ARCHER()); SIM.loadSave(W2, h2, sv);
+  assert.ok(G.inDesert(h2.x, h2.y) && Math.hypot(h2.x - h.x, h2.y - h.y) < 2, "saved in the desert, back in the desert");
+  // every creature lives inside the desert, at a level fit for it
+  for(const k of ["scuttler", "viper", "jackal", "basilisk", "husk", "rattlespine", "tombwarden", "zahrak", "ankhara"]){
+    const T = G.MOBS[k]; assert.ok(G.inDesert(T.home[0], T.home[1]), `${k} lives in the desert`); assert.ok(T.lvl >= 20 && T.lvl <= 23, `${k} is level 20–23`);
+  }
+});
+
+test("desert: a level 20 player can do every quest before the raids alone", () => {
+  const W = SIM.create(), h = cathedralHero(W, "blue", GAREN_LIKE, 20, 3);
+  h.quests.ashensaint = { state: "done", count: 1, flags: [] }; h.x = G.DESERT_ARRIVE[0]; h.y = G.DESERT_ARRIVE[1];
+  const step = (secs, each) => runFor(W, secs, each);
+  const near = (list) => list.sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
+  const fightBack = i => { if(i % 6) return false; if(h.hp < h.maxHp * .35) SIM.input(W, "blue", { potion: 1 }); const f = near(W.mobs.filter(m => !m.dead && m.aggro === h.id)); if(!f) return false; SIM.input(W, "blue", { atk: f.id }); for(const k of ["Q", "W", "E", "R"]) SIM.input(W, "blue", { cast: k, at: [f.x, f.y] }); return true; };
+  const travel = (x, y, max = 120) => { for(let s = 0; s < max && Math.hypot(h.x - x, h.y - y) > 150; s++) step(1, i => { if(!fightBack(i) && i % 6 === 0) SIM.input(W, "blue", { move: [x, y] }); }); };
+  const hunt = (qid, kind, max = 500) => { for(let s = 0; s < max && h.quests[qid].state === "active"; s++) step(1, i => { if(fightBack(i) || i % 6) return; const t = near(W.mobs.filter(m => !m.dead && m.kind === kind)); if(t){ SIM.input(W, "blue", { atk: t.id }); if(Math.hypot(t.x - h.x, t.y - h.y) < 600) for(const k of ["Q", "W", "E", "R"]) SIM.input(W, "blue", { cast: k, at: [t.x, t.y] }); } }); };
+  const npc = id => G.NPCS.find(n => n.id === id);
+  const accept = (id, qid) => { for(let k = 0; k < 3 && !h.quests[qid]; k++){ travel(npc(id).x, npc(id).y - 200); SIM.input(W, "blue", { accept: qid }); step(.2); } assert.ok(h.quests[qid], `${qid} accepted`); };
+  const turnIn = (id, qid) => { for(let k = 0; k < 3 && h.quests[qid].state !== "done"; k++){ travel(npc(id).x, npc(id).y - 200); SIM.input(W, "blue", { turnin: qid }); step(.2); } assert.equal(h.quests[qid].state, "done", `${qid} turned in`); };
+  const loot = (qid, kind) => { for(let s = 0; s < 600 && h.quests[qid].state === "active"; s += 5){ const it = W.loot.find(l => l.quest === qid && l.side === "blue"); if(it){ SIM.input(W, "blue", { pickup: it.id }); step(5); } else hunt(qid, kind, 5); } };
+  accept("nadira", "scuttlers"); hunt("scuttlers", "scuttler"); turnIn("nadira", "scuttlers");
+  accept("daro", "vipers"); hunt("vipers", "viper"); turnIn("daro", "vipers");
+  accept("nadira", "obelisks");
+  G.OBELISKS.forEach((o, i) => { for(let k = 0; k < 4 && !h.quests.obelisks.flags[i]; k++){ travel(o.x, o.y - 180, 200); SIM.input(W, "blue", { use: G.USE_POINTS.indexOf(o) }); step(4, fightBack); } });
+  turnIn("nadira", "obelisks");
+  accept("daro", "caravan"); G.WRECKS.forEach((p, i) => { for(let k = 0; k < 3 && !h.quests.caravan.flags[i]; k++) travel(p.x, p.y, 200); }); turnIn("daro", "caravan");
+  accept("daro", "jackals"); hunt("jackals", "jackal"); turnIn("daro", "jackals");
+  accept("nadira", "basilisks"); travel(G.SUNSCALE_MESA.x, G.SUNSCALE_MESA.y - 400, 200); loot("basilisks", "basilisk"); turnIn("nadira", "basilisks");
+  accept("nadira", "husks"); hunt("husks", "husk"); turnIn("nadira", "husks");
+  accept("daro", "rattlespine"); travel(G.STINGER_HOLLOW.x, G.STINGER_HOLLOW.y - 500, 200); hunt("rattlespine", "rattlespine", 400); turnIn("daro", "rattlespine");
+  accept("nadira", "warden"); travel(G.WARDEN_GATE.x, G.WARDEN_GATE.y - 500, 200); hunt("warden", "tombwarden", 400); turnIn("nadira", "warden");
+  console.log(`# desert quests done at level ${h.lvl}`);
+  for(const id of ["scuttlers", "vipers", "obelisks", "caravan", "jackals", "basilisks", "husks", "rattlespine", "warden"]) assert.equal(h.quests[id].state, "done");
+  assert.equal(G.questFor(h.quests, "daro").state, "offer", "the raids are offered next");
+  assert.ok(h.lvl >= 22 && h.lvl <= 24, `ends around level 23 (level ${h.lvl})`);
+});
+
+test("desert: Zahrak burrows and Ankhara hides behind her guard; a hired party kills both for Legendary loot", () => {
+  for(const [kind, qid] of [["zahrak", "dunewyrm"], ["ankhara", "sunqueen"]]){
+    const W = SIM.create(), h = cathedralHero(W, "blue", ARCHER, 22), daro = G.NPCS.find(n => n.id === "daro");
+    h.coins = 99999; h.quests[qid] = { state: "active", count: 0, flags: [] }; h.x = daro.x + 100; h.y = daro.y;
+    SIM.input(W, "blue", { hire: 1 }); const req = W.mercReqs.shift();
+    const mercs = SIM.mercDone(W, "blue", req.roles.map(r => [r, { tank: TANKY, healer: HEALER, dps: MAGE }[r]()]));
+    assert.equal(mercs.length, 4, "Daro hires out a raid party");
+    const boss = W.mobs.find(m => m.kind === kind);
+    for(const m of W.mobs) if(!m.boss && Math.hypot(m.x - boss.x, m.y - boss.y) < 2500) m.dead = true;
+    for(const x of [h, ...mercs]){ x.x = boss.x + 300; x.y = boss.y - 1100; }
+    SIM.input(W, "blue", { atk: boss.id });
+    let t = 0, shielded = false;
+    for(; t < 900 * 30 && !boss.dead; t++){
+      if(boss.immune){ shielded = true; assert.equal(SIM.damage(W, boss, 100, h), 0, "can't be hurt while burrowed or shielded"); }
+      if(t % 6 === 0 && !h.dead){
+        const esc = SIM.dangerEscape(W, h);
+        if(esc) SIM.input(W, "blue", { move: esc });
+        else {
+          if(h.hp < h.maxHp * .35) SIM.input(W, "blue", { potion: 1 });
+          const ps = SIM.partyMembers(W, h).map(p => p.id), f = W.mobs.filter(m => !m.dead && !m.immune && (m === boss || (m.aggro && ps.includes(m.aggro))) && Math.hypot(m.x - h.x, m.y - h.y) < 2500).sort((a, b) => (a.boss - b.boss) || Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
+          if(f){ SIM.input(W, "blue", { atk: f.id }); for(const k of ["Q", "W", "E", "R"]) SIM.input(W, "blue", { cast: k, at: [f.x, f.y] }); }
+          else SIM.input(W, "blue", { move: [boss.x + 500, boss.y - 500] });
+        }
+      }
+      SIM.step(W, 1 / 30); W.fxNet.length = W.fxLocal.length = 0;
+    }
+    console.log(`# ${kind}: ${boss.dead ? "killed" : "NOT killed"} in ${Math.round(t / 30)}s`);
+    assert.ok(boss.dead, `${kind} dies`); assert.ok(shielded, `${kind} burrowed or was shielded at least once`);
+    assert.equal(h.quests[qid].state, "ready");
+    const mine = [...h.inv, ...W.loot.filter(l => l.side === "blue").flatMap(l => l.items || [])];
+    assert.equal(mine.filter(i => i.r === 4).length, 1, "a Legendary"); assert.ok(mine.some(i => i.r === 3), "and an Epic");
+  }
+});
+
 test("hired party: after you've finished the quests you can still hire a party to go back", () => {
-  for(const [npcId, quests] of [["yrsa", ["rimewyrm"]], ["elowen", ["censer", "silentvow", "ashensaint"]], ["tamsin", ["tyrant", "queen"]]]){
+  for(const [npcId, quests] of [["yrsa", ["rimewyrm"]], ["elowen", ["censer", "silentvow", "ashensaint"]], ["tamsin", ["tyrant", "queen"]], ["daro", ["dunewyrm", "sunqueen"]]]){
     const W = SIM.create(), h = cathedralHero(W, "blue", ARCHER, 18), npc = G.NPCS.find(n => n.id === npcId);
     h.coins = 99999; h.x = npc.x + 100; h.y = npc.y;
     for(const q of quests) h.quests[q] = { state: "done", count: 1, flags: [] };
@@ -1246,8 +1342,9 @@ test("sets: 2, 4 and 6 piece bonuses, and each set's six-piece effect", () => {
 test("gathering: ore rings each zone's outskirts; mining and picking take time, and moving cancels them", () => {
   const { W, h } = craftHero();
   h.prof = { mining: 1, herbalism: 1 };
-  for(const [kind, x0, y0] of [["copper", 0, 0], ["ore", 0, G.ZS], ["emberite", G.ZS, G.DZ]]){
-    const ring = W.nodes.filter(n => n.kind === kind && Math.min(n.x - x0, x0 + G.ZS - n.x, n.y - y0, y0 + G.ZS - n.y) < 1500);
+  for(const [kind, x0, y0] of [["copper", 0, 0], ["ore", 0, G.ZS], ["emberite", G.ZS, G.DZ], ["emberite", G.ZS, G.ZS]]){
+    const ring = G.ORE_OUTSKIRTS[kind].filter(n => n.x > x0 && n.x < x0 + G.ZS && n.y > y0 && n.y < y0 + G.ZS);
+    assert.ok(ring.every(p => W.nodes.some(n => n.kind === kind && n.x === p.x && n.y === p.y)), `${kind}: every outskirts spot has a node`);
     assert.ok(ring.length >= 12, `${kind} around the edges (${ring.length})`);
     assert.ok(ring.every(n => n.y - y0 > 1500 || n.x - x0 < 1500 || x0 + G.ZS - n.x < 1500), `${kind}: not on the south edge`);
     assert.ok(ring.every(n => Math.min(n.x - x0, x0 + G.ZS - n.x, n.y - y0, y0 + G.ZS - n.y) >= 700), `${kind} nodes are reachable`);
@@ -1308,7 +1405,7 @@ test("move: clicks anywhere in every zone end with the hero standing still, neve
   W.mobs.length = 0; W.mobs.push = () => 0;   // nothing to fight: just walking
   const dmg = SIM.damage; SIM.damage = (W, u, ...a) => SIM.isHero(u) ? 0 : dmg(W, u, ...a); t.after(() => { SIM.damage = dmg; });   // and nothing (like the cathedral's burning ground) can kill the walker
   let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  const zones = { vale: [400, 400, 7600, 7600], peaks: [400, 8400, 7600, 15600], cathedral: [2000, 16500, 6000, 23500], jungle: [8400, 16400, 15600, 23600] };
+  const zones = { vale: [400, 400, 7600, 7600], peaks: [400, 8400, 7600, 15600], cathedral: [2000, 16500, 6000, 23500], jungle: [8400, 16400, 15600, 23600], desert: [8400, 8400, 15600, 15600] };
   let worst = 0;
   for(const [name, [x0, y0, x1, y1]] of Object.entries(zones)) for(let k = 0; k < 40; k++){
     const start = SIM.reachable(W, x0 + rnd() * (x1 - x0), y0 + rnd() * (y1 - y0), h.r); h.x = start[0]; h.y = start[1]; SIM.bound(W, h); h.dead = 0; h.hp = h.maxHp;

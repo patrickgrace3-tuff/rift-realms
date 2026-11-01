@@ -141,6 +141,32 @@ const BLOODVINE = J(4300, 5000);
 const VANTAGES = [{ name: "the Strangler Fig", ...J(3900, 3700) }, { name: "the Broken Idol", ...J(7000, 4500) }, { name: "the Falls Ledge", ...J(2700, 7000) }];
 const KAPOKS = [J(2300, 3400), J(5000, 1200), J(6800, 3300), J(3300, 5800), J(5400, 7100), J(900, 4300)].map(p => ({ ...p, r: 170 }));
 FIRES.push(JUNGLE_FIRE);
+/* ---------- The Amberveil Wastes (east of the Peaks; x 8000–16000, y 8000–16000) ---------- */
+// Reached through the left-hand portal behind the Saint's altar, or the second Highwatch waystone once you've been.
+const DX = ZS, DY = ZS;                                    // the desert's south-west corner
+const DS = (x, y) => ({ x: DX + x, y: DY + y });           // desert-local position (0–8000) to world units
+const OASIS = { ...DS(1500, 1500), r: 560 };               // Sandglass Oasis, the caravan camp
+const OASIS_POOL = { ...DS(1880, 1980), r: 260 };          // the oasis's spring (solid: you walk round it)
+const DESERT_ARRIVE = [OASIS.x + 330, OASIS.y - 200];
+const DESERT_FIRE = [OASIS.x - 80, OASIS.y - 60];
+const DESERT_STALL = { x: OASIS.x - 430, y: OASIS.y + 250 };   // Quartermaster Sefu's awning
+const GLASS_FLATS = { ...DS(3000, 1700), r: 850 };         // scorpions on the sun-glazed flats
+const WHISPER_DUNES = { ...DS(1700, 3500), r: 850 };       // sand vipers in the tall dunes
+const JACKAL_RIDGE = { ...DS(6200, 2400), r: 800 };        // dust jackal packs
+const SUNSCALE_MESA = { ...DS(1800, 5600), r: 800 };       // basilisks sunning on the mesa
+const NECROPOLIS = { ...DS(4300, 5600), r: 800 };          // the half-buried city of the dead: tomb husks
+const STINGER_HOLLOW = DS(6900, 4600);                     // Rattlespine's den
+const WARDEN_GATE = DS(3500, 6700);                        // Ashkar the Tomb Warden guards the way to the tomb
+const SCOURED_BASIN = { ...DS(6300, 6400), r: 780 };       // Zahrak's sand bowl
+const SUN_TOMB = { ...DS(2100, 7000), r: 650 };            // Queen Ankhara's sunken tomb
+const OBELISK_TEXT = { quest: "obelisks", verb: "Reading", idle: "A sandstone obelisk carved with sun-glyphs. Scholar Nadira would love to see this.", done: "You've already copied these glyphs." };
+const OBELISKS = [{ name: "Obelisk of Dawn", ...DS(2800, 3000) }, { name: "Obelisk of Noon", ...DS(4600, 2600) }, { name: "Obelisk of Dusk", ...DS(3800, 4300) }].map(o => ({ ...o, ...OBELISK_TEXT }));
+USE_POINTS.push(...OBELISKS);
+const WRECKS = [{ name: "the Broken Wagon", ...DS(5600, 1600) }, { name: "the Bleached Ribs", ...DS(6700, 3400) }, { name: "the Last Camp", ...DS(5200, 4700) }];
+const MESAS = [DS(4100, 900), DS(5200, 3400), DS(2900, 4900), DS(5800, 5300), DS(800, 4400)].map((p, i) => ({ ...p, r: [300, 320, 300, 280, 260][i] }));
+WAYSTONES.desert = { ...DS(2200, 1050), name: "Waystone to Highwatch" };   // south-east of the camp, clear of everyone you talk to
+WAYSTONES.peaksDesert = { x: OUTPOST.x + 700, y: OUTPOST.y - 140, name: "Waystone to the Amberveil" };
+FIRES.push(DESERT_FIRE);
 // Every zone: a key, its name, and its area in world units (x0, y0 is the south-west corner).
 // New zones go here; the minimap and world map draw whatever is in this list.
 const ZONES = [
@@ -148,11 +174,12 @@ const ZONES = [
   { key: "peaks", name: "Frostspine Peaks", x0: 0, y0: ZS, w: ZS, h: ZS },
   { key: "cathedral", name: "The Ashen Cathedral", x0: 0, y0: DZ, w: ZS, h: ZS, dungeon: true },
   { key: "jungle", name: "The Thornveil Jungle", x0: JX, y0: JY, w: ZS, h: ZS },
+  { key: "desert", name: "The Amberveil Wastes", x0: DX, y0: DY, w: ZS, h: ZS },
 ];
 // what each zone's arrival banner says, and where you return to when you fall there
-const ZONE_HINT = { vale: "", peaks: "Highwatch Outpost lies north along the road", cathedral: "Sister Elowen waits in the narthex", jungle: "Ranger Tamsin waits at Canopy Camp" };
-const ZONE_HOME = { vale: "the village", peaks: "Highwatch Outpost", cathedral: "the cathedral entrance", jungle: "Canopy Camp" };
-const zoneAt = (y, x = ZS / 2) => ZONES.find(z => x >= z.x0 && x < z.x0 + z.w && y >= z.y0 && y < z.y0 + z.h) || ZONES[y >= ZS ? ZONES.length - 1 : 0];
+const ZONE_HINT = { vale: "", peaks: "Highwatch Outpost lies north along the road", cathedral: "Sister Elowen waits in the narthex", jungle: "Ranger Tamsin waits at Canopy Camp", desert: "Caravan Master Daro waits at Sandglass Oasis" };
+const ZONE_HOME = { vale: "the village", peaks: "Highwatch Outpost", cathedral: "the cathedral entrance", jungle: "Canopy Camp", desert: "Sandglass Oasis" };
+const zoneAt = (y, x = ZS / 2) => ZONES.find(z => x >= z.x0 && x < z.x0 + z.w && y >= z.y0 && y < z.y0 + z.h) || ZONES.find(z => z.key === (y >= ZS ? "jungle" : "vale"));
 const ZONE_PICS = {}; // each zone's map picture (a canvas), keyed like ZONES; filled in when the scene is built
 const NPCS = [
   { id: "bram", name: "Farmer Bram", x: 3720, y: 3480, head: "farmer", style: "farmer", idle: "Fine weather for honest work. Mind the flock on your way out." },
@@ -168,6 +195,10 @@ const NPCS = [
   { id: "tamsin", mercs: ["tyrant", "queen"], name: "Ranger Tamsin", x: CANOPY.x - 150, y: CANOPY.y + 220, head: "huntress", style: "hunter", idle: "Everything out here wants to eat you. The trick is to be the one doing the eating." },
   { id: "ezo", name: "Herbalist Ezo", x: CANOPY.x + 80, y: CANOPY.y + 420, head: "fisher", style: "fisher", idle: "Half the leaves in this jungle will heal you. The other half will kill you. I'm still working out which is which." },
   { id: "bao", name: "Quartermaster Bao", title: "Potions", x: JUNGLE_STALL.x, y: JUNGLE_STALL.y - 110, head: "merchant", style: "merchant", shop: ["hpot"], idle: "Potions, freshly carried through a portal. Mind the frogs on your way out." },
+  // the Amberveil Wastes
+  { id: "daro", mercs: ["dunewyrm", "sunqueen"], name: "Caravan Master Daro", x: OASIS.x - 60, y: OASIS.y + 330, head: "guard", style: "warden", idle: "Water first, gold second, glory a distant third. That's the caravan way." },
+  { id: "nadira", name: "Scholar Nadira", x: OASIS.x - 220, y: OASIS.y - 280, head: "healer", style: "healer", idle: "Every grain of sand out here was once a stone in somebody's wall. Isn't that wonderful? And a little sad." },
+  { id: "sefu", name: "Quartermaster Sefu", title: "Potions", x: DESERT_STALL.x, y: DESERT_STALL.y - 110, head: "merchant", style: "merchant", shop: ["hpot"], idle: "Potions, cool from the spring. Well, cooler than you." },
   { id: "elowen", mercs: ["censer", "silentvow", "ashensaint"], name: "Sister Elowen", x: 3520, y: 18350, head: "healer", style: "healer", idle: "The Choir sang beneath this mountain for three hundred years. Now it only burns." },
 ];
 const OBSTACLES = [
@@ -176,7 +207,8 @@ const OBSTACLES = [
   ...NPCS.filter(n => !n.shop).map(n => ({ x: n.x, y: n.y, r: 55 })), // vendors are covered by their stall
   { x: CAMP.x, y: CAMP.y, r: 190 }, { x: CABIN.x, y: CABIN.y, r: 250 }, { x: TOWER.x, y: TOWER.y, r: 220 },
   ...BEACONS.map(b => ({ x: b.x, y: b.y, r: 70 })), ...LOOKOUTS.map(p => ({ x: p.x, y: p.y, r: 55 })),
-  ...PEAK_OBSTACLES, ...PILLARS, ...KAPOKS, { x: JUNGLE_STALL.x, y: JUNGLE_STALL.y - 50, r: 150 }, { x: JUNGLE_FIRE[0], y: JUNGLE_FIRE[1], r: 80 }, { x: STALL.x, y: STALL.y - 50, r: 150 }, // one circle around the stall and its vendor, so there's no corner to get stuck in
+  ...PEAK_OBSTACLES, ...PILLARS, ...KAPOKS, ...MESAS, { x: OASIS_POOL.x, y: OASIS_POOL.y, r: OASIS_POOL.r }, { x: DESERT_STALL.x, y: DESERT_STALL.y - 50, r: 150 }, { x: DESERT_FIRE[0], y: DESERT_FIRE[1], r: 80 },
+  ...OBELISKS.map(o => ({ x: o.x, y: o.y, r: 70 })), { x: JUNGLE_STALL.x, y: JUNGLE_STALL.y - 50, r: 150 }, { x: JUNGLE_FIRE[0], y: JUNGLE_FIRE[1], r: 80 }, { x: STALL.x, y: STALL.y - 50, r: 150 }, // one circle around the stall and its vendor, so there's no corner to get stuck in
 ];
 const QUESTS = {
   sheep: {
@@ -489,10 +521,111 @@ Object.assign(QUESTS, {
     complete: "Shadowmane is dead. Do you hear that? The jungle's breathing again. And look: the Overgrown Gate at the north edge. Its vines are pulling back. Whatever lies beyond it, you're ready for it now.",
     done: "Beyond the Overgrown Gate... one day soon.",
   },
+  // ---------- The Amberveil Wastes ----------
+  scuttlers: {
+    id: "scuttlers", lvl: 20, title: "Glass and Stingers", giver: "nadira", turnin: "nadira", prereq: null, xp: 900, coins: 600, where: [GLASS_FLATS.x, GLASS_FLATS.y], whereR: GLASS_FLATS.r,
+    obj: { type: "kill", kind: "scuttler", count: 10, label: "Dune Scuttlers slain" },
+    offer: "Oh! A visitor who isn't a camel. Welcome to the Amberveil. I came to study the old sun-cities, but the scuttlers on the Glass Flats keep eating my notes. And my assistants. Thin them out for me? Ten should make them think twice.",
+    objective: "Slay 10 Dune Scuttlers on the Glass Flats, east of Sandglass Oasis.",
+    progress: "Ten scuttlers. Watch the tail, not the claws.",
+    complete: "Ten! Marvellous. Now I can finally get to the obelisks without being pinched.",
+    done: "The flats are almost peaceful. Almost.",
+  },
+  vipers: {
+    id: "vipers", lvl: 20, title: "The Whispering Dunes", giver: "daro", turnin: "daro", prereq: null, xp: 900, coins: 600, where: [WHISPER_DUNES.x, WHISPER_DUNES.y], whereR: WHISPER_DUNES.r,
+    obj: { type: "kill", kind: "viper", count: 8, label: "Sand Vipers slain" },
+    offer: "Portal-walker, eh? Good. I need blades, not stories. The dunes north of the oasis whisper at night. That's the sand vipers, sliding under the surface. They've bitten four of my camels. Kill eight and the caravan can move again.",
+    objective: "Slay 8 Sand Vipers in the Whispering Dunes, north of Sandglass Oasis.",
+    progress: "Eight vipers. If the sand moves, hit it.",
+    complete: "Eight. The camels thank you. I thank you. Now let's talk about my missing wagons.",
+    done: "The dunes are only whispering a little now.",
+  },
+  obelisks: {
+    id: "obelisks", lvl: 21, title: "Glyphs of the Sun", giver: "nadira", turnin: "nadira", prereq: "scuttlers", xp: 1000, coins: 700, reward: { item: 2 },
+    obj: { type: "interact", points: OBELISKS, count: 3, label: "Obelisks read" },
+    offer: "Three obelisks stand out in the wastes: Dawn, Noon and Dusk. Each one carries part of a single inscription. Copy the glyphs for me. Right-click an obelisk and stand still while you trace them. I have a terrible feeling about what they'll say.",
+    objective: "Read the Obelisks of Dawn, Noon and Dusk. Right-click each one and hold still.",
+    progress: "Dawn, Noon and Dusk. Trace every glyph.",
+    complete: "\"Here sleeps the Sun-Bound Queen, and the wyrm that guards her sleep.\" Oh dear. Oh dear, oh dear. Take this. I think you're going to need it more than I do.",
+    done: "I've read the inscription a hundred times. It doesn't get any less worrying.",
+  },
+  caravan: {
+    id: "caravan", lvl: 21, title: "The Lost Caravan", giver: "daro", turnin: "daro", prereq: "vipers", xp: 1000, coins: 700, reward: { item: 2 },
+    obj: { type: "explore", points: WRECKS, count: 3, label: "Wrecks found" },
+    offer: "My last caravan went east and never came back. Three wagons. I want to know what happened, even if I already know. Find the Broken Wagon, the Bleached Ribs, and the Last Camp. Look, then come back.",
+    objective: "Find the Broken Wagon, the Bleached Ribs and the Last Camp in the east.",
+    progress: "Three wrecks, all east. Don't stop to dig.",
+    complete: "Claw marks and jackal tracks. And something huge dragged the last wagon under the sand. Here. The drivers would want it used.",
+    done: "We'll mark the graves when it's safe.",
+  },
+  jackals: {
+    id: "jackals", lvl: 21, title: "Dust on the Ridge", giver: "daro", turnin: "daro", prereq: "caravan", xp: 1100, coins: 800, where: [JACKAL_RIDGE.x, JACKAL_RIDGE.y], whereR: JACKAL_RIDGE.r,
+    obj: { type: "kill", kind: "jackal", count: 8, label: "Dust Jackals slain" },
+    offer: "The jackals on the eastern ridge picked my drivers clean. They hunt in packs and they're bold now. Make them less bold. Eight will do.",
+    objective: "Slay 8 Dust Jackals on Jackal Ridge in the east. They hunt in packs.",
+    progress: "Eight jackals. Never let a pack get behind you.",
+    complete: "That's the howling stopped. Now for whatever made those tracks in the Stinger's Hollow.",
+    done: "The ridge is quiet. Good.",
+  },
+  basilisks: {
+    id: "basilisks", lvl: 22, title: "Sunscale", giver: "nadira", turnin: "nadira", prereq: "obelisks", xp: 1100, coins: 800, where: [SUNSCALE_MESA.x, SUNSCALE_MESA.y], whereR: SUNSCALE_MESA.r,
+    obj: { type: "loot", from: "basilisk", item: "sunscale", itemName: "Sunscale", count: 6, label: "Sunscales" },
+    offer: "The obelisks speak of a ward against the Queen, painted in ground sunscale. The basilisks on the mesa to the north-west grow it on their backs. Bring me six scales, and please don't look them in the eye. It's only a legend. Probably.",
+    objective: "Collect 6 Sunscales from the basilisks on the Sunscale Mesa, north-west.",
+    progress: "Six scales from the mesa basilisks.",
+    complete: "Six! Gleaming. The ward paint will be ready by the time you need it. Which, judging by your face, is soon.",
+    done: "The ward paint is drying nicely.",
+  },
+  husks: {
+    id: "husks", lvl: 22, title: "The Restless Dead", giver: "nadira", turnin: "nadira", prereq: "basilisks", xp: 1200, coins: 900, where: [NECROPOLIS.x, NECROPOLIS.y], whereR: NECROPOLIS.r,
+    obj: { type: "kill", kind: "husk", count: 8, label: "Tomb Husks laid to rest" },
+    offer: "The Sunken Necropolis is waking up. The husks are walking again: dried, wrapped, and angry about it. They shamble in groups. Lay eight of them back to rest before they wander toward the oasis.",
+    objective: "Lay 8 Tomb Husks to rest in the Sunken Necropolis, north of the oasis.",
+    progress: "Eight husks. They're slow, but they don't stop.",
+    complete: "Eight. That's the Queen stirring, I'm sure of it. Her warden will be guarding the way to her tomb.",
+    done: "The necropolis is quieter. For now.",
+  },
+  rattlespine: {
+    id: "rattlespine", lvl: 22, title: "The Stinger's Hollow", giver: "daro", turnin: "daro", prereq: "jackals", xp: 1500, coins: 1100, reward: { item: 3 }, where: [STINGER_HOLLOW.x, STINGER_HOLLOW.y], whereR: 450,
+    obj: { type: "kill", kind: "rattlespine", count: 1, label: "Rattlespine slain" },
+    offer: "In the Stinger's Hollow, far to the east, lives a scorpion as big as a wagon. Rattlespine. When her tail starts to rattle, she's about to charge. Step aside, then make her regret it.",
+    objective: "Elite: slay Rattlespine, the Scorpion Matriarch, in the Stinger's Hollow in the east.",
+    progress: "Listen for the rattle. That's the charge coming.",
+    complete: "Rattlespine! I'll have her stinger mounted over the oasis gate. Take this. You've earned better than caravan pay.",
+    done: "Every driver in the oasis owes you a drink.",
+  },
+  warden: {
+    id: "warden", lvl: 22, title: "The Tomb Warden", giver: "nadira", turnin: "nadira", prereq: "husks", xp: 1500, coins: 1100, reward: { item: 3 }, where: [WARDEN_GATE.x, WARDEN_GATE.y], whereR: 450,
+    obj: { type: "kill", kind: "tombwarden", count: 1, label: "Ashkar slain" },
+    offer: "Ashkar, the Tomb Warden, stands at the gate to the Queen's tomb, north of the necropolis. He hurls sun-fire from far away, so close in fast. He's guarded that gate for a thousand years. It's time he had a rest.",
+    objective: "Elite: slay Ashkar the Tomb Warden at the gate north of the Sunken Necropolis.",
+    progress: "Get close to Ashkar. He's weaker in a brawl.",
+    complete: "The gate is open. The tomb is open. Oh, I wish I hadn't said that out loud. Here, take this. Talk to Daro: he'll want a proper raid.",
+    done: "The gate stands open. Nobody's gone in. Yet.",
+  },
+  dunewyrm: {
+    id: "dunewyrm", lvl: 23, title: "The Wyrm Beneath the Sand", giver: "daro", turnin: "daro", prereq: ["rattlespine", "warden"], xp: 3200, coins: 3500, raid: true, where: [SCOURED_BASIN.x, SCOURED_BASIN.y], whereR: SCOURED_BASIN.r,
+    obj: { type: "kill", kind: "zahrak", count: 1, label: "Zahrak slain" },
+    offer: "The thing that swallowed my last wagon is Zahrak, the Dune Wyrm. It lives in the Scoured Basin, north-east. You'll need a raid party: three at least. When it burrows, keep moving: it comes up under somebody. And kill the scuttlers it shakes loose.",
+    objective: "Raid boss: slay Zahrak, the Dune Wyrm, in the Scoured Basin. Needs a party of at least 3.",
+    progress: "The Scoured Basin, north-east. Keep moving when it burrows.",
+    complete: "Zahrak is dead! The caravans can cross the basin again. I'll be telling this story at every oasis from here to the sea.",
+    done: "The basin's just sand again. Lovely, boring sand.",
+  },
+  sunqueen: {
+    id: "sunqueen", lvl: 23, title: "The Sun-Bound Queen", giver: "daro", turnin: "daro", prereq: ["rattlespine", "warden"], xp: 3200, coins: 3500, raid: true, where: [SUN_TOMB.x, SUN_TOMB.y], whereR: SUN_TOMB.r,
+    obj: { type: "kill", kind: "ankhara", count: 1, label: "Ankhara slain" },
+    offer: "Nadira's inscription was right. Queen Ankhara is awake in the Sunken Tomb, far north-west. She throws lances of sunlight and curses the sand under your feet. When she calls her tomb guard, they shield her: kill them. Bring a raid party.",
+    objective: "Raid boss: slay Queen Ankhara, the Sun-Bound, in the Sunken Tomb. Needs a party of at least 3.",
+    progress: "The Sunken Tomb, far north-west. Kill her guard when they shield her.",
+    complete: "The Sun-Bound Queen is dust! Nadira is crying, I think from joy. And look north: the haze over the far dunes is lifting. Whatever's out there, the wastes are ours now.",
+    done: "The tomb is quiet, and the sun is just the sun.",
+  },
 });
 const QUEST_ORDER = ["sheep", "tusker", "courier", "scout", "wolves", "herbs", "beacons", "defend", "northpass", "lynx",
   "rams", "delve", "craglings", "pick", "ore", "frostbloom", "wisps", "whitemane", "wards", "brood", "rimewyrm", "censer", "silentvow", "ashensaint",
-  "frogs", "canopy", "vantage", "bloodvine", "prowlers", "greyback", "venom", "tyrant", "queen"];
+  "frogs", "canopy", "vantage", "bloodvine", "prowlers", "greyback", "venom", "tyrant", "queen",
+  "scuttlers", "vipers", "obelisks", "caravan", "jackals", "basilisks", "husks", "rattlespine", "warden", "dunewyrm", "sunqueen"];
 /* ---------- Experience ---------- */
 // Each level needs more XP than the last. Creatures and quests well below your level give less.
 const MAX_LEVEL = 30;
@@ -630,6 +763,15 @@ const MOBS = {
   sizzra: { name: "Sizzra the Broodmother", lvl: 18, r: 95, hp: 8500, dmg: 105, atkCd: 1.6, ms: 300, wander: 50, xp: 250, respawn: 60, leash: 1400, home: [BROODHOLLOW.x, BROODHOLLOW.y], roam: 150, count: 1, elite: true, ranged: 600, aggroR: 500 },
   // jungle raid bosses (05i-jungle.js): a party of 3+, telegraphs and phases like the cathedral's bosses
   mawgrot: { name: "Mawgrot, the River Tyrant", title: "Raid Boss · Sunken Delta", lvl: 19, r: 260, hp: 480000, dmg: 600, atkCd: 2, ms: 240, wander: 0, xp: 1500, respawn: 300, leash: 1900, home: [DELTA.x, DELTA.y], roam: 0, count: 1, elite: true, boss: true, script: "mawgrot", aggroR: 700 },
+  scuttler: { name: "Dune Scuttler", lvl: 20, r: 50, hp: 2600, dmg: 78, atkCd: 1.3, ms: 330, wander: 120, xp: 70, respawn: 30, leash: 1500, home: [GLASS_FLATS.x, GLASS_FLATS.y], roam: GLASS_FLATS.r - 100, count: 9, aggroR: 350 },
+  viper: { name: "Sand Viper", lvl: 20, r: 50, hp: 2500, dmg: 82, atkCd: 1.3, ms: 320, wander: 110, xp: 70, respawn: 30, leash: 1600, home: [WHISPER_DUNES.x, WHISPER_DUNES.y], roam: WHISPER_DUNES.r - 150, count: 9, aggroR: 320 },
+  jackal: { name: "Dust Jackal", lvl: 21, r: 55, hp: 2900, dmg: 86, atkCd: 1.1, ms: 380, wander: 140, xp: 75, respawn: 30, leash: 1800, home: [JACKAL_RIDGE.x, JACKAL_RIDGE.y], roam: JACKAL_RIDGE.r - 100, count: 9, aggroR: 450, pack: true },
+  basilisk: { name: "Sunscale Basilisk", lvl: 22, r: 65, hp: 3500, dmg: 98, atkCd: 1.6, ms: 280, wander: 90, xp: 85, respawn: 30, leash: 1600, home: [SUNSCALE_MESA.x, SUNSCALE_MESA.y], roam: SUNSCALE_MESA.r - 120, count: 8, aggroR: 380 },
+  husk: { name: "Tomb Husk", lvl: 22, r: 55, hp: 3300, dmg: 95, atkCd: 1.4, ms: 300, wander: 100, xp: 85, respawn: 30, leash: 1700, home: [NECROPOLIS.x, NECROPOLIS.y], roam: NECROPOLIS.r - 100, count: 9, aggroR: 420, pack: true },
+  rattlespine: { name: "Rattlespine, the Scorpion Matriarch", lvl: 22, r: 100, hp: 13000, dmg: 160, atkCd: 1.7, ms: 330, wander: 60, xp: 350, respawn: 60, leash: 1500, home: [STINGER_HOLLOW.x, STINGER_HOLLOW.y], roam: 200, count: 1, elite: true, charge: true, aggroR: 500 },
+  tombwarden: { name: "Ashkar the Tomb Warden", lvl: 22, r: 95, hp: 12000, dmg: 140, atkCd: 1.6, ms: 300, wander: 50, xp: 350, respawn: 60, leash: 1400, home: [WARDEN_GATE.x, WARDEN_GATE.y], roam: 150, count: 1, elite: true, ranged: 600, aggroR: 500 },
+  zahrak: { name: "Zahrak, the Dune Wyrm", title: "Raid Boss · Scoured Basin", lvl: 23, r: 260, hp: 560000, dmg: 680, atkCd: 2, ms: 230, wander: 0, xp: 2000, respawn: 300, leash: 1900, home: [SCOURED_BASIN.x, SCOURED_BASIN.y], roam: 0, count: 1, elite: true, boss: true, script: "zahrak", aggroR: 700 },
+  ankhara: { name: "Queen Ankhara, the Sun-Bound", title: "Raid Boss · Sunken Tomb", lvl: 23, r: 150, hp: 520000, dmg: 560, atkCd: 1.4, ms: 300, wander: 0, xp: 2000, respawn: 300, leash: 1700, home: [SUN_TOMB.x, SUN_TOMB.y], roam: 0, count: 1, elite: true, boss: true, script: "ankhara", aggroR: 650 },
   shadowmane: { name: "Shadowmane, Queen of the Canopy", title: "Raid Boss · Moonlit Ruins", lvl: 19, r: 170, hp: 430000, dmg: 490, atkCd: 1.2, ms: 380, wander: 0, xp: 1500, respawn: 300, leash: 1900, home: [RUINS.x, RUINS.y], roam: 0, count: 1, elite: true, boss: true, script: "shadowmane", aggroR: 650 },
   bandit: { name: "Vale Bandit", lvl: 6, r: 55, hp: 400, dmg: 19, atkCd: 1.4, ms: 300, wander: 100, xp: 60, respawn: 0, leash: 99999, home: [TOWER.x, TOWER.y], roam: 300, count: 0, aggroR: 900 },
 };
@@ -683,6 +825,15 @@ const LOOT = {
   sizzra: { coins: [140, 220], mat: ["junglehide", 1], gear: 1, minRarity: 2, epic: .35, ilvl: 19 },
   mawgrot: { dungeon: "raid", coins: [900, 1300], ilvl: 20, mat: "junglehide" },
   shadowmane: { dungeon: "raid", coins: [900, 1300], ilvl: 20, mat: "junglehide" },
+  scuttler: { coins: [34, 58], gear: .3, ilvl: 21 },
+  viper: { coins: [34, 58], gear: .3, ilvl: 21 },
+  jackal: { coins: [36, 60], mat: ["primalhide", .3], gear: .3, ilvl: 21 },
+  basilisk: { coins: [38, 64], mat: ["primalhide", .4], gear: .32, ilvl: 22 },
+  husk: { coins: [38, 64], mat: ["ashcloth", .3], gear: .32, ilvl: 22 },
+  rattlespine: { coins: [180, 280], gear: 1, minRarity: 2, epic: .35, ilvl: 23 },
+  tombwarden: { coins: [180, 280], mat: ["ashcloth", 1], gear: 1, minRarity: 2, epic: .35, ilvl: 23 },
+  zahrak: { dungeon: "raid", coins: [1100, 1600], ilvl: 24, mat: "junglehide" },
+  ankhara: { dungeon: "raid", coins: [1100, 1600], ilvl: 24, mat: "ashcloth" },
   boar: { coins: [40, 70], mat: ["hide", 1], gear: 1, minRarity: 2, epic: .15, ilvl: 5 },
 };
 function rollRarity(min, epic){ const r = Math.random(); const v = r < .01 + (epic || 0) ? 3 : r < .12 ? 2 : r < .45 ? 1 : 0; return Math.max(min || 0, v); }

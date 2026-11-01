@@ -9,6 +9,7 @@ const MUSIC = {
   peaks: "src/audio/music/dreamscape.mp3",
   cathedral: "src/audio/music/dreamscape.mp3",
   jungle: "src/audio/music/dreamscape.mp3",
+  desert: "src/audio/music/dreamscape.mp3",
 };
 // Short sound effects by name; play with sfx("name") or sfxAt("name", x, y). Names match the checklist's file names.
 const SFX = {

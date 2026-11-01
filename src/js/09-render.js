@@ -113,7 +113,7 @@ function render(dt){
     const charging = (flags & 4) > 0, windup = (flags & 8) > 0;
     mv.charging = charging; mv.windup = windup;
     mv.angryT = Math.max(0, mv.angryT - dt); mv.buttT = Math.max(0, mv.buttT - dt);
-    mv.hp = hp; mv.maxHp = maxHp; mv.angry = angry; mv.pos = { x: w.x, y: gy, z: w.z };
+    mv.hp = hp; mv.maxHp = maxHp; mv.angry = angry; mv.pos = { x: w.x, y: gy, z: w.z }; mv.zx = p.x; mv.zy = p.y;
     mv.hidden = (flags & 16) > 0;   // a raid boss under the water or in the shadows
     // creatures lost in the haze aren't drawn at all (there can be hundreds)
     const far = !camera || camera.position.distanceToSquared(mv.pos) > scene.fog.far * scene.fog.far * 1.1;
@@ -274,6 +274,7 @@ function render(dt){
     guarded("sky", () => updateAtmosphere(meSnap, t));
     guarded("cathedral", () => updateCathedral(s, meSnap, t));
     guarded("jungle", () => updateJungle(s, meSnap, t));
+    guarded("desert", () => updateDesert(s, meSnap, t));
   }
   renderer.render(scene, camera);
 
@@ -284,9 +285,11 @@ function render(dt){
   const camUp = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
   const spriteTop = (p, h) => worldToScreen(p.x + camUp.x * h, p.y + camUp.y * h, p.z + camUp.z * h);
   for(const p of PORTAL_VIS){ if(!p.shown) continue; const w = XF(p.x, p.y), [sx, sy, sz] = worldToScreen(w.x, hAt(w.x, w.z) + 4.6, w.z); if(sz < 1) label(p.name, sx, sy, "#ffd8a8", 14, 700); }
-  for(const nv of G.npcVis){ const [sx, sy, sz] = spriteTop(nv.pos, 2.4); if(sz < 1){ label(`<${nv.n.name}>`, sx, sy - (nv.n.title ? 20 : 6), "#ffd84a", 14); if(nv.n.title) label(nv.n.title, sx, sy - 5, "#e8e2d4", 12, 500); } }
+  // name plates only for what's in your own zone (the zones sit side by side, so the next one can be in view)
+  const myZone = meSnap ? zoneAt(meSnap.y, meSnap.x).key : null, here = (x, y) => !myZone || zoneAt(y, x).key === myZone;
+  for(const nv of G.npcVis){ if(!here(nv.n.x, nv.n.y)) continue; const [sx, sy, sz] = spriteTop(nv.pos, 2.4); if(sz < 1){ label(`<${nv.n.name}>`, sx, sy - (nv.n.title ? 20 : 6), "#ffd84a", 14); if(nv.n.title) label(nv.n.title, sx, sy - 5, "#e8e2d4", 12, 500); } }
   for(const [, mv] of G.mobVis){
-    if(!mv.pos || mv.hidden) continue;
+    if(!mv.pos || mv.hidden || !here(mv.zx, mv.zy)) continue;
     const ET = MOBS[mv.kind];
     if(ET.elite){
       const [bx, ty, bz] = spriteTop(mv.pos, mv.A.sy), by = ty - 12, bw = ET.boss ? 160 : 90; if(bz > 1) continue;

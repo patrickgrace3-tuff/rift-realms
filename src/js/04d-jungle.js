@@ -139,7 +139,7 @@ function buildJungle(g){
     grd.addColorStop(0, inner); grd.addColorStop(.55, inner); grd.addColorStop(.75, edge); grd.addColorStop(1, "rgba(0,0,0,0)"); pg.fillStyle = grd; pg.beginPath(); pg.ellipse(64, 64, 42, 62, 0, 0, Math.PI * 2); pg.fill();
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv2), transparent: true, depthWrite: false })); s.scale.set(2.8, 4.4, 1); return s; };
   const choir = {};
-  for(const [side, inner, edge, name] of [["right", "rgba(20,60,30,1)", "rgba(120,255,140,.9)", "To the Thornveil Jungle"], ["left", "rgba(30,20,50,1)", "rgba(170,140,255,.7)", "Sealed Portal"]]){
+  for(const [side, inner, edge, name] of [["right", "rgba(20,60,30,1)", "rgba(120,255,140,.9)", "To the Thornveil Jungle"], ["left", "rgba(70,40,10,1)", "rgba(255,200,100,.9)", "To the Amberveil Wastes"]]){
     const p = CHOIR_PORTALS[side], s = portalSprite(inner, edge), w = XF(p.x, p.y); s.position.set(w.x, 2.3, w.z); g.add(s);
     const label = { x: p.x, y: p.y, name, shown: false }; PORTAL_VIS.push(label); choir[side] = { s, label };
   }
@@ -164,7 +164,7 @@ function updateJungle(s, me, t){
   if(!JUNG || !s) return;
   const dg = s.dg || {}, inCath = me && me.y > DZ && me.x <= ZS;
   JUNG.grp.visible = !inCath;
-  for(const side of ["right", "left"]){ const p = JUNG.choir[side]; p.s.visible = p.label.shown = !!dg.sd; p.s.material.opacity = side === "right" ? .85 + Math.sin(t * 3) * .15 : .45; p.s.material.rotation = Math.sin(t) * .05; }
+  for(const side of ["right", "left"]){ const p = JUNG.choir[side]; p.s.visible = p.label.shown = !!dg.sd; p.s.material.opacity = .85 + Math.sin(t * 3 + (side === "left" ? 1.5 : 0)) * .15; p.s.material.rotation = Math.sin(t) * .05; }
   const q = me && me.quests, been = !!(q && ((q.ashensaint && (q.ashensaint.state === "ready" || q.ashensaint.state === "done")) || Object.keys(q).some(id => QUESTS[id] && (QUESTS[id].giver === "tamsin" || QUESTS[id].giver === "ezo"))));
   JUNG.wsPeaks.label.shown = been; JUNG.wsPeaks.rune.material.opacity = been ? .8 + Math.sin(t * 3) * .2 : .15; JUNG.wsPeaks.ring.material.opacity = been ? .7 : .15;
   JUNG.wsJungle.rune.material.opacity = .8 + Math.sin(t * 3) * .2;

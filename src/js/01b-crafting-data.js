@@ -4,9 +4,9 @@
 
 const PROF_MAX = 150;
 const PROFS = {
-  mining: { name: "Mining", kind: "gather", verb: "Mined", hint: "Copperstone in the Vale's south-west hills, Glimmerstone in Hollowdeep Mine, Emberite in the jungle's Ember Hollow." },
+  mining: { name: "Mining", kind: "gather", verb: "Mined", hint: "Copperstone in the Vale's south-west hills, Glimmerstone in Hollowdeep Mine, Emberite round the edges of the jungle and the Amberveil Wastes." },
   herbalism: { name: "Herbalism", kind: "gather", verb: "Picked", hint: "Sunpetal by Stillwater Pond, Frostbloom round Glassmere, Bloodvine in the jungle north of the river." },
-  skinning: { name: "Skinning", kind: "gather", verb: "Skinned", hint: "Skin beasts you kill: wolves and the Old Tusker in the Vale, rams, lynxes and Whitemane in the Peaks, prowlers, apes and crocodiles in the jungle." },
+  skinning: { name: "Skinning", kind: "gather", verb: "Skinned", hint: "Skin beasts you kill: wolves and the Old Tusker in the Vale, rams, lynxes and Whitemane in the Peaks, prowlers, apes and crocodiles in the jungle, jackals and basilisks in the desert." },
   artisanry: { name: "Artisanry", kind: "craft", hint: "Refine ore, hides and herbs at an Artisan's Forge, then forge set armor and weapons." },
 };
 const PROF_KEYS = Object.keys(PROFS);
@@ -20,7 +20,8 @@ const GATHER = {
 };
 // beasts you can skin after a kill
 const SKIN = { wolf: ["lighthide", 0, 1], boar: ["lighthide", 0, 3], ram: ["frostfur", 50, 1], lynx: ["frostfur", 50, 1], yeti: ["frostfur", 50, 3],
-  prowler: ["primalhide", 100, 1], ape: ["primalhide", 100, 1], croc: ["primalhide", 100, 1], greyback: ["primalhide", 100, 3] };
+  prowler: ["primalhide", 100, 1], ape: ["primalhide", 100, 1], croc: ["primalhide", 100, 1], greyback: ["primalhide", 100, 3],
+  jackal: ["primalhide", 100, 1], basilisk: ["primalhide", 100, 1], rattlespine: ["primalhide", 100, 3] };
 // how each node looks and how long it takes: rocks are mined (pickaxe swings), flowers are picked
 const NODE_LOOK = {
   copper: { rock: true, col: 0xd8823a }, ore: { rock: true, col: 0x9fe6ff }, emberite: { rock: true, col: 0xff5a1a, hot: true },
@@ -39,7 +40,7 @@ function outskirts([x0, y0, w, h], n, seed){
   }
   return out;
 }
-const ORE_OUTSKIRTS = { copper: outskirts([0, 0, ZS, ZS], 16, 101), ore: outskirts([0, ZS, ZS, ZS], 16, 202), emberite: outskirts([ZS, DZ, ZS, ZS], 16, 303) };
+const ORE_OUTSKIRTS = { copper: outskirts([0, 0, ZS, ZS], 16, 101), ore: outskirts([0, ZS, ZS, ZS], 16, 202), emberite: [...outskirts([ZS, DZ, ZS, ZS], 16, 303), ...outskirts([ZS, ZS, ZS, ZS], 16, 404)] };
 for(const kind in ORE_OUTSKIRTS) NODE_SPOTS.push({ kind, points: ORE_OUTSKIRTS[kind] });
 // scenery stays clear of the outskirts ore, most of all on the camera's side (south) of it
 const ORE_POINTS = Object.values(ORE_OUTSKIRTS).flat();
