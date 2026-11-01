@@ -120,12 +120,9 @@ function buildKit(d){
     used.add(type);
     kit[k] = Object.assign(abilityParams(type, cls, k === "R", readCC(text), text), { key: k, name: sp.name, icon: sp.image.full });
   });
-  // Support champions always have a heal on R, usable from level 1: themselves or the ally nearest the cursor,
+  // Support champions get an extra heal on G, usable from level 1: themselves or the ally nearest the cursor,
   // growing with level and ability damage (SIM.supportAmount)
-  if((d.tags || []).includes("Support")){
-    const sp = (d.spells && d.spells[3]) || { name: "R", image: { full: "" } };
-    kit.R = Object.assign(abilityParams("heal", cls, true, {}, ""), { key: "R", name: sp.name, icon: sp.image.full, cd: 18, amount: 320, dmg: 0, anyLevel: true });
-  }
+  if((d.tags || []).includes("Support")) kit.G = Object.assign(abilityParams("heal", cls, false, {}, ""), { key: "G", name: "Support Heal", icon: "", cd: 18, amount: 320, dmg: 0 });
   return kit;
 }
 function describeAbility(p){

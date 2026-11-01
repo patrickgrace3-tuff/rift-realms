@@ -129,7 +129,7 @@ addEventListener("keydown", e => {
   if(!G || e.repeat) return;
   if(e.target.tagName === "INPUT") return;
   const k = e.key.toUpperCase();
-  if(["Q", "W", "E", "R"].includes(k)){ e.preventDefault(); const p = screenToZone(G.mouse.x, G.mouse.y); if(p) command({ cast: k, at: [Math.round(p[0]), Math.round(p[1])] }); }
+  if(kitKeys(G.myKit).includes(k)){ e.preventDefault(); const p = screenToZone(G.mouse.x, G.mouse.y); if(p) command({ cast: k, at: [Math.round(p[0]), Math.round(p[1])] }); }
   else if(k === "S") command({ stop: 1 });
   else if(k === "O"){ if($("#profWin").hidden) openProf(); else $("#profWin").hidden = true; }
   else if(k === "K"){ if($("#skills").hidden) openSkills(); else $("#skills").hidden = true; }

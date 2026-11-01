@@ -1265,7 +1265,7 @@ test("gathering: ore rings each zone's outskirts; mining and picking take time, 
   assert.ok(h.inv.some(i => i.key === "sunpetal"), "picked on the second try");
 });
 
-test("shields last until they've soaked up their amount; Support champions heal with R from level 1", () => {
+test("shields last until they've soaked up their amount; Support champions heal with G from level 1", () => {
   const W = SIM.create(), a = SIM.addHero(W, "blue", GAREN_LIKE()), s = SIM.addHero(W, "red", HEALER());
   const wolf = W.mobs.find(m => m.kind === "wolf");
   a.x = 4000; s.x = 4250; a.y = s.y = 3000;
@@ -1277,13 +1277,13 @@ test("shields last until they've soaked up their amount; Support champions heal 
   // it soaks damage until it's used up, then the rest goes through
   const hp = a.hp; SIM.damage(W, a, amt / 2, wolf); assert.equal(a.hp, hp, "half absorbed");
   SIM.damage(W, a, amt, wolf); assert.equal(a.shield, 0); assert.ok(a.hp < hp, "then it breaks and the rest hits");
-  // Support: R is a heal, usable at level 1, on yourself or an ally; it grows with level
-  assert.equal(s.kit.R.type, "heal"); assert.ok(!G.ultLocked(s.kit, 1, "R"), "a Support's R works from level 1");
-  assert.ok(G.ultLocked(a.kit, 1, "R"), "other champions still unlock R at level 6");
-  a.hp = 100; SIM.cast(W, s, "R", [a.x, a.y]); const healed1 = a.hp - 100;
+  // Support: G is an extra heal, usable at level 1, on yourself or an ally; it grows with level. R stays their own.
+  assert.equal(s.kit.G.type, "heal"); assert.notEqual(s.kit.R.type, "heal", "R is the champion's own ultimate again");
+  assert.ok(!G.ultLocked(s.kit, 1, "G") && G.ultLocked(s.kit, 1, "R"), "G works from level 1; R still unlocks at 6");
+  a.hp = 100; SIM.input(W, "red", { cast: "G", at: [a.x, a.y] }); const healed1 = a.hp - 100;
   assert.ok(healed1 > 200, `healed an ally (${Math.round(healed1)})`);
-  const at1 = SIM.supportAmount(s, s.kit.R); s.lvl = 20; SIM.recalc(s);
-  assert.ok(SIM.supportAmount(s, s.kit.R) > at1 * 2.5, "much bigger at level 20");
-  s.hp = 50; s.cds.R = 0; SIM.cast(W, s, "R", [s.x + 900, s.y]); assert.ok(s.hp > 50, "with nobody near the cursor it heals yourself");
-  const notSupport = G.buildKit(ARCHER()); assert.notEqual(notSupport.R.anyLevel, true);
+  const at1 = SIM.supportAmount(s, s.kit.G); s.lvl = 20; SIM.recalc(s);
+  assert.ok(SIM.supportAmount(s, s.kit.G) > at1 * 2.5, "much bigger at level 20");
+  s.hp = 50; s.cds.G = 0; SIM.input(W, "red", { cast: "G", at: [s.x + 900, s.y] }); assert.ok(s.hp > 50, "with nobody near the cursor it heals yourself");
+  const hp0 = a.hp; a.cds.G = 0; SIM.input(W, "blue", { cast: "G", at: [a.x, a.y] }); assert.ok(!a.kit.G && a.cds.G === 0, "only Support champions have G");
 });

@@ -31,7 +31,7 @@ const SIM = {
       x: SPAWN[0] + (SIDES.indexOf(side) - 2) * 60, y: SPAWN[1], r: 55,
       base: { hp: st.hp, hpl: st.hpperlevel, ad: st.attackdamage, adl: st.attackdamageperlevel },
       as: Math.max(.5, Math.min(1.1, st.attackspeed || .65)), range: st.attackrange, ranged: st.attackrange > 300, ms: st.movespeed,
-      lvl: 1, xp: 0, cds: { Q: 0, W: 0, E: 0, R: 0 }, move: null, target: null, talkTo: null, atkT: 0, dead: 0, castSeq: 0, castKey: "", atkSeq: 0,
+      lvl: 1, xp: 0, cds: { Q: 0, W: 0, E: 0, R: 0, G: 0 }, move: null, target: null, talkTo: null, atkT: 0, dead: 0, castSeq: 0, castKey: "", atkSeq: 0,
       face: Math.PI, moving: false, dash: null, forced: null, spin: null, orbT: 0, orbA: 0, orbHits: {}, orbP: null,
       cc: { stun: 0, root: 0, slow: 0, slowAmt: 0 }, shield: 0, shieldT: 0, buffT: 0, buffAS: 0, buffOnHit: 0, boostT: 0, boost: 0, stealthT: 0,
       lastCombat: -99, quests: {}, prof: {}, setKey: null, setN: 0, setHits: 0, setCasts: 0, weapon: null, lootTo: null, talents: newTalents(), orbN: 3, ambush: false,
@@ -399,7 +399,7 @@ const SIM = {
     if(cmd.talk){ const npc = NPCS.find(n => n.id === cmd.talk); if(npc){ c.talkTo = npc.id; c.target = null; c.move = null; } return; }
     if(cmd.move){ c.move = [clampX(+cmd.move[0] || 0), clampY(+cmd.move[1] || 0)]; c.target = null; c.talkTo = null; }
     else if(cmd.atk){ const t = SIM.find(W, String(cmd.atk)); if(t && SIM.hostile(c, t)){ c.target = t.id; c.move = null; c.talkTo = null; } }
-    else if(cmd.cast && ["Q", "W", "E", "R"].includes(cmd.cast) && Array.isArray(cmd.at)) SIM.cast(W, c, cmd.cast, [+cmd.at[0] || 0, +cmd.at[1] || 0]);
+    else if(cmd.cast && kitKeys(c.kit).includes(cmd.cast) && Array.isArray(cmd.at)) SIM.cast(W, c, cmd.cast, [+cmd.at[0] || 0, +cmd.at[1] || 0]);
   },
   // heals and shields go to the living player nearest the cursor (within ALLY_PICK of it and
   // ALLY_RANGE of the caster); if nobody is closer to the cursor than you, they go to you
@@ -699,7 +699,7 @@ const SIM = {
       h: SIM.heroes(W).map(c => ({
         side: c.side, champId: c.champId, name: c.name, x: r(c.x), y: r(c.y), hp: r(c.hp), maxHp: r(c.maxHp), lvl: c.lvl, xp: r(c.xp), xpNext: SIM.xpNext(c.lvl),
         face: Math.round(c.face * 100) / 100, moving: c.moving ? 1 : 0, dead: c.dead ? Math.max(1, Math.ceil(c.respawnAt - W.t)) : 0,
-        castSeq: c.castSeq, castKey: c.castKey, atkSeq: c.atkSeq, cds: { Q: +c.cds.Q.toFixed(1), W: +c.cds.W.toFixed(1), E: +c.cds.E.toFixed(1), R: +c.cds.R.toFixed(1) },
+        castSeq: c.castSeq, castKey: c.castKey, atkSeq: c.atkSeq, cds: { Q: +c.cds.Q.toFixed(1), W: +c.cds.W.toFixed(1), E: +c.cds.E.toFixed(1), R: +c.cds.R.toFixed(1), G: +(c.cds.G || 0).toFixed(1) },
         orbT: c.orbT > 0 ? 1 : 0, orbA: Math.round(c.orbA * 100) / 100, shield: r(c.shield), buff: c.buffT > 0 ? 1 : 0, stealth: c.stealthT > 0 ? 1 : 0,
         cc: c.cc.stun > 0 ? "stun" : c.silenceT > W.t ? "silence" : c.cc.root > 0 ? "root" : c.cc.slow > 0 ? "slow" : "", quests: SIM.questView(W, c), weapon: c.weapon ? c.weapon.name : null,
         talents: c.talents, points: talentPoints(c.lvl, c.talents), orbN: c.orbN || 3, ad: Math.round(c.ad),

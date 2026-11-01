@@ -133,13 +133,13 @@ Object.assign(SIM, {
     const dodge = SIM.botThreat(W, b, o);
     if(dodge){
       b.target = null; b.move = dodge;
-      for(const k of SLOTS) if(can(k) && b.kit[k].type === "shield"){ cast(k, [b.x, b.y]); break; }
-      for(const k of SLOTS) if(can(k) && b.kit[k].type === "blink"){ cast(k, dodge); break; }
+      for(const k of kitKeys(b.kit)) if(can(k) && b.kit[k].type === "shield"){ cast(k, [b.x, b.y]); break; }
+      for(const k of kitKeys(b.kit)) if(can(k) && b.kit[k].type === "blink"){ cast(k, dodge); break; }
       return;
     }
     // 2. stay alive
     if(hpP < .35 && b.potions > 0 && W.t >= (b.potT || 0)){ b.hp = Math.min(b.maxHp, b.hp + b.maxHp * POTION.heal); b.potT = W.t + POTION.cd; b.potions--; SIM.fx(W, { k: "heal", side: b.side, v: Math.round(b.maxHp * POTION.heal) }); }
-    for(const k of SLOTS){
+    for(const k of kitKeys(b.kit)){
       if(!can(k)) continue; const p = b.kit[k];
       if(p.type === "heal" && hpP < .6) return void cast(k, [b.x, b.y]);
       if(p.type === "shield" && hpP < .55 && dist < 700) return void cast(k, [b.x, b.y]);

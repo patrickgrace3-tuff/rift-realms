@@ -366,11 +366,13 @@ $("#bigClose").onclick = () => toggleBigMap(false);
 /* ---------- HUD ---------- */
 function buildSlots(){
   const el = $("#slots"); el.innerHTML = ""; const d = G.details[G.myTeam];
-  G.slotEls = ["Q", "W", "E", "R"].map((k, i) => {
+  G.myKit = buildKit(d); G.slotKeys = kitKeys(G.myKit);
+  G.slotEls = G.slotKeys.map((k, i) => {
     const s = document.createElement("div"); s.className = "slot"; s.tabIndex = 0;
     s.style.pointerEvents = "auto"; // the HUD ignores the mouse; the ability buttons need it for their tooltips
-    s.setAttribute("aria-label", `${k}: ${d.spells[i].name}`); s.setAttribute("aria-describedby", "abTip");
-    s.innerHTML = `<img alt="" src="${spellIcon(d.spells[i].image.full)}"><div class="cd"></div><span class="key">${k}</span>`;
+    const name = k === "G" ? G.myKit.G.name : d.spells[i].name, icon = k === "G" ? supportHealIcon() : spellIcon(d.spells[i].image.full);
+    s.setAttribute("aria-label", `${k}: ${name}`); s.setAttribute("aria-describedby", "abTip");
+    s.innerHTML = `<img alt="" src="${icon}"><div class="cd"></div><span class="key">${k}</span>`;
     const show = () => { G.tipKey = k; renderAbilityTip(); }, hide = () => { if(G) G.tipKey = null; $("#abTip").hidden = true; };
     s.addEventListener("pointerenter", show); s.addEventListener("focus", show);
     s.addEventListener("pointerleave", hide); s.addEventListener("blur", hide);
@@ -403,7 +405,7 @@ function renderAbilityTip(){
       ${n ? (me.pot ? `<div class="tl">Ready in ${me.pot}s</div>` : "") : `<div class="tl">Buy more from Peddler Osric in Sunhollow Village</div>`}`;
     $("#abTip").hidden = false; return;
   }
-  const i = SLOTS.indexOf(k), sp = G.details[G.myTeam].spells[i], base = G.myKit[k], p = applyTalents(base, me.talents && me.talents[k]);
+  const i = SLOTS.indexOf(k), base = G.myKit[k], sp = i >= 0 ? G.details[G.myTeam].spells[i] : { name: base.name }, p = applyTalents(base, me.talents && me.talents[k]);
   const lvlScale = 1 + .1 * (me.lvl - 1), cdNow = Math.round(p.cd * (1 - (me.haste || 0) / 100) * 10) / 10, bits = [];
   if(p.dmg) bits.push(`${Math.round(p.dmg * SIM.dmgScale({ lvl: me.lvl, ap: me.ap }))} damage`);
   if(p.amount) bits.push(`${p.type === "heal" ? "Heals" : "Shields for"} ${Math.round(SIM.supportAmount({ lvl: me.lvl, ap: me.ap }, p))}`);
@@ -416,7 +418,7 @@ function renderAbilityTip(){
   if(key === G.tipRendered && !$("#abTip").hidden) return;
   G.tipRendered = key;
   $("#abTip").innerHTML = `<div class="tk"><span class="tag">${k}</span>${esc(sp.name)}</div>
-    <div class="tr">${k === "R" ? "Ultimate · " : ""}${ARCH[base.type].label} · ${cdNow}s cooldown</div>
+    <div class="tr">${k === "R" ? "Ultimate · " : k === "G" ? "Support ability · " : ""}${ARCH[base.type].label} · ${cdNow}s cooldown</div>
     <p>${esc(describeAbility(p))}</p>
     ${bits.length ? `<div class="tn">${bits.join(" · ")}</div>` : ""}
     ${(me.talents && me.talents[k] && me.talents[k].mastery) ? `<div class="tm">Mastery: ${MASTERY[base.type]}</div>` : ""}
@@ -434,8 +436,8 @@ function updateHud(){
   $("#hpfill").style.width = Math.max(0, me.hp / me.maxHp * 100) + "%";
   $("#hptext").textContent = `${Math.max(0, me.hp)} / ${me.maxHp}`;
   $("#lvl").textContent = me.lvl; $("#xpfill").style.width = Math.min(100, me.xp / me.xpNext * 100) + "%";
-  ["Q", "W", "E", "R"].forEach((k, i) => {
-    const el = G.slotEls[i], cd = me.cds[k], locked = ultLocked(G.myKit, me.lvl, k);
+  G.slotKeys.forEach((k, i) => {
+    const el = G.slotEls[i], cd = me.cds[k] || 0, locked = ultLocked(G.myKit, me.lvl, k);
     el.classList.toggle("locked", locked || !!me.dead);
     const cdEl = el.querySelector(".cd");
     cdEl.textContent = locked ? `Lv${ULT_LEVEL}` : cd > 0 ? (cd >= 1 ? Math.ceil(cd) : cd.toFixed(1)) : "";

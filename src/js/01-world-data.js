@@ -497,8 +497,7 @@ const QUEST_ORDER = ["sheep", "tusker", "courier", "scout", "wolves", "herbs", "
 // Each level needs more XP than the last. Creatures and quests well below your level give less.
 const MAX_LEVEL = 30;
 const ULT_LEVEL = 6; // the ultimate (R) unlocks at this level
-// is this key still locked? (R before ULT_LEVEL, except Support champions' heal, which works from level 1)
-const ultLocked = (kit, lvl, k) => k === "R" && lvl < ULT_LEVEL && !(kit && kit.R && kit.R.anyLevel);
+const ultLocked = (kit, lvl, k) => k === "R" && lvl < ULT_LEVEL;   // is this ability key still locked?
 const xpForLevel = lvl => Math.round(40 * Math.pow(lvl, 1.6) + 70);
 // creatures: +10% per level above you (up to +40%), −20% per level below (nothing at 5 below)
 function mobXp(base, mobLvl, heroLvl){ const d = mobLvl - heroLvl; return Math.round(base * (d >= 0 ? 1 + .1 * Math.min(d, 4) : Math.max(0, 1 + .2 * d))); }
@@ -535,6 +534,17 @@ const MASTERY = {
   summon: "Summons two allies instead of one", stealth: "Your first attack out of stealth deals 150% bonus damage", orbit: "Adds a fourth orb",
 };
 const SLOTS = ["Q", "W", "E", "R"];
+// every ability key a champion has: Q W E R, plus G (the Support heal) for Support champions. G has no talents.
+const kitKeys = kit => kit && kit.G ? [...SLOTS, "G"] : SLOTS;
+// the Support heal's button icon: a green cross
+let SUPPORT_HEAL_ICON = null;
+function supportHealIcon(){
+  if(SUPPORT_HEAL_ICON) return SUPPORT_HEAL_ICON;
+  const c = document.createElement("canvas"); c.width = c.height = 64; const g = c.getContext("2d"), grd = g.createRadialGradient(32, 30, 4, 32, 32, 40);
+  grd.addColorStop(0, "#3a8a5a"); grd.addColorStop(1, "#0e2a1a"); g.fillStyle = grd; g.fillRect(0, 0, 64, 64);
+  g.fillStyle = "#e8fff0"; g.fillRect(25, 12, 14, 40); g.fillRect(12, 25, 40, 14); g.fillStyle = "#6be08f"; g.fillRect(28, 15, 8, 34); g.fillRect(15, 28, 34, 8);
+  return SUPPORT_HEAL_ICON = c.toDataURL();
+}
 function newTalents(){ const t = { core: { vit: 0, might: 0 } }; for(const k of SLOTS) t[k] = { power: 0, haste: 0, mastery: 0 }; return t; }
 function talentsSpent(t){ let n = t.core.vit + t.core.might; for(const k of SLOTS) n += t[k].power + t[k].haste + t[k].mastery; return n; }
 function talentPoints(lvl, t){ return (lvl - 1) - talentsSpent(t); }

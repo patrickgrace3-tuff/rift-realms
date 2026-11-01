@@ -16,7 +16,7 @@ const ROLE_NAMES = { tank: "Tank", healer: "Healer", dps: "Damage" };
 
 // A champion's raid role, from its League tags and its abilities
 function heroRole(c){
-  const tags = c.tags || [], types = SLOTS.map(k => c.kit[k] && c.kit[k].type);
+  const tags = c.tags || [], types = kitKeys(c.kit).map(k => c.kit[k] && c.kit[k].type);
   if(types.includes("heal") || (tags.includes("Support") && types.includes("shield"))) return "healer";
   if(tags.includes("Tank")) return "tank";
   return "dps";
@@ -138,7 +138,7 @@ Object.assign(SIM, {
         const amt = Math.min(hurt.maxHp - hurt.hp, (120 + 22 * m.lvl) * (1 + (m.ap || 0) / 100));
         hurt.hp += amt; m.mendAt = W.t + MERCS.mendEvery; SIM.fx(W, { k: "heal", side: hurt.side, v: Math.round(amt), from: m.side, name: m.name }); SIM.healThreat(W, m, amt);
       }
-      for(const k of SLOTS){
+      for(const k of kitKeys(m.kit)){
         if(!can(k)) continue; const t = m.kit[k].type;
         if(t === "heal" && hurt && hurt.hp < hurt.maxHp * .75) return void cast(k, [hurt.x, hurt.y]);
         if(t === "shield" && boss){ const tank = party.find(h => h.merc && h.merc.role === "tank") || hurt; if(tank) return void cast(k, [tank.x, tank.y]); }
