@@ -124,7 +124,7 @@ function buildCathedral(g){
   const riftRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xff8a3a, transparent: true, opacity: .85, depthWrite: false })); riftRing.scale.setScalar(RIFT.r * S); riftRing.position.y = .08;
   riftG.add(rift, riftRing); const rw = XF(RIFT.x, RIFT.y); riftG.position.set(rw.x, outside(RIFT.x, RIFT.y), rw.z); g.add(riftG);
   const riftLabel = { x: RIFT.x, y: RIFT.y, name: "Rift to the Ashen Cathedral", shown: false }; PORTAL_VIS.push(riftLabel);
-  CATH = { seal, lights, flames, exitP, rift, riftRing, riftLabel, hz: new Map(), ms: new Map() };
+  CATH = { grp, seal, lights, flames, exitP, rift, riftRing, riftLabel, hz: new Map(), ms: new Map() };
 
   // picture for the maps
   const MS = 256, pic = document.createElement("canvas"); pic.width = pic.height = MS; const mg = pic.getContext("2d");

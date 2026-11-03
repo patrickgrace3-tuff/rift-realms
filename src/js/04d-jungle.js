@@ -163,7 +163,6 @@ function buildJungle(g){
 function updateJungle(s, me, t){
   if(!JUNG || !s) return;
   const dg = s.dg || {}, inCath = me && me.y > DZ && me.x <= ZS;
-  JUNG.grp.visible = !inCath;
   for(const side of ["right", "left"]){ const p = JUNG.choir[side]; p.s.visible = p.label.shown = !!dg.sd; p.s.material.opacity = .85 + Math.sin(t * 3 + (side === "left" ? 1.5 : 0)) * .15; p.s.material.rotation = Math.sin(t) * .05; }
   const q = me && me.quests, been = !!(q && ((q.ashensaint && (q.ashensaint.state === "ready" || q.ashensaint.state === "done")) || Object.keys(q).some(id => QUESTS[id] && (QUESTS[id].giver === "tamsin" || QUESTS[id].giver === "ezo"))));
   JUNG.wsPeaks.label.shown = been; JUNG.wsPeaks.rune.material.opacity = been ? .8 + Math.sin(t * 3) * .2 : .15; JUNG.wsPeaks.ring.material.opacity = been ? .7 : .15;

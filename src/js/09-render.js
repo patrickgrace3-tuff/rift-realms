@@ -17,6 +17,10 @@ function render(dt){
   const t = performance.now() / 1000;
   // heroes
   const present = new Set();
+  // only your own area is drawn: its scenery layer, and the people and creatures in it
+  const meA = s.h.find(h => h.side === G.myTeam), myArea = meA ? areaAt(meA.x, meA.y) : null;
+  if(meA) showArea(meA.x, meA.y);
+  const inMyArea = (x, y) => !myArea || areaAt(x, y) === myArea;
   for(const c of s.h){
     present.add(c.side);
     if(!G.vis[c.side]){
@@ -46,7 +50,7 @@ function render(dt){
     v.model.animate(pose, !!c.moving && !c.dead, t, dt, atkK, jumping);
     if(!c.dead && c.face !== undefined) turnToward(v.model.root, faceYaw(c.face), dt);
     v.model.root.position.set(w.x, y + hop, w.z);
-    const hidden = !!c.stealth && c.side !== G.myTeam;
+    const hidden = (!!c.stealth && c.side !== G.myTeam) || !inMyArea(c.x, c.y);
     v.hidden = hidden;
     v.model.root.visible = !hidden; v.model.setOpacity(c.stealth ? .45 : 1);
     v.shadow.visible = v.ring.visible = !hidden && !c.dead; v.shadow.scale.setScalar(.65 * (1 - hop * .3));
@@ -95,6 +99,7 @@ function render(dt){
     // NPCs turn to face you when you come near
     const mw = meSnap && XF(meSnap.x, meSnap.y), near = mw && Math.hypot(mw.x - nv.pos.x, mw.z - nv.pos.z) < 12;
     turnToward(nv.model.root, near ? Math.atan2(mw.x - nv.pos.x, mw.z - nv.pos.z) : 0, dt, 4);
+    const npcHere = inMyArea(nv.n.x, nv.n.y); nv.model.root.visible = npcHere; if(nv.shadow) nv.shadow.visible = npcHere; if(!npcHere) nv.marker.visible = false;
     nv.model.animate("idle", false, t, dt);
   }
   // mobs
@@ -118,7 +123,7 @@ function render(dt){
     mv.hidden = (flags & 16) > 0;   // a raid boss under the water or in the shadows
     // creatures lost in the haze aren't drawn at all (there can be hundreds)
     const far = !camera || camera.position.distanceToSquared(mv.pos) > scene.fog.far * scene.fog.far * 1.1;
-    mv.model.root.visible = mv.sh.visible = !mv.hidden && !far;
+    mv.model.root.visible = mv.sh.visible = !mv.hidden && !far && inMyArea(p.x, p.y);
     if(mv.model.root.visible){
       const lunge = mv.buttT > 0 ? 1 - mv.buttT / .25 : 0, fwd = lunge ? Math.sin(lunge * Math.PI) * .35 : 0, yaw = mv.model.root.rotation.y;
       turnToward(mv.model.root, faceYaw(face), dt, charging ? 16 : 8);
@@ -153,7 +158,7 @@ function render(dt){
     const [id, x, y, ready, kind] = n;
     let nv = G.nodeVis.get(id);
     if(!nv){ nv = buildNodeVis(kind, x, y); G.root.add(nv.grp); G.nodeVis.set(id, nv); }
-    updateNodeVis(nv, x, y, ready, want.has(kind), t);
+    updateNodeVis(nv, x, y, ready, want.has(kind), t); if(!inMyArea(x, y)) nv.grp.visible = false;
   }
   // things to use (beacons, runes): lit once done, a glowing hint while the quest is active
   USE_POINTS.forEach((pt, i) => {
@@ -287,7 +292,7 @@ function render(dt){
   // sprites face the camera, so their top is along the camera's up direction, not straight up in the world
   const camUp = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
   const spriteTop = (p, h) => worldToScreen(p.x + camUp.x * h, p.y + camUp.y * h, p.z + camUp.z * h);
-  for(const p of PORTAL_VIS){ if(!p.shown) continue; const w = XF(p.x, p.y), [sx, sy, sz] = worldToScreen(w.x, hAt(w.x, w.z) + 4.6, w.z); if(sz < 1) label(p.name, sx, sy, "#ffd8a8", 14, 700); }
+  for(const p of PORTAL_VIS){ if(!p.shown || !inMyArea(p.x, p.y)) continue; const w = XF(p.x, p.y), [sx, sy, sz] = worldToScreen(w.x, hAt(w.x, w.z) + 4.6, w.z); if(sz < 1) label(p.name, sx, sy, "#ffd8a8", 14, 700); }
   // name plates only for what's in your own zone (the zones sit side by side, so the next one can be in view)
   const myZone = meSnap ? zoneAt(meSnap.y, meSnap.x).key : null, here = (x, y) => !myZone || zoneAt(y, x).key === myZone;
   for(const nv of G.npcVis){ if(!here(nv.n.x, nv.n.y)) continue; const [sx, sy, sz] = spriteTop(nv.pos, 2.4); if(sz < 1){ label(`<${nv.n.name}>`, sx, sy - (nv.n.title ? 20 : 6), "#ffd84a", 14); if(nv.n.title) label(nv.n.title, sx, sy - 5, "#e8e2d4", 12, 500); } }

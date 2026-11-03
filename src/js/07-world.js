@@ -49,7 +49,7 @@ function buildNpcs(){
     model.root.position.set(w.x, y, w.z); marker.position.set(w.x, y + 3.1, w.z);
     const shadow = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: .3, depthWrite: false })); shadow.scale.setScalar(.6); shadow.position.set(w.x, y + .02, w.z);
     G.root.add(model.root, marker, shadow);
-    G.npcVis.push({ n, model, marker, marks, art, pos: { x: w.x, y, z: w.z } });
+    G.npcVis.push({ n, model, marker, marks, art, shadow, pos: { x: w.x, y, z: w.z } });
   }
 }
 

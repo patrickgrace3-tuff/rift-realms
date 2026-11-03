@@ -329,8 +329,37 @@ function buildZone(){
   buildCathedral(g);
   buildJungle(g); buildDesert(g); buildArena(g);
   buildForges(g);
+  zoneLayers(g);
   zone = g; zone.visible = false; scene.add(zone);
   buildSky();
+}
+/* ---------- One area at a time ----------
+   The areas sit side by side on one map, so from the desert you could see the jungle, from the arena the Vale, and
+   so on. Every piece of scenery is sorted into its area's layer (by where it stands) and only your area's layer is
+   drawn; the far mountains painted on the sky stay. The Vale and the Peaks share a layer: you walk between them. */
+const AREA_KINDS = ["over", "cathedral", "jungle", "desert", "arena"];
+const areaAt = (x, y) => inArena(x, y) ? "arena" : inDesert(x, y) ? "desert" : inJungle(x, y) ? "jungle" : y > DZ && x <= ZS ? "cathedral" : "over";
+let AREA_LAYERS = null, AREA_SHOWN = null;
+function zoneLayers(g){
+  AREA_LAYERS = {}; for(const k of AREA_KINDS){ AREA_LAYERS[k] = new THREE.Group(); AREA_LAYERS[k].name = "area:" + k; }
+  // the zone builders' own groups: their pieces belong to that zone unless they plainly stand somewhere else
+  const owned = new Map([[CATH && CATH.grp, "cathedral"], [JUNG && JUNG.grp, "jungle"], [DES && DES.grp, "desert"], [PGV && PGV.grp, "arena"]].filter(([o]) => o));
+  const sortInto = (obj, fallback) => {
+    const p = obj.position, atOrigin = Math.abs(p.x) < 1e-6 && Math.abs(p.z) < 1e-6;   // whole-zone meshes carry their place in the geometry
+    const [x, y] = XF.inv(p.x, p.z), kind = atOrigin ? fallback : areaAt(x, y);
+    AREA_LAYERS[kind].add(obj);   // (every parent sits at the origin, so moving it changes nothing on screen)
+  };
+  for(const child of [...g.children]){
+    if(owned.has(child)){ const k = owned.get(child); for(const c of [...child.children]) sortInto(c, k); g.remove(child); }
+    else sortInto(child, "over");
+  }
+  for(const k of AREA_KINDS) g.add(AREA_LAYERS[k]);
+}
+// called every frame with your position: show your area's layer only
+function showArea(x, y){
+  if(!AREA_LAYERS) return;
+  const k = areaAt(x, y); if(k === AREA_SHOWN) return; AREA_SHOWN = k;
+  for(const kind of AREA_KINDS) AREA_LAYERS[kind].visible = kind === k;
 }
 function hAt(x, z){ const [zx, zy] = XF.inv(x, z); return ZH ? ZH(zx, zy) : 0; }
 // How far the camera can sit from the look point before a hill, a building or a cathedral wall gets in the way
