@@ -38,6 +38,7 @@ function updateSocial(me){
   }
   updateRolls(me);
   updateDuelUi();
+  updateMeter(p);
   if(!$("#social").hidden) renderSocial();
 }
 
@@ -198,3 +199,36 @@ $("#ctxMenu").addEventListener("click", e => {
 });
 addEventListener("pointerdown", e => { if(!$("#ctxMenu").hidden && !e.target.closest("#ctxMenu")) closeCtx(); });
 addEventListener("keydown", e => { if(e.key === "Escape") closeCtx(); });
+
+/* ---------- Damage meter ---------- */
+// Your party's damage, from the host (snapshot `dm`): this fight, or overall since the party formed or was reset.
+// Shown while you're in a party, hired champions included. The tab and folded state are remembered per browser.
+const DM = (() => { let tab = "fight", fold = null; try{ tab = localStorage.getItem("rr.dmTab") || tab; const f = localStorage.getItem("rr.dmFold"); if(f !== null) fold = f === "1"; }catch(e){} return { tab, fold, key: "" }; })();   // fold: null until first shown (then folded on phones)
+const fmtK = n => n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + "M" : n >= 1e4 ? (n / 1e3).toFixed(n >= 1e5 ? 0 : 1) + "k" : String(Math.round(n));
+function updateMeter(p){
+  const box = $("#dmeter"), view = p && p[2].length > 1 && (G.snap.dm || []).find(v => v[0] === p[0]);
+  const show = !!(p && p[2].length > 1); if(box.hidden === show) box.hidden = !show;
+  if(!show) return;
+  if(DM.fold === null) DM.fold = MOBILE;
+  const fight = DM.tab === "fight", secs = view ? (fight ? view[1] : view[2]) : 0;
+  const rows = (view ? view[4] : p[2].map(s => [s, 0, 0])).map(([s, f, a]) => ({ s, v: fight ? f : a })).sort((x, y) => y.v - x.v);
+  const key = [DM.tab, DM.fold, secs, rows.map(r => r.s + ":" + r.v).join(","), view ? view[3] : 0].join("|");
+  if(key === DM.key) return; DM.key = key;
+  for(const b of box.querySelectorAll(".dmtab")){ const on = b.dataset.tab === DM.tab; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); }
+  box.classList.toggle("fold", DM.fold); $("#dmFold").textContent = DM.fold ? "▸" : "▾"; $("#dmFold").setAttribute("aria-expanded", String(!DM.fold));
+  const m = Math.floor(secs / 60), sec = Math.floor(secs % 60);
+  $("#dmTime").textContent = view ? `${m}:${String(sec).padStart(2, "0")}${fight && view[3] ? " ●" : ""}` : "";
+  const top = Math.max(1, rows[0] ? rows[0].v : 1), sum = rows.reduce((a, r) => a + r.v, 0) || 1;
+  $("#dmRows").innerHTML = rows.map((r, i) => {
+    const h = heroBySide(r.s), name = h ? h.name : "…", col = SIDE_COLOR[r.s] || (h && h.merc ? "#9fb4c8" : "#c9b27a"), dps = r.v / Math.max(1, secs);
+    return `<div class="dmrow${r.s === G.myTeam ? " me" : ""}"><i style="width:${(r.v / top * 100).toFixed(1)}%;background:${col}"></i>
+      <span class="dmn">${i + 1}. ${esc(name)}</span><span class="dmv">${fmtK(r.v)} <small>(${fmtK(dps)}/s · ${Math.round(r.v / sum * 100)}%)</small></span></div>`;
+  }).join("");
+}
+$("#dmeter").addEventListener("click", e => {
+  const tab = e.target.closest && e.target.closest(".dmtab");
+  if(tab){ DM.tab = tab.dataset.tab; try{ localStorage.setItem("rr.dmTab", DM.tab); }catch(_){} DM.key = ""; }
+  else if(e.target.closest && e.target.closest("#dmFold")){ DM.fold = !DM.fold; try{ localStorage.setItem("rr.dmFold", DM.fold ? "1" : "0"); }catch(_){} DM.key = ""; }
+  else if(e.target.closest && e.target.closest("#dmReset")){ command({ meterreset: 1 }); DM.key = ""; }
+  if(G && G.snap) updateMeter(myParty());
+});

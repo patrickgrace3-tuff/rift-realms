@@ -357,3 +357,21 @@ body.mobile .lootfeed{bottom:auto;top:40%;left:auto;right:calc(env(safe-area-ins
 body.mobile .dialog{bottom:8px;max-height:84vh;overflow:auto}
 body.mobile .modal .card{max-height:94vh;overflow:auto}
 body.mobile .bottom{bottom:calc(env(safe-area-inset-bottom,0px) + 6px)}
+
+/* ---------- Damage meter (08b-social.js) ---------- */
+.dmeter{position:absolute;right:max(16px,env(safe-area-inset-right));bottom:calc(env(safe-area-inset-bottom,0px) + 70px);width:300px;pointer-events:auto;background:rgba(11,15,23,.82);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-family:var(--num);color:var(--fg)}
+.dmeter[hidden]{display:none}
+.dmhead{display:flex;align-items:center;gap:4px}
+.dmtitle{font:600 12px var(--num);letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-right:2px}
+.dmtab,.dmx{background:transparent;border:1px solid transparent;border-radius:5px;color:var(--muted);font:600 11px var(--num);letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;cursor:pointer}
+.dmtab.on{color:var(--gold-2);border-color:var(--line);background:rgba(240,213,142,.08)}
+.dmx{font-size:14px;padding:0 5px}
+.dmtime{margin-left:auto;font:600 11px var(--num);color:var(--muted)}
+.dmrows{display:flex;flex-direction:column;gap:3px;margin-top:6px}
+.dmeter.fold .dmrows{display:none}
+.dmrow{position:relative;display:flex;justify-content:space-between;gap:8px;align-items:center;height:20px;padding:0 6px;border-radius:4px;background:rgba(255,255,255,.05);overflow:hidden;font:600 13px var(--num)}
+.dmrow i{position:absolute;left:0;top:0;bottom:0;opacity:.35;border-radius:4px}
+.dmrow.me{outline:1px solid rgba(240,213,142,.6)}
+.dmn,.dmv{position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px #000}
+.dmv small{color:var(--muted);font-weight:500}
+body.mobile .dmeter{right:auto;bottom:auto;left:max(12px,env(safe-area-inset-left));top:calc(env(safe-area-inset-top,0px) + 62px + 30vh + 8px);width:290px;transform:scale(.85);transform-origin:top left}

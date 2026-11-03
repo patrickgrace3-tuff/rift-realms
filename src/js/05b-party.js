@@ -9,6 +9,7 @@ const SIDE_COLOR = { blue: "#f0d58e", red: "#7fd3ff", green: "#7fe0a0", violet: 
 const MAX_PLAYERS = SIDES.length;
 const PARTY_MAX = 5;
 const SHARE_RANGE = 1600;  // party members this close to a kill share its XP, quest credit and rolls
+const METER_IDLE = 6;      // the damage meter's "fight" ends after this many seconds without the party hitting anything
 const ROLL_MIN = 2;        // Rare and better drops are rolled on
 const ROLL_TIME = 30;      // seconds to pick Need, Greed or Pass
 const INVITE_TIME = 60;
@@ -28,6 +29,7 @@ Object.assign(SIM, {
   // Party, roll and chat commands. Returns true if the command was one of these.
   socialInput(W, c, cmd){
     if(cmd.chat !== undefined){ SIM.chat(W, c, cmd.chat, cmd.ch); return true; }
+    if(cmd.meterreset){ const p = SIM.party(W, c); if(p) p.meter = null; return true; }
     if(cmd.pinvite !== undefined){ SIM.partyInvite(W, c, String(cmd.pinvite)); return true; }
     if(cmd.paccept !== undefined){ SIM.partyAccept(W, c, String(cmd.paccept)); return true; }
     if(cmd.pdecline !== undefined){ SIM.partyDecline(W, c, String(cmd.pdecline)); return true; }
@@ -146,8 +148,26 @@ Object.assign(SIM, {
     for(const r of W.rolls) if(W.t >= r.until || r.members.every(s => r.choices[s] || !W.heroes[s])) SIM.rollEnd(W, r);
     W.rolls = W.rolls.filter(r => !r.done);
   },
+  /* ---------- Damage meter ---------- */
+  // credit a party member (heroes and hired champions) with damage that landed; pets and shots count for their owner.
+  // A fight starts with the party's first hit and ends after METER_IDLE quiet seconds; "overall" runs until a reset.
+  meterHit(W, src, amount){
+    if(!src || !SIM.isHero(src) || !src.party || !(amount > 0)) return;
+    const p = W.parties[src.party]; if(!p) return;
+    const m = p.meter || (p.meter = { fight: {}, total: {}, start: W.t, last: -1e9, time: 0 });
+    const gap = W.t - m.last;
+    if(gap > METER_IDLE){ m.fight = {}; m.start = W.t; } else m.time += gap;   // overall time only counts while fighting
+    m.last = W.t;
+    m.fight[src.side] = (m.fight[src.side] || 0) + amount; m.total[src.side] = (m.total[src.side] || 0) + amount;
+  },
+  // [party, fight seconds, overall seconds, fight still going, [[side, fight damage, overall damage], ...]]
+  meterView(W, p){
+    const m = p.meter, live = W.t - m.last <= METER_IDLE, fightT = Math.max(1, (live ? W.t : m.last) - m.start), allT = Math.max(1, m.time + (live ? W.t - m.last : 0));
+    return [p.id, Math.round(fightT * 10) / 10, Math.round(allT * 10) / 10, live ? 1 : 0, p.members.map(s => [s, Math.round(m.fight[s] || 0), Math.round(m.total[s] || 0)])];
+  },
   socialSnapshot(W){
     return {
+      dm: Object.values(W.parties).filter(p => p.meter).map(p => SIM.meterView(W, p)),
       pt: Object.values(W.parties).map(p => [p.id, p.leader, p.members.slice()]),
       iv: W.invites.map(i => [i.from, i.to]),
       r: W.rolls.map(r => [r.id, r.item, Math.max(0, Math.ceil(r.until - W.t)), r.members, Object.keys(r.choices)]),

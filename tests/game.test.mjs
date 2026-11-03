@@ -1469,3 +1469,37 @@ test("move: clicking a house stops at its wall; clicking behind it walks around 
   const p = SIM.reachable(W, G.POND.x, G.POND.y, h.r); assert.ok(Math.hypot(p[0] - G.POND.x, p[1] - G.POND.y) >= G.POND.r * .62);
   const c = SIM.reachable(W, 300, 19000, h.r); const u = { x: c[0], y: c[1], r: h.r }; SIM.bound(W, u); assert.ok(Math.abs(u.x - c[0]) < 1 && Math.abs(u.y - c[1]) < 1, "a click past the cathedral's west wall lands inside it");
 });
+
+/* ---------- Damage meter ---------- */
+test("damage meter: a party (hired champions too) sees each member's damage this fight and overall; solo players see none", () => {
+  const W = SIM.create(), a = cathedralHero(W, "blue", GAREN_LIKE, 12), b = cathedralHero(W, "red", ARCHER, 12), solo = cathedralHero(W, "green", ARCHER, 12);
+  const wolf = () => { const m = SIM.spawnMob(W, "wolf", { x: 2000, y: 2000 }); m.hp = m.maxHp = 1000; return m; };
+  for(const h of [a, b, solo]){ h.x = 2000; h.y = 1800; }
+  // alone: nothing
+  SIM.damage(W, wolf(), 100, solo); assert.equal(SIM.snapshot(W).dm.length, 0, "no party, no meter");
+  SIM.input(W, "blue", { pinvite: "red" }); SIM.input(W, "red", { paccept: "blue" });
+  const w1 = wolf(); SIM.damage(W, w1, 300, a); SIM.damage(W, w1, 200, b);
+  let v = SIM.snapshot(W).dm[0], row = s => v[4].find(r => r[0] === s);
+  const dealt = r => r[1];
+  assert.ok(dealt(row("blue")) > 0 && dealt(row("red")) > 0 && dealt(row("blue")) > dealt(row("red")) * .5, "both are counted");
+  assert.ok(v[3] === 1, "the fight is on");
+  // overkill doesn't count: a 1000-health wolf can't give more than its health
+  const w2 = wolf(); w2.hp = 50; const before = row("blue")[2]; SIM.damage(W, w2, 5000, a); v = SIM.snapshot(W).dm[0];
+  assert.ok(row("blue")[2] - before <= 50 + 1e-6, "only the health it had left");
+  // a pause ends the fight; the next hit starts a new one, overall keeps adding up
+  for(let i = 0; i < 30 * (G.METER_IDLE + 1); i++) SIM.step(W, 1 / 30);
+  v = SIM.snapshot(W).dm[0]; assert.equal(v[3], 0, "the fight is over");
+  const all = row("blue")[2]; SIM.damage(W, wolf(), 100, a); v = SIM.snapshot(W).dm[0];
+  assert.ok(row("blue")[1] <= 100 && row("blue")[2] > all, "new fight, overall keeps counting");
+  assert.equal(row("red")[1], 0, "red hasn't hit anything this fight");
+  // hired champions count too (they're in your party), and anyone in the party can reset it
+  W.heroes.red.party = null; const p = SIM.party(W, a); p.members = p.members.filter(s => s !== "red");
+  a.coins = 99999; a.quests.rimewyrm = { state: "active", count: 0, flags: [] };
+  const yrsa = G.NPCS.find(n => n.id === "yrsa"); a.x = yrsa.x + 100; a.y = yrsa.y;
+  SIM.input(W, "blue", { hire: 1 }); const req = W.mercReqs.shift();
+  const merc = SIM.mercDone(W, "blue", req.roles.map(r => [r, MAGE()]))[0];
+  SIM.damage(W, wolf(), 150, merc); v = SIM.snapshot(W).dm[0];
+  assert.ok(row(merc.side) && row(merc.side)[1] > 0, "a hired champion shows on the meter");
+  SIM.input(W, "blue", { meterreset: 1 });
+  assert.equal(SIM.snapshot(W).dm.length, 0, "reset");
+});

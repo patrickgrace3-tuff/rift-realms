@@ -172,6 +172,7 @@ const SIM = {
     if(src && src.bot && src.skill && !src.merc) amount *= src.skill.dmg; // arena opponents hit softer at lower difficulty
     if(u.merc && u.merc.role === "tank" && !SIM.isHero(src || {})) amount *= 1 - MERCS.tankArmor; // a hired tank shrugs off blows
     if(SIM.isHero(u) && src && SIM.isHero(src) && u.duel){ amount = SIM.duelHit(W, u, src, amount); if(!u.duel){ SIM.fx(W, { k: "num", x: u.x, y: u.y, v: Math.round(amount), hero: 1, src: src.side, tgt: u.side }); return amount; } }
+    SIM.meterHit(W, src, Math.min(amount, u.hp));   // the party's damage meter (no overkill)
     u.hp -= amount;
     SIM.fx(W, { k: "num", x: u.x, y: u.y, v: Math.round(amount), hero: SIM.isHero(u) ? 1 : 0, src: src && src.side ? src.side : "", tgt: SIM.isHero(u) ? u.side : "" });
     if(u.hp > 0) return amount;
